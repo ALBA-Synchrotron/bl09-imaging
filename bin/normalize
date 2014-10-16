@@ -1,0 +1,75 @@
+#!/usr/bin/python
+
+from txm2nexuslib import recons
+from txm2nexuslib import specnorm
+from txm2nexuslib import mosaicnorm
+import argparse
+
+
+
+class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
+    pass
+    
+    
+#Normalization script (Tomos, Spectroscopy images, or Mosaics)
+def main():
+    parser = argparse.ArgumentParser(description="Normalize the tomography. \n" + 
+    "- TOMO normalization: with always same monochromator Energy: \n" +
+    "NormalizedTomographyImage[i] = TomographyImage[i]*ExpTimeFF[i]*current[0]/AvgFlatfield*ExpTime[i]*current[i] \n" +
+    "\n- SPECTROSCOPY normalization: variation of energy during the acquisition:\n" +
+    "NormalizedSpectroscopyImage[i] = image[i]*exposureTimeFF[i]*machineCurrrentFF[i] / FF[i]*exposureTimeImage[i]*machineCurrentImage[i] \n",
+    formatter_class=CustomFormatter)
+
+    parser.add_argument('inputfile', type=str, default=None,
+                   help='Enter hdf5 file which contains the information of both tomography and flatfield.')
+
+    parser.add_argument('-s', '--spectroscopy', type=bool, default=0, 
+               help='Constant energy tomo normalization (0) or spectroscopy normalization (-s=1).')   
+   
+    parser.add_argument('-m', '--mosaicnorm', type=bool, default=0, 
+           help='Mosaic normalization using a given FF (-m=1).')  
+    
+    parser.add_argument('-r', '--ratio', type=bool, default=1, 
+           help= 'ratio = exp_time_mosaic/exp_time_FF.\n' +
+                 'Exposure times ratio. \n' +
+                 'This option can be used only when normalizing mosaics.')
+               
+    parser.add_argument('-a', '--avgtomnorm', type=bool, default=0, 
+               help='Indicate if we want to obtain the average of the normalized images (-a=1).\n' +
+                    'Available only for Tomo normalization.')
+
+    ######
+    parser.add_argument('-d', '--diffraction', type=bool, default=0, 
+           help='Correct diffraction pattern with external given avgFF (-d=1).')
+    ######
+                          
+    args = parser.parse_args()
+    
+    if args.mosaicnorm == 1:
+        print("\nNormalizing Mosaic")
+        normalize_object = mosaicnorm.MosaicNormalize(args.inputfile, ratio=args.ratio)
+        normalize_object.normalizeMosaic()  
+        
+    else:
+        if args.spectroscopy == 0:
+            print("\nNormalizing Tomography images")
+            """ We reconstruct the tomography using the tomography images, 
+            the FF (flatfield) images, the experimental times of FF and images, 
+            and the machine current for each image."""
+            #########
+            normalize_object = recons.recons_normalize(args.inputfile, args.avgtomnorm, args.diffraction)
+            normalize_object.normalize_tomo()
+            #########
+        else:
+            print("\nNormalizing Spectroscopy images")
+            normalize_object = specnorm.SpecNormalize(args.inputfile)
+            normalize_object.normalizeSpec()
+
+  
+if __name__ == "__main__":
+    main()
+
+
+
+
+
