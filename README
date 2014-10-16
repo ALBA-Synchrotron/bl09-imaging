@@ -1,0 +1,15 @@
+Applications/txrm2nexus/src/9.0:
+Programs available in this packet:
+- txrm2nexus
+- mosaic2nexus
+- normalize
+- autotxrm2nexus
+- automosaic2nexus
+- autonormalize
+
+txrm2nexus is a file format converter which converts .txrm tomography files (output of the TXM microscope at mistral), to NeXus standard files compliant with the NXtomo nexus definition. This application is closely related with mosaic2nexus which converts the .xrm mosaics to NeXus. Both programs txrm2nexus and mosaic2nexus are included in this packet. A script called autotxrm2nexus is also available in the packet, and it allows to automatize the conversion of all tomographies taken during one day of experiments. Another script called automosaic2nexus is also available in the packet, and it allows to automatize the conversion of all mosaics taken during one day of experiments.
+A script to normalize tomographies using the FF and a ratio number (ratio between acquisition time of Tomo and of FF) is also provided.
+A script called autonormalize has been created in order to automate the normalizing of tomographies taken during a full day of experiments.
+
+A script to normalize spectroscopies: using the spectroscopic images, the FF images, the machine_current for each spectrocopic image, the machine_current for each FF image and the exposure times for each spectroscopic and FF image.
+A new option in the script normalize has been added, making it possible to normalize mosaics (option -m=1). FF is now saved in the hdf5 created thanks to mosaic2nexus (hdf5 that contains the raw data)
