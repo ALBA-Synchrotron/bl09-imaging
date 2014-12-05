@@ -46,9 +46,13 @@ def main():
                 'or spectroscopy normalization (-s=1).')    
 
     parser.add_argument('-g', '--gaussianblur', type=int, default=0, 
-           help='gaussian filtering for avoiding diffraction artifacts\n' +
-                'Default=0 -> gaussian filter not applied\n'+
+           help='gaussian filtering for avoiding diffraction artifacts. \n' +
+                'Default=0 -> gaussian filter not applied. \n' +
                 'Integer not 0: Indicate the std as integer. Ex: -g=5')
+
+    parser.add_argument('-f', '--avgff', type=int, default=1, 
+           help='Normalize using avergeFF (-f=1); or using ' +
+                'single FF (FFimage 0) (-f=0).')
 
     parser.add_argument('-m', '--mosaicnorm', type=int, default=0, 
            help='Mosaic normalization using a given FF (-m=1).')  
@@ -82,7 +86,8 @@ def main():
             the FF (flatfield) images, the experimental times of FF, images, 
             and the machine current for each image."""
             normalize_object = recons.recons_normalize(args.inputfile, 
-                        args.avgtomnorm, args.gaussianblur, args.diffraction)
+                        args.avgtomnorm, args.gaussianblur, args.avgff, 
+                        args.diffraction)
             normalize_object.normalize_tomo()
         else:
             print("\nNormalizing Spectroscopy images")
