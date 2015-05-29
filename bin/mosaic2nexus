@@ -3,7 +3,7 @@
 """
 (C) Copyright 2014 Marc Rosanes
 The program is distributed under the terms of the 
-GNU General Public License (or the Lesser GPL).
+GNU General Public License.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -29,31 +29,40 @@ def main():
     print(datetime.datetime.today())
     print("\n")
 
-    parser = argparse.ArgumentParser(description='Converts a file from .txrm to a NeXus complying .hdf5 file.')
+    parser = argparse.ArgumentParser(description = 'Converts a file from ' +
+                                                   '.xrm to a NeXus ' +  
+                                                   'complying .hdf5 file.')
 
-    parser.add_argument('files', metavar='fname',type=str, nargs='+', default=None,
-                   help='Tomography, BrightField and DarkField txrm files in the order that have to be processed')   
+    parser.add_argument('files', metavar='fname',type=str, nargs='+', 
+                        default=None,
+                        help = "Tomography, BrightField and DarkField " + 
+                               "xrm files in the order that have to be " +
+                               "processed")   
     parser.add_argument('-o','--files_order', type=str, default='s', 
-        help="Indicates the order in which the sample file 's', bright fields 'b' and dark fields 'd' have to be processed")   
+                        help="Indicates the order in which the sample " + 
+                             "file 's', bright fields 'b' and dark " +
+                             "fields 'd' have to be processed")   
     parser.add_argument('--title', type=str, default='X-ray tomography', 
-        help="Sets the title of the tomography")             
+                        help="Sets the title of the tomography")             
     parser.add_argument('--instrument-name', type=str, default='BL09 @ ALBA', 
-        help="Sets the instrument name")
+                        help="Sets the instrument name")
     parser.add_argument('--source-name', type=str, default='ALBA', 
-        help="Sets the source name")
-    parser.add_argument('--source-type', type=str, default='Synchrotron X-ray Source', 
-        help="Sets the source type")
+                        help="Sets the source name")
+    parser.add_argument('--source-type', type=str, 
+                        default='Synchrotron X-ray Source', 
+                        help="Sets the source type")
     parser.add_argument('--source-probe', type=str, default='x-ray', 
-        help="Sets the source probe. Possible options are: 'x-ray', 'neutron', 'electron'")        
+        help=("Sets the source probe. " +  
+              "Possible options are: 'x-ray', 'neutron', 'electron'"))        
     parser.add_argument('--sample-name', type=str, default='Unknown', 
         help="Sets the sample name") 
 
     args = parser.parse_args()
 
     nexusmosaic = mosaicnex.mosaicnex(args.files, args.files_order, args.title, 
-                            args.source_name, args.source_type, args.source_probe, 
-                            args.instrument_name, args.sample_name)
-
+                                      args.source_name, args.source_type, 
+                                      args.source_probe, args.instrument_name, 
+                                      args.sample_name)
 
     if (nexusmosaic.exitprogram != 1):
         nexusmosaic.NXmosaic_structure()  
@@ -62,13 +71,8 @@ def main():
     else:
         return 
 
-
-
     print(datetime.datetime.today())
     print("\n")
-
-    
-
 
 if __name__ == "__main__":
     main()
