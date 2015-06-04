@@ -35,15 +35,15 @@ def main():
 
     parser.add_argument('files', metavar='fname',type=str, nargs='+', 
                         default=None,
-                        help = "Tomography, BrightField and DarkField " + 
+                        help = "Mosaic, BrightField and DarkField " + 
                                "xrm files in the order that have to be " +
                                "processed")   
     parser.add_argument('-o','--files_order', type=str, default='s', 
                         help="Indicates the order in which the sample " + 
                              "file 's', bright fields 'b' and dark " +
                              "fields 'd' have to be processed")   
-    parser.add_argument('--title', type=str, default='X-ray tomography', 
-                        help="Sets the title of the tomography")             
+    parser.add_argument('--title', type=str, default='X-ray Mosaic', 
+                        help="Sets the title of the mosaic")             
     parser.add_argument('--instrument-name', type=str, default='BL09 @ ALBA', 
                         help="Sets the instrument name")
     parser.add_argument('--source-name', type=str, default='ALBA', 
