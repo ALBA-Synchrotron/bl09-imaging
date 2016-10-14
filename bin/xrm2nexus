@@ -18,8 +18,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
-import os
-from txm2nexuslib import txrmnex
+import os, sys
 import datetime
 import argparse
 from txm2nexuslib.txrmnex import xrmNXtomo, xrmReader
@@ -30,60 +29,87 @@ def main():
     print(datetime.datetime.today())
     print("\n")
 
-    parser = argparse.ArgumentParser(description='Converts a file from .txrm to a NeXus complying .hdf5 file.')
+    description = 'Converts the existing .xrm files of a directory to' \
+                  'NeXus complying .hdf5 files.'
+    parser = argparse.ArgumentParser(description=description)
 
-    parser.add_argument('files', metavar='fname',type=str, nargs='+', default=None,
-                   help='Tomography, BrightField and DarkField txrm files in the order that have to be processed')   
-    parser.add_argument('-o','--files_order', type=str, default='s', 
-        help="Indicates the order in which the sample file 's', bright fields 'b' and dark fields 'd' have to be processed")   
-    parser.add_argument('-zi','--zero-deg-in', type=str, default=None, 
-        help="Image at 0 degrees taken before the tomography acquisition.")
-    parser.add_argument('-zf','--zero-deg-final', type=str, default=None, 
-        help="Image at 0 degrees taken at the end of the tomography acquisition.")  
-    parser.add_argument('--title', type=str, default='X-ray tomography', 
-        help="Sets the title of the tomography")             
-    parser.add_argument('--source-name', type=str, default='ALBA', 
-        help="Sets the source name")
-    parser.add_argument('--source-type', type=str, default='Synchrotron X-ray Source', 
-        help="Sets the source type")
-    parser.add_argument('--source-probe', type=str, default='x-ray', 
-        help="Sets the source probe. Possible options are: 'x-ray', 'neutron', 'electron'")  
-    parser.add_argument('--instrument-name', type=str, default='BL09 @ ALBA', 
-        help="Sets the instrument name")      
-    parser.add_argument('--sample-name', type=str, default='Unknown', 
-        help="Sets the sample name")
+    parser.add_argument('input_dir_name', metavar='path', type=str,
+                        help='Directory that has the Tomography, BrightField '
+                        'and DarkField xrm files')
+    parser.add_argument('output_dir_name', metavar='path', type=str,
+                        default=None,
+                        help='Directory where the hdf5 files will be created. '
+                        'If it is not given the input dir will be used')
+    parser.add_argument('--title', type=str, default='X-ray tomography',
+                        help="Sets the title of the tomography")
+    parser.add_argument('--source-name', type=str, default='ALBA',
+                        help="Sets the source name")
+    parser.add_argument('--source-type', type=str,
+                        default='Synchrotron X-ray Source',
+                        help="Sets the source type")
+    parser.add_argument('--source-probe', type=str, default='x-ray',
+                        help="Sets the source probe. Possible options are:"
+                             "'x-ray', 'neutron','electron'")
+    parser.add_argument('--instrument-name', type=str, default='BL09 @ ALBA',
+                        help="Sets the instrument name")
 
     args = parser.parse_args()
-    
 
-    nexus = txrmnex.txrmNXtomo(args.files, args.files_order, args.zero_deg_in, args.zero_deg_final, args.title, 
-                            args.source_name, args.source_type, args.source_probe, args.instrument_name, 
-                            args.sample_name)
+    dir_name = args.input_dir_name
+    output_dir = args.output_dir_name
+    samples = {}
+    # Splits the files by samples
+    for file in os.listdir(dir_name):
+        fname = os.path.join(dir_name, file)
+        if not os.path.isfile(fname) or fname.rsplit('.', 1)[1] != 'xrm':
+            continue
+        tomo_pos = file.find('_tomo')
+        has_ff = file.find('_FF_') != -1
+        sample_name = file[:tomo_pos]
+        tomo_name = file[tomo_pos+1:tomo_pos+6]
+        if not samples.has_key(sample_name):
+            samples[sample_name] = {}
 
+        if not samples[sample_name].has_key(tomo_name):
+            samples[sample_name][tomo_name] = {'tomo': [], 'ff': []}
 
-    if (nexus.exitprogram != 1):
-        nexus.NXtomo_structure()
-        dir_name = args.files[args.files_order.index("s")]
-        reader = xrmReader(dir_name)
-        translator = xrmNXtomo(reader, None)
-        translator.translate()
-    else:
-        return 
+        if not has_ff:
+            samples[sample_name][tomo_name]['tomo'].append(fname)
+        else:
+            samples[sample_name][tomo_name]['ff'].append(fname)
+    # Generate the hdf5 files
+    for sample in samples.keys():
+        tomos = samples[sample]
+        for tomo in tomos.keys():
+            tomo_files = samples[sample][tomo]['tomo']
+            ff_files = samples[sample][tomo]['ff']
+            # sort files
+            tomo_files.sort(key=lambda x: os.path.getmtime(x))
+            ff_files.sort(key=lambda x: os.path.getmtime(x))
+            reader = xrmReader(tomo_files)
+            ffreader = xrmReader(ff_files)
+            xrm = xrmNXtomo(reader, ffreader,
+                            'sb', # TODO This allow to discard xrm files. It is needed?
+                            'xrm2nexus',
+                            '1.0', #TODO Add a not hardcode version number
+                            program_args=sys.argv[1:], # TODO show default args?
+                            hdf5_output_path=output_dir,
+                            title=args.title,
+                            zero_deg_in=None, # TODO Not well implemented
+                            zero_deg_final=None, # TODO Not well implemented
+                            sourcename=args.source_name,
+                            sourcetype=args.source_type,
+                            sourceprobe=args.source_probe,
+                            instrument=args.instrument_name,
+                            #sample= # TODO has sense?
+                            )
+            xrm.convert_metadata()
+            xrm.convert_tomography()
 
-    
     print("\n")    
     print(datetime.datetime.today())
     print("\n")
 
-    
-
 
 if __name__ == "__main__":
     main()
-
-    
-    
-    
-    
-
-   
