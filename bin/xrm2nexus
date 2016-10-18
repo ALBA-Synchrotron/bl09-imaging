@@ -29,17 +29,16 @@ def main():
     print(datetime.datetime.today())
     print("\n")
 
-    description = 'Converts the existing .xrm files of a directory to' \
-                  'NeXus complying .hdf5 files.'
+    description = 'Create a tomo hdf5 file per each group of existing xrm ' \
+                  'files in the given directory'
     parser = argparse.ArgumentParser(description=description)
 
-    parser.add_argument('input_dir_name', metavar='path', type=str,
+    parser.add_argument('input_dir_name', metavar='input path', type=str,
                         help='Directory that has the Tomography, BrightField '
                         'and DarkField xrm files')
-    parser.add_argument('output_dir_name', metavar='path', type=str,
-                        default=None,
+    parser.add_argument('--output-dir-name', type=str, default=None,
                         help='Directory where the hdf5 files will be created. '
-                        'If it is not given the input dir will be used')
+                             'If it is not given the input dir will be used')
     parser.add_argument('--title', type=str, default='X-ray tomography',
                         help="Sets the title of the tomography")
     parser.add_argument('--source-name', type=str, default='ALBA',
@@ -83,13 +82,18 @@ def main():
         for tomo in tomos.keys():
             tomo_files = samples[sample][tomo]['tomo']
             ff_files = samples[sample][tomo]['ff']
+            if len(ff_files) == 0:
+                print "WARNING: %s of Sample: %s have not BrightField files. " \
+                      "HDF5 file can not be created for this tomo" %\
+                      (tomo, sample)
+                continue
             # sort files
             tomo_files.sort(key=lambda x: os.path.getmtime(x))
             ff_files.sort(key=lambda x: os.path.getmtime(x))
             reader = xrmReader(tomo_files)
             ffreader = xrmReader(ff_files)
             xrm = xrmNXtomo(reader, ffreader,
-                            'sb', # TODO This allow to discard xrm files. It is needed?
+                            'sb', # TODO This allow to discard xrm files. Not need
                             'xrm2nexus',
                             '1.0', #TODO Add a not hardcode version number
                             program_args=sys.argv[1:], # TODO show default args?
