@@ -23,6 +23,31 @@ import datetime
 import argparse
 from txm2nexuslib.txrmnex import xrmNXtomo, xrmReader
 
+def get_samples(dir_name):
+    samples = {}
+    # Splits the files by samples
+    for file in os.listdir(dir_name):
+        fname = os.path.join(dir_name, file)
+        if not os.path.isfile(fname) or fname.rsplit('.', 1)[1] != 'xrm':
+            continue
+
+        splited_name = file.split('_')
+        has_ff = file.find('_FF_') != -1
+
+        sample_name = "{0}_{1}_{2}".format(splited_name[0],
+                                           splited_name[1],
+                                           splited_name[2])
+        if not samples.has_key(sample_name):
+            samples[sample_name] = {'tomos': {}, 'ff': []}
+        if not has_ff:
+            tomo_name = splited_name[-1]
+            if not samples[sample_name]['tomos'].has_key(tomo_name):
+                samples[sample_name]['tomos'][tomo_name] = []
+            samples[sample_name]['tomos'][tomo_name].append(fname)
+        else:
+            samples[sample_name]['ff'].append(fname)
+    return samples
+
 def main():
 
     print("\n")
@@ -56,32 +81,16 @@ def main():
 
     dir_name = args.input_dir_name
     output_dir = args.output_dir_name
-    samples = {}
-    # Splits the files by samples
-    for file in os.listdir(dir_name):
-        fname = os.path.join(dir_name, file)
-        if not os.path.isfile(fname) or fname.rsplit('.', 1)[1] != 'xrm':
-            continue
-        tomo_pos = file.find('_tomo')
-        has_ff = file.find('_FF_') != -1
-        sample_name = file[:tomo_pos]
-        tomo_name = file[tomo_pos+1:tomo_pos+6]
-        if not samples.has_key(sample_name):
-            samples[sample_name] = {}
-
-        if not samples[sample_name].has_key(tomo_name):
-            samples[sample_name][tomo_name] = {'tomo': [], 'ff': []}
-
-        if not has_ff:
-            samples[sample_name][tomo_name]['tomo'].append(fname)
-        else:
-            samples[sample_name][tomo_name]['ff'].append(fname)
+    samples = get_samples(dir_name)
     # Generate the hdf5 files
     for sample in samples.keys():
-        tomos = samples[sample]
+        tomos = samples[sample]['tomos']
+        # Create FF reader
+        ff_files = samples[sample]['ff']
+        ff_files.sort(key=lambda x: os.path.getmtime(x))
+        ffreader = xrmReader(ff_files)
         for tomo in tomos.keys():
-            tomo_files = samples[sample][tomo]['tomo']
-            ff_files = samples[sample][tomo]['ff']
+            tomo_files = samples[sample]['tomos'][tomo]
             if len(ff_files) == 0:
                 print "WARNING: %s of Sample: %s have not BrightField files. " \
                       "HDF5 file can not be created for this tomo" %\
@@ -89,9 +98,9 @@ def main():
                 continue
             # sort files
             tomo_files.sort(key=lambda x: os.path.getmtime(x))
-            ff_files.sort(key=lambda x: os.path.getmtime(x))
+
             reader = xrmReader(tomo_files)
-            ffreader = xrmReader(ff_files)
+
             xrm = xrmNXtomo(reader, ffreader,
                             'sb', # TODO This allow to discard xrm files. Not need
                             'xrm2nexus',
