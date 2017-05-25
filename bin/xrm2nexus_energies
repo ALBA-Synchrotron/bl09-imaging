@@ -21,7 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import os, sys
 import datetime
 import argparse
-from txm2nexuslib.txrmnex import xrmNXtomo, xrmReader
+from txm2nexuslib.txrmnex_energies import xrmNXtomo, xrmReader
 
 
 def get_samples(dir_name):
