@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 """
-(C) Copyright 2014 Carlos Falcon
+(C) Copyright 2016 Carlos Falcon
 The program is distributed under the terms of the 
 GNU General Public License (or the Lesser GPL).
 
@@ -23,6 +23,7 @@ import datetime
 import argparse
 from txm2nexuslib.txrmnex import xrmNXtomo, xrmReader
 
+
 def get_samples(dir_name):
     samples = {}
     # Splits the files by samples
@@ -31,22 +32,25 @@ def get_samples(dir_name):
         if not os.path.isfile(fname) or fname.rsplit('.', 1)[1] != 'xrm':
             continue
 
-        splited_name = file.split('_')
+        splitted_name = file.split('_')
         has_ff = file.find('_FF_') != -1
 
-        sample_name = "{0}_{1}_{2}".format(splited_name[0],
-                                           splited_name[1],
-                                           splited_name[2])
+        sample_name = "{0}_{1}_{2}".format(splitted_name[0],
+                                           splitted_name[1],
+                                           splitted_name[2],
+                                           )
         if not samples.has_key(sample_name):
             samples[sample_name] = {'tomos': {}, 'ff': []}
         if not has_ff:
-            tomo_name = splited_name[-1]
+            tomo_name = splitted_name[-1]
             if not samples[sample_name]['tomos'].has_key(tomo_name):
                 samples[sample_name]['tomos'][tomo_name] = []
             samples[sample_name]['tomos'][tomo_name].append(fname)
         else:
             samples[sample_name]['ff'].append(fname)
+
     return samples
+
 
 def main():
 
