@@ -91,8 +91,7 @@ def main():
             normalize_object.normalize_tomo()
         else:
             print("\nNormalizing Spectroscopy images")
-            normalize_object = specnorm.SpecNormalize(args.inputfile,
-                                                      args.gaussianblur)
+            normalize_object = specnorm.SpecNormalize(args.inputfile)
             normalize_object.normalizeSpec()
 
   
