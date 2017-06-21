@@ -129,7 +129,6 @@ class recons_normalize:
         num_exptimes_tomo = len(self.exposuretimes_tomo)
 
         # Main Data
-        sample_grp = instrument_grp["sample"]
         sample_image_data = instrument_grp["sample"]["data"]
 
         # Shape information of data image stack
