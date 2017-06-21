@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 """
-(C) Copyright 2014 Marc Rosanes
+(C) Copyright 2014-2017 Marc Rosanes
 The program is distributed under the terms of the 
 GNU General Public License (or the Lesser GPL).
 
@@ -19,32 +19,31 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+
 import numpy as np
-import nxs
-import sys
-import struct
-import os
+import h5py
+
 
 class SpecNormalize:
 
-    def __init__(self, inputfile, gaussianblur):
+    def __init__(self, inputfile):
         #Note: FF is equivalent to brightfield 
-    
-        filename_nexus = inputfile        
-        self.input_nexusfile = nxs.open(filename_nexus, 'r')
 
+        # Input File: HDF5 Raw Data
+        filename_nexus = inputfile
+        self.input_nexusfile = h5py.File(filename_nexus, 'r')
+
+        # Output File: HDF5 Normalized Data
         outputfilehdf5 = inputfile.split('.')[0]+'_specnorm'+'.hdf5'
-        
-        self.spectnorm = nxs.NXentry(name= "SpecNormalized")
-        self.spectnorm.save(outputfilehdf5, 'w5')
-        
+        self.spectnorm = h5py.File(outputfilehdf5, 'w')
+        self.norm_grp = self.spectnorm.create_group("SpecNormalized")
+        self.norm_grp.attrs['NX_class'] = "NXentry"
+
         # Spectrographic images
         self.nFrames = 0                
         self.numrows = 0
         self.numcols = 0
         self.dim_imagesSpec = (0, 0, 1)
-        self.numcurrents = 0
-        self.numexptimes = 0
         self.x_pixel_size = 0
         self.y_pixel_size = 0    
         self.currents = list()
@@ -57,13 +56,9 @@ class SpecNormalize:
         self.numrowsFF = 0
         self.numcolsFF = 0
         self.dim_imagesFF = (1, 1, 0)
-        self.numcurrentsFF = 0
-        self.numexptimesFF = 0
         self.currents_FF = list()
         self.exptimes_FF = list()
-        
-        self.normalizedspectrum_singleimage = 0
-        
+
         self.bool_currents_exist = 0
         self.bool_exptimes_exist = 0
         self.bool_currentsFF_exist = 0
@@ -74,232 +69,156 @@ class SpecNormalize:
 
     def normalizeSpec(self):
 
-        self.input_nexusfile.opengroup('NXtomo')
+        nxtomo_grp = self.input_nexusfile["NXtomo"]
+        instrument_grp = nxtomo_grp["instrument"]
 
-        #############################################    
-        ## Retrieving important data from angles   ##
-        #############################################
-        self.input_nexusfile.opengroup('sample')
-        try: 
-            self.input_nexusfile.opendata('rotation_angle')
-            self.angles = self.input_nexusfile.getdata()
-            self.input_nexusfile.closedata()
-            self.spectnorm['rotation_angle'] = self.angles
-            self.spectnorm['rotation_angle'].write()  
+        #####################
+        # Retrieving Angles #
+        #####################
+        try:
+            self.angles = nxtomo_grp["sample"]["rotation_angle"].value
+            self.norm_grp.create_dataset("rotation_angle", data=self.angles)
         except:
-            print("\nAngles could NOT be extracted.\n")
-            try:
-                self.input_nexusfile.closedata()
-            except:
-                pass               
-        self.input_nexusfile.closegroup()
+            print("\nAngles could not be extracted.\n")
 
-        #### Opening group instrument ###############
-        self.input_nexusfile.opengroup('instrument')
-    
-        #############################################    
-        ## Retrieving important data from energies ##
-        #############################################
-        self.input_nexusfile.opengroup('source')
-        try: 
-            self.input_nexusfile.opendata('energy')
-            self.energies = self.input_nexusfile.getdata()
-            self.input_nexusfile.closedata()
-            self.spectnorm['energy'] = self.energies
-            self.spectnorm['energy'].write()  
+        #######################
+        # Retrieving Energies #
+        #######################
+        try:
+            self.energies = instrument_grp["source"]["energy"].value
+            self.norm_grp.create_dataset("energy", data=self.energies)
         except:
-            print("\nEnergies could NOT be extracted.\n")
-            try:
-                self.input_nexusfile.closedata()
-            except:
-                pass
-        self.input_nexusfile.closegroup()       
-                
-        ###########################################    
-        ## Retrieving important data from sample ##
-        ###########################################
-        self.input_nexusfile.opengroup('sample')
-        #### pixel_sizes ############################
-        try: 
-            self.input_nexusfile.opendata('x_pixel_size')
-            self.x_pixel_size = self.input_nexusfile.getdata()
-            self.input_nexusfile.closedata()
-            self.input_nexusfile.opendata('y_pixel_size')
-            self.y_pixel_size = self.input_nexusfile.getdata()
-            self.input_nexusfile.closedata()
-            self.spectnorm['x_pixel_size'] = self.x_pixel_size
-            self.spectnorm['x_pixel_size'].write()
-            self.spectnorm['y_pixel_size'] = self.y_pixel_size
-            self.spectnorm['y_pixel_size'].write()    
+            print("\nEnergies could not be extracted.\n")
+
+        #########################
+        # Retrieving Pixel Size #
+        #########################
+        try:
+            self.x_pixel_size = instrument_grp["sample"]["x_pixel_size"].value
+            self.y_pixel_size = instrument_grp["sample"]["y_pixel_size"].value
+            self.norm_grp.create_dataset("x_pixel_size", data=self.x_pixel_size)
+            self.norm_grp.create_dataset("y_pixel_size", data=self.y_pixel_size)
         except:
             print("\nPixel size could NOT be extracted.\n")
-            try:
-                self.input_nexusfile.closedata()
-            except:
-                pass   
-	    ##############################################
 
+        ####################################
+        # Dimensions from Data Image Stack #
+        ####################################
+        # Main Image Stack DataSet
+        sample_image_data = instrument_grp["sample"]["data"]
 
-        self.input_nexusfile.opendata('data')
-        self.infoshape = self.input_nexusfile.getinfo()
-        self.dim_imagesSpec = (self.infoshape[0][0], self.infoshape[0][1], 
-                               self.infoshape[0][2])
-        self.nFrames = self.infoshape[0][0]
-        self.numrows = self.infoshape[0][1]
-        self.numcols = self.infoshape[0][2]
+        # Shape information of data image stack
+        self.dim_imagesSpec = sample_image_data.shape
+        self.nFrames = self.dim_imagesSpec[0]
+        self.numrows = self.dim_imagesSpec[1]
+        self.numcols = self.dim_imagesSpec[2]
         print("Dimensions spectroscopy: {0}".format(self.dim_imagesSpec))
-        self.input_nexusfile.closedata()
-                
-        # Getting the image Currents
-        try: 
-            self.input_nexusfile.opendata('current')
-            self.currents = self.input_nexusfile.getdata()
-            self.numcurrents = len(self.currents)
-            self.bool_currents_exist = 1
-            self.input_nexusfile.closedata()
-            self.spectnorm['Currents'] = self.currents
-            self.spectnorm['Currents'].write()  
-        except:
-            self.bool_currents_exist = 0
-            try:
-                self.input_nexusfile.closedata()
-            except:
-                pass
-        
-        # Getting the image Exposure Times
-        try: 
-            self.input_nexusfile.opendata('ExpTimes')
-            self.exptimes = self.input_nexusfile.getdata()
-            self.numexptimes  = len(self.exptimes)
+
+        ##################################
+        # Dimensions from FF Image Stack #
+        ##################################
+        # FF Image Stack Dataset
+        FF_image_data = instrument_grp["bright_field"]["data"]
+
+        # Shape information of FF image stack
+        self.dim_imagesFF = FF_image_data.shape
+        self.nFramesFF = self.dim_imagesFF[0]
+        self.numrowsFF = self.dim_imagesFF[1]
+        self.numcolsFF = self.dim_imagesFF[2]
+        print("Dimensions FF: {0}".format(self.dim_imagesFF))
+
+        #############################
+        # Retrieving Exposure Times #
+        #############################
+        # Images Exposure Times
+        try:
+            self.exptimes = instrument_grp["sample"]["ExpTimes"].value
+            self.norm_grp.create_dataset("ExpTimes", data=self.exptimes)
             self.bool_exptimes_exist = 1
-            self.input_nexusfile.closedata() 
-            self.spectnorm['ExpTimes'] = self.exptimes
-            self.spectnorm['ExpTimes'].write() 
         except:
             self.bool_exptimes_exist = 0
-            try:
-                self.input_nexusfile.closedata()
-            except:
-                pass
-                
-        self.input_nexusfile.closegroup()    
-        
-        
-        ###########################################    
-        ## Retrieving important data from FF     ##
-        ###########################################
-        self.input_nexusfile.opengroup('bright_field')
-        
-        self.input_nexusfile.opendata('data')
-        self.infoshapeFF = self.input_nexusfile.getinfo()
-        self.dim_imagesFF = (self.infoshapeFF[0][0], self.infoshapeFF[0][1], 
-                             self.infoshapeFF[0][2])
-        self.nFramesFF = self.infoshapeFF[0][0]
-        self.numrowsFF = self.infoshapeFF[0][1]
-        self.numcolsFF = self.infoshapeFF[0][2]
-        print("Dimensions FF: {0}".format(self.dim_imagesFF))
-        self.input_nexusfile.closedata()
-        
-        # Getting the FF Currents
-        try: 
-            self.input_nexusfile.opendata('current')
-            self.currents_FF = self.input_nexusfile.getdata()
-            self.numcurrentsFF = len(self.currents_FF)
-            self.bool_currentsFF_exist = 1
-            self.input_nexusfile.closedata()
-            self.spectnorm['CurrentsFF'] = self.currents_FF
-            self.spectnorm['CurrentsFF'].write()  
-        except:
-            self.bool_currentsFF_exist = 0
-            try:
-                self.input_nexusfile.closedata()
-            except:
-                pass
-                         
-        # Getting the FF Exposure Times
-        try: 
-            self.input_nexusfile.opendata('ExpTimes')
-            self.exptimes_FF = self.input_nexusfile.getdata()
-            self.numexptimesFF  = len(self.exptimes_FF)
+            print("\nExposure Times could not be extracted.\n")
+
+        # FFs Exposure Times
+        try:
+            self.exptimes_FF = instrument_grp["bright_field"]["ExpTimes"].value
+            self.norm_grp.create_dataset("ExpTimesFF", data=self.exptimes_FF)
             self.bool_exptimesFF_exist = 1
-            self.input_nexusfile.closedata() 
-            self.spectnorm['ExpTimesFF'] = self.exptimes_FF
-            self.spectnorm['ExpTimesFF'].write() 
+        except:
+            self.bool_exptimesFF_exist = 0
+            print("\nFF FF Exposure Times could not be extracted.\n")
+
+        #######################
+        # Retrieving Currents #
+        #######################
+        # Images Currents
+        try:
+            self.currents = instrument_grp["sample"]["current"].value
+            self.norm_grp.create_dataset("Currents", data=self.currents)
+            self.bool_currents_exist = 1
         except:
             self.bool_currents_exist = 0
-            try:
-                self.input_nexusfile.closedata()
-            except:
-                pass        
-        
-        self.input_nexusfile.closegroup() 
-          
-            
+            print("\nCurrents could not be extracted.\n")
 
-        ###########################################    
-        ## Normalization                         ##
-        ###########################################   
+        # FFs Currents
+        try:
+            self.currents_FF = instrument_grp["bright_field"]["current"].value
+            self.norm_grp.create_dataset("CurrentsFF", data=self.currents_FF)
+            self.bool_currentsFF_exist = 1
+        except:
+            self.bool_currentsFF_exist = 0
+            print("\nFF Currents could not be extracted.\n")
+
+
+        #########################################
+        # Normalization                         #
+        #########################################
         if (self.bool_currents_exist == 1 and self.bool_currentsFF_exist == 1
             and self.bool_exptimes_exist == 1  
             and self.bool_exptimesFF_exist == 1 
             and self.dim_imagesFF == self.dim_imagesSpec):
-            
+
             print("\nInformation about currents and exposure times " 
                   "(for sampleImages and FF) is present in the hdf5 file.\n")
-        
-            self.spectnorm['spectroscopy_normalized'] = nxs.NXfield(
-                            name='spectroscopy_normalized', dtype='float32' , 
-                            shape=[nxs.UNLIMITED, self.numrows, self.numcols])
-            
-            self.spectnorm['spectroscopy_normalized'].attrs[
-                                             'Number of Frames'] = self.nFrames
-            self.spectnorm['spectroscopy_normalized'].attrs[
-                                                    'Pixel Rows'] = self.numrows    
-            self.spectnorm['spectroscopy_normalized'].attrs[
-                                                 'Pixel Columns'] = self.numcols
-            self.spectnorm['spectroscopy_normalized'].write()    
-                
-               
-            for numimg in range (0, self.nFrames):
 
-                self.input_nexusfile.opengroup('sample')
-                self.input_nexusfile.opendata('data') 
-                individual_spect_image = self.input_nexusfile.getslab(
-                                [numimg, 0, 0], [1, self.numrows, self.numcols])    
-                self.input_nexusfile.closedata()
-                self.input_nexusfile.closegroup()
+
+            self.norm_grp.create_dataset(
+                "spectroscopy_normalized",
+                shape=(self.nFrames,
+                       self.numrows,
+                       self.numcols),
+                chunks=(1,
+                        self.numrows,
+                        self.numcols),
+                dtype='float32')
+
+            self.norm_grp['spectroscopy_normalized'].attrs[
+                'Number of Frames'] = self.nFrames
+            self.norm_grp['spectroscopy_normalized'].attrs[
+                'Pixel Rows'] = self.numrows
+            self.norm_grp['spectroscopy_normalized'].attrs[
+                'Pixel Columns'] = self.numcols
+
+            for numimg in range(self.nFrames):
+
+                individual_spect_image = sample_image_data[numimg]
+                individual_FF_image = FF_image_data[numimg]
                 
-                self.input_nexusfile.opengroup('bright_field')
-                self.input_nexusfile.opendata('data') 
-                individual_FF_image = self.input_nexusfile.getslab(
-                            [numimg, 0, 0], [1, self.numrowsFF, self.numcolsFF])
-                
-                ### Formula ###
+                # Compute normalized images:
                 numerator = np.array(individual_spect_image * (
                 self.exptimes_FF[numimg] * self.currents_FF[numimg]))
                 denominator = np.array(individual_FF_image * (
                                  self.exptimes[numimg] * self.currents[numimg]))
-                self.normalizedspectrum_singleimage = np.array(numerator / (
-                                               denominator), dtype = np.float32) 
-                ###############
-                
-                slab_offset = [numimg, 0, 0]
-                self.spectnorm['spectroscopy_normalized'].put(
-                self.normalizedspectrum_singleimage, slab_offset, refresh=False)
-                self.spectnorm['spectroscopy_normalized'].write()
-                
-                self.input_nexusfile.closedata()
-                self.input_nexusfile.closegroup()
-                
-                print('Image %d has been normalized' % numimg)
-                
-         
-            self.input_nexusfile.close()
+                normalizedspectrum_singleimage = np.array(numerator / (
+                                               denominator), dtype = np.float32)
+                self.norm_grp['spectroscopy_normalized'][numimg] = \
+                    normalizedspectrum_singleimage
+
+                if numimg % 10 == 0:
+                    print('Image %d has been normalized' % numimg)
+
             print('\nSpectroscopy has been normalized taking into account ' +
                    'the ExposureTimes and the MachineCurrents\n')
-
-
-
 
         elif (self.bool_currents_exist == 0 and self.bool_currentsFF_exist == 0
             and self.bool_exptimes_exist == 1  
@@ -307,7 +226,7 @@ class SpecNormalize:
             and self.dim_imagesFF == self.dim_imagesSpec):
             # Exposure times exist but currents does not exist.
             print("\nInformation about Exposure Times is present but "
-                   "information of currents is not .\n") 
+                  "information of currents is not .\n")
             pass
             
         elif (self.bool_currents_exist == 1 and self.bool_currentsFF_exist == 1
@@ -316,13 +235,13 @@ class SpecNormalize:
             and self.dim_imagesFF == self.dim_imagesSpec):
             # Currents exist but Exposure times does not exist.
             print("\nInformation about Currents is present but "
-                   "information of Exposure Times is not .\n")   
+                  "information of Exposure Times is not .\n")
             pass
             
-        elif (self.dim_imagesFF == self.dim_imagesSpec):
+        elif self.dim_imagesFF == self.dim_imagesSpec:
             # Nor Currents neither Experimental Times exist.
             print("\nNeither information about Currents is present nor "
-                   "information of Exposure Times.\n")       
+                  "information of Exposure Times.\n")
             pass
 
         else:
@@ -330,10 +249,6 @@ class SpecNormalize:
             # equal than dimensions of images.
             print("Normalization is not possible because dimensions of FF "
                   "are not equal than dimensions of spectroscopic images")
-                  
-                  
-          
 
-                         
-            
-            
+        self.input_nexusfile.close()
+        self.spectnorm.close()
