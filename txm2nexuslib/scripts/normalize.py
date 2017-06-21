@@ -40,8 +40,8 @@ def main():
                                      formatter_class=CustomFormatter)
 
     parser.add_argument('inputfile', type=str, default=None,
-           help='Enter hdf5 file which contains the information ' + 
-                'of both tomography and flatfield.')
+                        help='Enter hdf5 file which contains the information ' +
+                             'of both tomography and flatfield.')
 
     parser.add_argument('-s', '--spectroscopy', type=int, default=0,
                         help='Constant energy tomo normalization (0) ' +
