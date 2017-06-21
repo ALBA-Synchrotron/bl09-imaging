@@ -32,6 +32,7 @@ class recons_normalize:
         self.outputfilehdf5 = inputfile.rsplit('.', 1)[0] + '_norm.hdf5'
         self.tomonorm = h5py.File(self.outputfilehdf5, 'w')
         self.norm_grp = self.tomonorm.create_group("TomoNormalized")
+        self.norm_grp.attrs['NX_class'] = "NXentry"
 
         # Angles and Energies
         self.energies = list()
