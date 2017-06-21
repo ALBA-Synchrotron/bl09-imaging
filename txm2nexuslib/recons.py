@@ -63,8 +63,6 @@ class recons_normalize:
         self.numcols = 0
         
         self.averageff = 0
-        self.normalizedtomo_singleimage = 0
-        self.normalizedTomoStack = 0
 
         self.boolean_current_exists = 0
         self.avgff = avgff
@@ -100,9 +98,13 @@ class recons_normalize:
         #######################
         try:
             self.currents_tomo = instrument_grp["sample"]["current"].value
-            self.norm_grp.create_dataset("CurrentsTomo",
-                                         data=self.currents_tomo)
-            self.boolean_current_exists = 1
+            if self.currents_tomo[0] != 0:
+                self.norm_grp.create_dataset("CurrentsTomo",
+                                             data=self.currents_tomo)
+                self.boolean_current_exists = 1
+            else:
+                self.boolean_current_exists = 0
+                print("\nCurrents could not be extracted.\n")
         except:
             self.boolean_current_exists = 0
             print("\nCurrents could not be extracted.\n")
@@ -125,52 +127,76 @@ class recons_normalize:
         self.norm_grp['ExpTimesTomo'] = self.exposuretimes_tomo
         num_exptimes_tomo = len(self.exposuretimes_tomo)
 
+        # Main Data
+        sample_grp = instrument_grp["sample"]
+        sample_image_data = instrument_grp["sample"]["data"]
 
-        if self.boolean_current_exists == 1:
+        # Shape information of data image stack
+        infoshape = sample_image_data.shape
+        dimensions_singleimage_tomo = (infoshape[1], infoshape[2])
+        self.nFramesSample = infoshape[0]
+        self.numrows = infoshape[1]
+        self.numcols = infoshape[2]
 
-            print('\nInformation about currents is present in hdf5 file')
+        # FF Data
+        FF_grp = instrument_grp["bright_field"]
+        self.data_flatfield = FF_grp["data"].value
+        self.exptimes_FF = FF_grp["ExpTimes"]
+        dimensions_singleimage_flatfield = self.data_flatfield[0].shape
 
-            infoshape = instrument_grp["sample"]["data"].shape
-            dimensions_singleimage_tomo = (infoshape[1], infoshape[2])
-            self.nFramesSample = infoshape[0]
-            self.numrows = infoshape[1]
-            self.numcols = infoshape[2]
+        self.ratios_exptimes = [None] * num_exptimes_tomo
 
-            FF_grp = instrument_grp["bright_field"]
-            self.exptimes_FF = FF_grp["ExpTimes"]
-            self.currents_flatfield = FF_grp["current"]
-            self.data_flatfield = FF_grp["data"].value
+        # Average of the FF exposure times.
+        for i in range(len(self.exptimes_FF)):
+            self.avg_ff_exptime += self.exptimes_FF[i]
+        self.avg_ff_exptime /= len(self.exptimes_FF)
+        print('\nFlatField Exposure Time is {0}\n'.format(
+            self.avg_ff_exptime))
 
-            # Average of the FF exposure times.
-            for i in range(len(self.exptimes_FF)):
-                self.avg_ff_exptime += self.exptimes_FF[i]
-            self.avg_ff_exptime /= len(self.exptimes_FF)
-            print('\nFlatField Exposure Time is {0}\n'.format(
-                                                        self.avg_ff_exptime))
+        self.nFramesFF = self.data_flatfield.shape[0]
+        self.numrowsFF = self.data_flatfield.shape[1]
+        self.numcolsFF = self.data_flatfield.shape[2]
 
-            self.ratios_exptimes = [None]*num_exptimes_tomo
+        if dimensions_singleimage_tomo == \
+                dimensions_singleimage_flatfield:
 
-            num_currents_tomo = len(self.currents_tomo)
-            self.ratios_currents_tomo = [None]*num_currents_tomo
+            self.norm_grp.create_dataset(
+                "TomoNormalized",
+                shape=(self.nFramesSample,
+                       self.numrows,
+                       self.numcols),
+                dtype='float32')
 
-            num_currents_flatfield = len(self.currents_flatfield)
-            self.ratios_currents_flatfield = [None]*num_currents_flatfield
+            self.norm_grp['TomoNormalized'].attrs['Number of Frames'] = \
+                self.nFramesSample
 
-            dimensions_singleimage_flatfield = self.data_flatfield[0].shape
+            avgnormalizedtomo = np.zeros((self.numrows,
+                                          self.numcols),
+                                         dtype=np.float)
 
-            if self.avgff == 1:
-                self.norm_grp['Avg_FF_ExpTime'] = self.avg_ff_exptime
-            self.norm_grp.create_dataset("CurrentsFF",
-                                         data=self.currents_flatfield)
+            self.averageff = np.zeros((self.numrowsFF, self.numcolsFF),
+                                      dtype=np.float)
 
-            if dimensions_singleimage_tomo == \
-                    dimensions_singleimage_flatfield:
+            if self.boolean_current_exists == 1:
+                print('\nInformation about currents is present in hdf5 file')
+                print('Tomography will be normalized taking into account '
+                      'the ExposureTimes and the MachineCurrents\n')
 
-                self.nFramesFF = self.data_flatfield.shape[0]
-                self.numrowsFF = self.data_flatfield.shape[1]
-                self.numcolsFF = self.data_flatfield.shape[2]
+                # Get FF Currents
+                self.currents_flatfield = FF_grp["current"]
 
-                # Calculating the Ratios #
+                num_currents_tomo = len(self.currents_tomo)
+                self.ratios_currents_tomo = [None]*num_currents_tomo
+
+                num_currents_flatfield = len(self.currents_flatfield)
+                self.ratios_currents_flatfield = [None]*num_currents_flatfield
+
+                if self.avgff == 1:
+                    self.norm_grp['Avg_FF_ExpTime'] = self.avg_ff_exptime
+                self.norm_grp.create_dataset("CurrentsFF",
+                                             data=self.currents_flatfield)
+
+                # Getting the Ratios
                 for i in range(num_exptimes_tomo):
                     self.ratios_exptimes[i] = self.exposuretimes_tomo[i] / \
                                               self.avg_ff_exptime
@@ -184,7 +210,7 @@ class recons_normalize:
                         self.currents_flatfield[i] / self.currents_tomo[0]
 
                 # FlatField (FF) images normalized with current,
-                # and Average of FlatField Normalized with current #
+                # and Average of FlatField Normalized with current
                 self.norm_grp.create_dataset(
                     "FFNormalizedWithCurrent",
                     shape=(self.nFramesFF,
@@ -195,8 +221,6 @@ class recons_normalize:
                 dset_FF_norm_current = self.norm_grp["FFNormalizedWithCurrent"]
                 dset_FF_norm_current.attrs['Number of Frames'] = self.nFramesFF
 
-                self.averageff=np.empty((self.numrowsFF, self.numcolsFF),
-                                            dtype=np.float)
                 for numimgFF in range(self.nFramesFF):
                     image_FF_normalized_with_current = np.array(
                         self.data_flatfield[numimgFF] /
@@ -218,18 +242,13 @@ class recons_normalize:
                     print('\nFFs have been calculated '
                           'using the machine_currents\n')
 
-                """
-                ############
-                if (self.diffraction == 1) :
-                    print('\nExternal moved averageFF with diffraction pattern\n')
-                    input_avgFF_diffract = nxs.open("saveFFonly.hdf5", 'r')
-                    input_avgFF_diffract.opengroup('FF')
-                    input_avgFF_diffract.opendata('FF_moved')
-                    self.averageff = input_avgFF_diffract.getdata()
-                    input_avgFF_diffract.closedata()
-                    input_avgFF_diffract.closegroup()
+                if self.diffraction == 1:
+                    print('\nExternal moved averageFF '
+                          'with diffraction pattern\n')
+                    input_avgFF_diffract = h5py.File("saveFFonly.hdf5", 'r')
+                    external_FF_grp = input_avgFF_diffract["FF"]
+                    self.averageff = external_FF_grp["FF_moved"]
                     input_avgFF_diffract.close()
-                ############
 
                 if self.avgff == 1:
                     self.averageff = self.averageff/self.nFramesFF
@@ -237,180 +256,76 @@ class recons_normalize:
                         from scipy import ndimage
                         self.averageff = ndimage.gaussian_filter(
                                        self.averageff, sigma=self.gaussianblur)
-                    print('\nAverageFF has been calculated using the machine_currents\n')
-                    self.tomonorm['AverageFF'] = nxs.NXfield(
-                                    name='AverageFF', dtype='float32' , shape=[self.numrowsFF, self.numcolsFF])
-                    self.tomonorm['AverageFF'] = self.averageff
-                    self.tomonorm['AverageFF'].write()
+                    self.norm_grp['AverageFF'] = self.averageff
+                    print('\nAverageFF has been calculated '
+                          'using the machine_currents\n')
 
-                self.tomonorm['TomoNormalized'] = nxs.NXfield(
-                                name='TomoNormalized', dtype='float32' , shape=[nxs.UNLIMITED, self.numrows, self.numcols])
-
-                self.tomonorm['TomoNormalized'].attrs['Number of Frames'] = self.nFramesSample
-                self.tomonorm['TomoNormalized'].write()
-
-                self.input_nexusfile.opengroup('sample')
-                self.input_nexusfile.opendata('data')
-
-                self.avgnormalizedtomo = np.empty((self.numrows, self.numcols), dtype=np.float)
-
-                for numimg in range (0, self.nFramesSample):
-
-                    individual_image = self.input_nexusfile.getslab([numimg, 0, 0], [1, self.numrows, self.numcols])
-                    self.normalizedtomo_singleimage = np.array((individual_image/self.ratios_currents_tomo[numimg]) / (self.averageff*self.ratios_exptimes[numimg]), dtype = np.float32)
-
-                    slab_offset = [numimg, 0, 0]
-                    self.tomonorm['TomoNormalized'].put(self.normalizedtomo_singleimage, slab_offset, refresh=False)
-                    self.tomonorm['TomoNormalized'].write()
-
-                    if (self.avgtomnorm == 1):
-                        self.normalizedtomo_singleimage = np.reshape(self.normalizedtomo_singleimage, (self.numrows, self.numcols))
-                        self.avgnormalizedtomo = self.avgnormalizedtomo + self.normalizedtomo_singleimage
-                    else:
-                        pass
-
+                for numimg in range(self.nFramesSample):
+                    individual_image = sample_image_data[numimg]
+                    normalizedtomo_singleimage = np.array(
+                        ((individual_image / self.ratios_currents_tomo[numimg]) /
+                         (self.averageff*self.ratios_exptimes[numimg])),
+                        dtype=np.float32)
+                    self.norm_grp['TomoNormalized'][numimg] = \
+                        normalizedtomo_singleimage
+                    if self.avgtomnorm == 1:
+                        avgnormalizedtomo += normalizedtomo_singleimage
                     print('Image %d has been normalized' % numimg)
 
-
-                if (self.avgtomnorm == 1):
-
-                    self.avgnormalizedtomo = self.avgnormalizedtomo / self.nFramesSample
-
-                    self.tomonorm['AverageTomo'] = nxs.NXfield(
-                                name='AverageTomo', dtype='float32' , shape=[self.numrows, self.numcols])
-                    self.tomonorm['AverageTomo'] = self.avgnormalizedtomo
-                    self.tomonorm['AverageTomo'].write()
-                    print('\nAverage of the normalized tomo images has been calculated')
-                else:
-                    pass
-
-                self.input_nexusfile.closedata()
-                self.input_nexusfile.closegroup()
-                self.input_nexusfile.close()
-
-                print('\nTomography has been normalized taking into account the ExposureTimes and the MachineCurrents\n')
-
             else:
-                print('\nThe dimensions of a tomography image does not correspond with the FF image dimensions')
-                print('The normalization cannot be done\n')
-                self.input_nexusfile.close()
+
+                print('\nInformation about currents is NOT present '
+                      'in hdf5 file')
+                print('Tomography will be normalized taking into account '
+                      'the ExposureTimes\n')
+
+                if self.diffraction == 1:
+                    print('\nExternal moved averageFF '
+                          'with diffraction pattern\n')
+                    input_avgFF_diffract = h5py.File("saveFFonly.hdf5", 'r')
+                    external_FF_grp = input_avgFF_diffract["FF"]
+                    self.averageff = external_FF_grp["FF_moved"]
+                    input_avgFF_diffract.close()
+
+                if self.avgff == 1:
+                    for numimgFF in range (self.nFramesFF):
+                        self.averageff += \
+                            np.array(self.data_flatfield[numimgFF])
+                    self.averageff = self.averageff/self.nFramesFF
+                    if self.gaussianblur != 0:
+                        from scipy import ndimage
+                        self.averageff = ndimage.gaussian_filter(
+                            self.averageff, sigma=self.gaussianblur)
+                    print('\nAverageFF has been calculated\n')
+                    self.norm_grp['AverageFF'] = self.averageff
+
+                # Getting the Ratios of Exposure Times
+                for i in range(num_exptimes_tomo):
+                    self.ratios_exptimes[i] = self.exposuretimes_tomo[i] / \
+                                              self.avg_ff_exptime
+
+                for numimg in range(self.nFramesSample):
+                    individual_image = sample_image_data[numimg]
+                    normalizedtomo_singleimage = np.array(
+                        (individual_image /
+                         (self.averageff*self.ratios_exptimes[numimg])),
+                        dtype=np.float32)
+                    self.norm_grp['TomoNormalized'][numimg] = \
+                        normalizedtomo_singleimage
+                    if self.avgtomnorm == 1:
+                        avgnormalizedtomo += normalizedtomo_singleimage
+                    print('Image %d has been normalized' % numimg)
+
+            if self.avgtomnorm == 1:
+                avgnormalizedtomo /= self.nFramesSample
+                self.norm_grp['AverageTomo'] = avgnormalizedtomo
+                print('\nAverage of the normalized tomo images '
+                      'has been calculated')
 
         else:
-            print('\nInformation about currents is NOT present in hdf5 file\n')
+            print('\nThe dimensions of a tomography image does not '
+                  'correspond with the FF image dimensions')
+            print('The normalization cannot be done\n')
 
-            self.input_nexusfile.opendata('data')
-            infoshape = self.input_nexusfile.getinfo()
-            dimensions_singleimage_tomo = (infoshape[0][1], infoshape[0][2])
-            self.nFramesSample = infoshape[0][0]
-            self.numrows = infoshape[0][1]
-            self.numcols = infoshape[0][2]
-            self.input_nexusfile.closedata()
-
-            self.input_nexusfile.opengroup('bright_field')
-            self.input_nexusfile.opendata('data')
-            self.data_flatfield = self.input_nexusfile.getdata()
-            self.input_nexusfile.closedata()
-            self.input_nexusfile.opendata('ExpTimes')
-            self.exptimes_FF = self.input_nexusfile.getdata()
-            self.input_nexusfile.closedata()
-            self.input_nexusfile.closegroup()
-
-            for i in range(len(self.exptimes_FF)):
-                self.avg_ff_exptime = self.avg_ff_exptime + self.exptimes_FF[i]
-            self.avg_ff_exptime = self.avg_ff_exptime / len(self.exptimes_FF)
-
-            print('FlatField Exposure Time is {0}.'.format(self.avg_ff_exptime))
-
-
-            self.ratios_exptimes = [None]*num_exptimes_tomo
-
-            dimensions_singleimage_flatfield = self.data_flatfield[0].shape
-
-            if (dimensions_singleimage_tomo==dimensions_singleimage_flatfield):
-
-                self.nFramesFF = self.data_flatfield.shape[0]
-                self.numrowsFF = self.data_flatfield.shape[1]
-                self.numcolsFF = self.data_flatfield.shape[2]
-
-                self.averageff=np.array(self.data_flatfield[0], dtype=np.float)
-
-                ############
-                if (self.diffraction == 1) :
-                    print('\nExternal moved averageFF with diffraction pattern\n')
-                    input_avgFF_diffract = nxs.open("saveFFonly.hdf5", 'r')
-                    input_avgFF_diffract.opengroup('FF')
-                    input_avgFF_diffract.opendata('FF_moved')
-                    self.averageff = input_avgFF_diffract.getdata()
-                    input_avgFF_diffract.closedata()
-                    input_avgFF_diffract.closegroup()
-                    input_avgFF_diffract.close()
-                ############
-
-                if self.avgff == 1:
-                    for numimgFF in range (self.nFramesFF-1):
-                        self.averageff = self.averageff+np.array(self.data_flatfield[numimgFF+1])
-                    self.averageff = self.averageff/self.nFramesFF
-                    if(self.gaussianblur != 0):
-                        from scipy import ndimage
-                        self.averageff = ndimage.gaussian_filter(
-                                       self.averageff, sigma=self.gaussianblur)
-                    print('\nAverageFF has been calculated\n')
-                    self.tomonorm['AverageFF'] = nxs.NXfield(
-                                    name='AverageFF', dtype='float32' , shape=[self.numrowsFF, self.numcolsFF])
-                    self.tomonorm['AverageFF'] = self.averageff
-                    self.tomonorm['AverageFF'].write()
-
-                for i in range (num_exptimes_tomo):
-                    self.ratios_exptimes[i] = self.exposuretimes_tomo[i]/self.avg_ff_exptime
-
-                self.tomonorm['TomoNormalized'] = nxs.NXfield(
-                                name='TomoNormalized', dtype='float32' , shape=[nxs.UNLIMITED, self.numrows, self.numcols])
-
-                self.tomonorm['TomoNormalized'].attrs['Number of Frames'] = self.nFramesSample
-                self.tomonorm['TomoNormalized'].write()
-
-                self.input_nexusfile.opengroup('sample')
-                self.input_nexusfile.opendata('data')
-
-
-                self.avgnormalizedtomo = np.empty((self.numrows, self.numcols), dtype=np.float)
-
-                for numimg in range (0, self.nFramesSample):
-
-                    individual_image = self.input_nexusfile.getslab([numimg, 0, 0], [1, self.numrows, self.numcols])
-                    self.normalizedtomo_singleimage = np.array(individual_image / (self.averageff*self.ratios_exptimes[numimg]), dtype = np.float32)
-
-                    slab_offset = [numimg, 0, 0]
-                    self.tomonorm['TomoNormalized'].put(self.normalizedtomo_singleimage, slab_offset, refresh=False)
-                    self.tomonorm['TomoNormalized'].write()
-
-                    if (self.avgtomnorm == 1):
-                        self.normalizedtomo_singleimage = np.reshape(self.normalizedtomo_singleimage, (self.numrows, self.numcols))
-                        self.avgnormalizedtomo = self.avgnormalizedtomo + self.normalizedtomo_singleimage
-                    else:
-                        pass
-
-                    print('Image %d has been normalized' % numimg)
-
-                if (self.avgtomnorm == 1):
-
-                    self.avgnormalizedtomo = self.avgnormalizedtomo / self.nFramesSample
-
-                    self.tomonorm['AverageTomo'] = nxs.NXfield(
-                                name='AverageTomo', dtype='float32' , shape=[self.numrows, self.numcols])
-                    self.tomonorm['AverageTomo'] = self.avgnormalizedtomo
-                    self.tomonorm['AverageTomo'].write()
-                    print('\nAverage of the normalized tomo images has been calculated\n')
-                else:
-                    pass
-
-                self.input_nexusfile.closedata()
-                self.input_nexusfile.closegroup()
-                self.input_nexusfile.close()
-
-            else:
-                print('The dimensions of a tomography image does not correspond with the FF image dimensions.')
-                print('The normalization cannot be done.')
-                self.input_nexusfile.close()
-
-        """
+        self.input_nexusfile.close()
+        self.tomonorm.close()
