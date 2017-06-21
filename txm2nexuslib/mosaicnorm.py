@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 """
-(C) Copyright 2014 Marc Rosanes
+(C) Copyright 2014-2017 Marc Rosanes
 The program is distributed under the terms of the 
 GNU General Public License (or the Lesser GPL).
 
@@ -19,25 +19,25 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+
 import numpy as np
-import nxs
-import sys
-import struct
-import os
+import h5py
+
 
 class MosaicNormalize:
 
     def __init__(self, inputfile, ratio=1):
-        #Note: FF is equivalent to brightfield 
-    
-        filename_nexus = inputfile        
-        self.input_nexusfile = nxs.open(filename_nexus, 'r')
 
+        # Input File: HDF5 Raw Data
+        filename_nexus = inputfile
+        self.input_nexusfile = h5py.File(filename_nexus, 'r')
+
+        # Output File: HDF5 Normalized Data
         outputfilehdf5 = inputfile.split('.')[0]+'_mosaicnorm'+'.hdf5'
-        
-        self.mosaicnorm = nxs.NXentry(name= "MosaicNormalized")
-        self.mosaicnorm.save(outputfilehdf5, 'w5')
-    
+        self.mosaicnorm = h5py.File(outputfilehdf5, 'w')
+        self.norm_grp = self.mosaicnorm.create_group("MosaicNormalized")
+        self.norm_grp.attrs['NX_class'] = "NXentry"
+
         self.ratio_exptimes = ratio
             
         # Mosaic images
@@ -47,114 +47,85 @@ class MosaicNormalize:
         self.dim_imagesMosaic = (0, 0, 1)
         self.energies = list()
 
-        # FF images
+        # FF images (FF is equivalent to brightfield)
         self.nFramesFF = 1
         self.numrowsFF = 0
         self.numcolsFF = 0
         self.dim_imagesFF = (1, 1, 0)
-        
-        self.normalizedmosaic_singleimage = 0
-        
-        return
 
+        return
 
     def normalizeMosaic(self):
 
-        self.input_nexusfile.opengroup('NXmosaic')
+        nxtomo_grp = self.input_nexusfile["NXtomo"]
+        instrument_grp = nxtomo_grp["instrument"]
 
-        #############################################    
-        ## Retrieving important data from angles   ##
-        #############################################
-        self.input_nexusfile.opengroup('sample')
-        try: 
-            self.input_nexusfile.opendata('rotation_angle')
-            self.angles = self.input_nexusfile.getdata()
-            self.input_nexusfile.closedata()
-            self.mosaicnorm['rotation_angle'] = self.angles[0]
-            self.mosaicnorm['rotation_angle'].write()  
+        #####################
+        # Retrieving Angles #
+        #####################
+        try:
+            self.angles = nxtomo_grp["sample"]["rotation_angle"].value
+            self.norm_grp.create_dataset("rotation_angle", data=self.angles[0])
         except:
-            print("\nAngles could NOT be extracted.\n")
-            try:
-                self.input_nexusfile.closedata()
-            except:
-                pass               
-        self.input_nexusfile.closegroup()
+            print("\nAngles could not be extracted.\n")
 
-        #### Opening group instrument ###############
-        self.input_nexusfile.opengroup('instrument')
-    
-        #############################################    
-        ## Retrieving important data from energies ##
-        #############################################
-        self.input_nexusfile.opengroup('source')
-        try: 
-            self.input_nexusfile.opendata('energy')
-            self.energies = self.input_nexusfile.getdata()
-            self.input_nexusfile.closedata()
-            self.mosaicnorm['energy'] = self.energies[0]
-            self.mosaicnorm['energy'].write()  
+        #######################
+        # Retrieving Energies #
+        #######################
+        try:
+            self.energies = instrument_grp["source"]["energy"].value
+            self.norm_grp.create_dataset("energy", data=self.energies[0])
         except:
-            print("\nEnergies could NOT be extracted.\n")
-            try:
-                self.input_nexusfile.closedata()
-            except:
-                pass
-        self.input_nexusfile.closegroup()       
-                
-        ###########################################    
-        ## Retrieving important data from sample ##
-        ###########################################
-        self.input_nexusfile.opengroup('sample')
+            print("\nEnergies could not be extracted.\n")
 
-        self.input_nexusfile.opendata('data')
-        self.infoshape = self.input_nexusfile.getinfo()
-        self.dim_imagesMosaic = (self.infoshape[0][0], self.infoshape[0][1]) 
-        self.numrows = self.infoshape[0][0]
-        self.numcols = self.infoshape[0][1]
+        ####################################
+        # Dimensions from Data Image Stack #
+        ####################################
+        # Main Image Stack DataSet
+        sample_image_data = instrument_grp["sample"]["data"]
+
+        # Shape information of data image stack
+        self.dim_imagesMosaic = sample_image_data.shape
+        self.numrows = self.dim_imagesSpec[1]
+        self.numcols = self.dim_imagesSpec[2]
         print("Dimensions mosaic: {0}".format(self.dim_imagesMosaic))
-        self.input_nexusfile.closedata()
-                
-        self.input_nexusfile.closegroup()    
-        
-        
-        ###########################################    
-        ## Retrieving important data from FF     ##
-        ###########################################
-        self.input_nexusfile.opengroup('bright_field')
-        
-        self.input_nexusfile.opendata('data')
-        self.infoshapeFF = self.input_nexusfile.getinfo()
-        self.dim_imagesFF = (self.infoshapeFF[0][0], self.infoshapeFF[0][1]) 
-        self.numrowsFF = self.infoshapeFF[0][0]
-        self.numcolsFF = self.infoshapeFF[0][1]
-        print("Dimensions FF: {0}".format(self.dim_imagesFF))
-        self.input_nexusfile.closedata()
-               
-        self.input_nexusfile.closegroup() 
-          
-            
 
-        ###########################################    
-        ## Normalization                         ##
-        ########################################### 
+        ##################################
+        # Dimensions from FF Image Stack #
+        ##################################
+        # FF Image Stack Dataset
+        FF_image_data = instrument_grp["bright_field"]["data"]
+
+        # Shape information of FF image stack
+        self.dim_imagesFF = FF_image_data.shape
+        self.numrowsFF = self.dim_imagesFF[1]
+        self.numcolsFF = self.dim_imagesFF[2]
+        print("Dimensions FF: {0}".format(self.dim_imagesFF))
+
+
+
+
+        """
+        #########################################
+        # Normalization                         #
+        #########################################
         
         rest_rows_mosaic_to_FF = float(self.numrows) % float(self.numrowsFF)
         rest_cols_mosaic_to_FF = float(self.numcols) % float(self.numcolsFF)
         
-        if (rest_rows_mosaic_to_FF == 0.0 and rest_cols_mosaic_to_FF == 0.0):
-        
-            rel_rows_mosaic_to_FF = int(self.numrows / self.numrowsFF)
+        if rest_rows_mosaic_to_FF == 0.0 and rest_cols_mosaic_to_FF == 0.0:
+
             rel_cols_mosaic_to_FF = int(self.numcols / self.numcolsFF)
         
-            self.mosaicnorm['mosaic_normalized'] = nxs.NXfield(
+            self.norm_grp['mosaic_normalized'] = nxs.NXfield(
                             name='mosaic_normalized', dtype='float32' , 
                             shape=[self.numrows, self.numcols])
 
-            self.mosaicnorm['mosaic_normalized'].attrs[
+            self.norm_grp['mosaic_normalized'].attrs[
                                                     'Pixel Rows'] = self.numrows    
-            self.mosaicnorm['mosaic_normalized'].attrs[
+            self.norm_grp['mosaic_normalized'].attrs[
                                                  'Pixel Columns'] = self.numcols
-            self.mosaicnorm['mosaic_normalized'].write()    
+            self.norm_grp['mosaic_normalized'].write()
                
                
             self.input_nexusfile.opengroup('bright_field')
@@ -168,11 +139,10 @@ class MosaicNormalize:
         
             self.input_nexusfile.opengroup('sample')
             self.input_nexusfile.opendata('data')   
-            
 
-            ###########################################    
-            ## Normalization row by row              ##
-            ########################################### 
+            #########################################
+            # Normalization row by row              #
+            #########################################
             for numrow in range (0, self.numrows):
 
                 individual_FF_row = list(FF_image[numrow%self.numrowsFF])
@@ -180,9 +150,8 @@ class MosaicNormalize:
 
                 individual_mosaic_row = self.input_nexusfile.getslab(
                                 [numrow, 0, 0], [1, self.numcols, 1])    
-                
 
-                ### Formula ###                
+                # Formula #
                 numerator = np.array(individual_mosaic_row)
                 numerator = numerator.astype(float)
                 numerator = numerator[0,:,0]
@@ -195,11 +164,10 @@ class MosaicNormalize:
                 
                 slab_offset = [numrow, 0]
                 imgdata = np.reshape(self.norm_mosaic_row, (1, self.numcols), order='A')
-                
-                
-                self.mosaicnorm['mosaic_normalized'].put(
+
+                self.norm_grp['mosaic_normalized'].put(
                 imgdata, slab_offset, refresh=False)
-                self.mosaicnorm['mosaic_normalized'].write()
+                self.norm_grp['mosaic_normalized'].write()
                 
                 if (numrow % 200 == 0):
                     print('Row %d has been normalized' % numrow)
@@ -208,12 +176,12 @@ class MosaicNormalize:
             self.input_nexusfile.closegroup()
             self.input_nexusfile.close()
             print('\nMosaic has been normalized using the FF image.\n')
-            
 
         else:
             print("Normalization of Mosaic is not possible because the " +
                   "dimensions of the Mosaic image are not a multiple of the " + 
                   "FF dimensions.")
-                 
-                  
-                  
+        """
+
+        self.input_nexusfile.close()
+        self.mosaicnorm.close()
