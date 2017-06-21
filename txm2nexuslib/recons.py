@@ -165,6 +165,9 @@ class recons_normalize:
                 shape=(self.nFramesSample,
                        self.numrows,
                        self.numcols),
+                chunks=(1,
+                        self.numrows,
+                        self.numcols),
                 dtype='float32')
 
             self.norm_grp['TomoNormalized'].attrs['Number of Frames'] = \
@@ -216,6 +219,9 @@ class recons_normalize:
                     shape=(self.nFramesFF,
                            self.numrowsFF,
                            self.numcolsFF),
+                    chunks=(1,
+                            self.numrowsFF,
+                            self.numcolsFF),
                     dtype='float32')
 
                 dset_FF_norm_current = self.norm_grp["FFNormalizedWithCurrent"]
@@ -270,7 +276,8 @@ class recons_normalize:
                         normalizedtomo_singleimage
                     if self.avgtomnorm == 1:
                         avgnormalizedtomo += normalizedtomo_singleimage
-                    print('Image %d has been normalized' % numimg)
+                    if numimg%10 == 0:
+                        print('Image %d has been normalized' % numimg)
 
             else:
 
@@ -314,13 +321,16 @@ class recons_normalize:
                         normalizedtomo_singleimage
                     if self.avgtomnorm == 1:
                         avgnormalizedtomo += normalizedtomo_singleimage
-                    print('Image %d has been normalized' % numimg)
+                    if numimg%10 == 0:
+                        print('Image %d has been normalized' % numimg)
 
             if self.avgtomnorm == 1:
                 avgnormalizedtomo /= self.nFramesSample
                 self.norm_grp['AverageTomo'] = avgnormalizedtomo
                 print('\nAverage of the normalized tomo images '
                       'has been calculated')
+
+            print("\nNormalization has been finished")
 
         else:
             print('\nThe dimensions of a tomography image does not '
