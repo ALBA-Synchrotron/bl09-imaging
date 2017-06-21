@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 """
-(C) Copyright 2014 Marc Rosanes
+(C) Copyright 2014-2017 Marc Rosanes
 The program is distributed under the terms of the 
 GNU General Public License (or the Lesser GPL).
 
@@ -24,59 +24,64 @@ from txm2nexuslib import specnorm
 from txm2nexuslib import mosaicnorm
 import argparse
 
-class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter, 
-                        argparse.RawDescriptionHelpFormatter):
+
+class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter,
+                      argparse.RawDescriptionHelpFormatter):
     pass
-      
-# Normalization script (Tomos, Spectroscopy images, or Mosaics)
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Normalize the tomography. \n" + 
-    "- TOMO normalization: with always same monochromator Energy: \n" +
-    "NormalizedTomographyImage[i] = TomographyImage[i]*ExpTimeFF[i]*current[0]/AvgFlatfield*ExpTime[i]*current[i] \n" +
-    "\n- SPECTROSCOPY normalization: variation of energy during the acquisition:\n" +
-    "NormalizedSpectroscopyImage[i] = image[i]*exposureTimeFF[i]*machineCurrrentFF[i] / FF[i]*exposureTimeImage[i]*machineCurrentImage[i] \n",
-    formatter_class=CustomFormatter)
+    parser = argparse.ArgumentParser(description=
+                                     "Normalization of: \n" +
+                                     "- TOMOGRAPHIES \n" +
+                                     "- SPECTROSCOPIES\n "
+                                     "Taking into account FF, currents and "
+                                     "exposure times",
+                                     formatter_class=CustomFormatter)
 
     parser.add_argument('inputfile', type=str, default=None,
            help='Enter hdf5 file which contains the information ' + 
                 'of both tomography and flatfield.')
 
-    parser.add_argument('-s', '--spectroscopy', type=int, default=0, 
-           help='Constant energy tomo normalization (0) ' + 
-                'or spectroscopy normalization (-s=1).')    
+    parser.add_argument('-s', '--spectroscopy', type=int, default=0,
+                        help='Constant energy tomo normalization (0) ' +
+                             'or spectroscopy normalization (-s=1).')
 
-    parser.add_argument('-g', '--gaussianblur', type=int, default=0, 
-           help='gaussian filtering for avoiding diffraction artifacts. \n' +
-                'Default=0 -> gaussian filter not applied. \n' +
-                'Integer not 0: Indicate the std as integer. Ex: -g=5')
+    parser.add_argument('-g', '--gaussianblur', type=int, default=0,
+                        help='gaussian filtering for avoiding '
+                             'diffraction artifacts. \n' +
+                             'Default=0 -> gaussian filter not applied. \n' +
+                             'Integer not 0: Indicate the std as integer. '
+                             'Ex: -g=5')
 
-    parser.add_argument('-f', '--avgff', type=int, default=1, 
-           help='Normalize using avergeFF (-f=1); or using ' +
-                'single FF (FFimage 0) (-f=0).')
+    parser.add_argument('-f', '--avgff', type=int, default=1,
+                        help='Normalize using avergeFF (-f=1); or using ' +
+                             'single FF (FFimage 0) (-f=0).')
 
-    parser.add_argument('-m', '--mosaicnorm', type=int, default=0, 
-           help='Mosaic normalization using a given FF (-m=1).')  
+    parser.add_argument('-m', '--mosaicnorm', type=int, default=0,
+                        help='Mosaic normalization using a given FF (-m=1).')
     
-    parser.add_argument('-r', '--ratio', type=int, default=1, 
-           help= 'ratio = exp_time_mosaic/exp_time_FF.\n' +
-                 'Exposure times ratio. \n' +
-                 'This option can be used only when normalizing mosaics.')
+    parser.add_argument('-r', '--ratio', type=int, default=1,
+                        help='ratio = exp_time_mosaic/exp_time_FF.\n' +
+                             'Exposure times ratio. \n' +
+                             'This option can be used only when '
+                             'normalizing mosaics.')
                
-    parser.add_argument('-a', '--avgtomnorm', type=int, default=0, 
-           help='Indicate if we want to obtain the average of ' 
-      'the normalized images (-a=1).\n Available only for Tomo normalization.')
+    parser.add_argument('-a', '--avgtomnorm', type=int, default=0,
+                        help='Indicate if we want to obtain the average of '
+                             'the normalized images (-a=1).\n '
+                             'Available only for Tomo normalization.')
 
-    ######
     parser.add_argument('-d', '--diffraction', type=int, default=0, 
            help='Correct diffraction pattern with external given avgFF (-d=1).')
-    ######
+
                           
     args = parser.parse_args()
 
     if args.mosaicnorm == 1:
         print("\nNormalizing Mosaic")
-        normalize_object = mosaicnorm.MosaicNormalize(args.inputfile, 
-                                                             ratio=args.ratio)
+        normalize_object = mosaicnorm.MosaicNormalize(args.inputfile,
+                                                      ratio=args.ratio)
         normalize_object.normalizeMosaic()  
         
     else:
