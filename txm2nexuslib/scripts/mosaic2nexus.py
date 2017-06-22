@@ -23,6 +23,7 @@ from txm2nexuslib import mosaicnex
 import datetime
 import argparse
 
+
 def main():
 
     print("\n")
@@ -35,9 +36,9 @@ def main():
 
     parser.add_argument('files', metavar='fname',type=str, nargs='+', 
                         default=None,
-                        help = "Mosaic, BrightField and DarkField " + 
-                               "xrm files in the order that have to be " +
-                               "processed")   
+                        help="Mosaic, BrightField and DarkField " +
+                             "xrm files in the order that have to be " +
+                             "processed")
     parser.add_argument('-o','--files_order', type=str, default='s', 
                         help="Indicates the order in which the sample " + 
                              "file 's', bright fields 'b' and dark " +
@@ -64,7 +65,7 @@ def main():
                                       args.source_probe, args.instrument_name, 
                                       args.sample_name)
 
-    if (nexusmosaic.exitprogram != 1):
+    if nexusmosaic.exitprogram != 1:
         nexusmosaic.NXmosaic_structure()  
         nexusmosaic.convert_metadata() 
         nexusmosaic.convert_mosaic()   
