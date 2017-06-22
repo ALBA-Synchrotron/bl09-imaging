@@ -53,18 +53,16 @@ class MosaicNormalize:
         self.numcolsFF = 0
         self.dim_imagesFF = (1, 1, 0)
 
-        return
-
     def normalizeMosaic(self):
 
-        nxtomo_grp = self.input_nexusfile["NXtomo"]
-        instrument_grp = nxtomo_grp["instrument"]
+        nxmosaic_grp = self.input_nexusfile["NXmosaic"]
+        instrument_grp = nxmosaic_grp["instrument"]
 
         #####################
         # Retrieving Angles #
         #####################
         try:
-            self.angles = nxtomo_grp["sample"]["rotation_angle"].value
+            self.angles = nxmosaic_grp["sample"]["rotation_angle"].value
             self.norm_grp.create_dataset("rotation_angle", data=self.angles[0])
         except:
             print("\nAngles could not be extracted.\n")
@@ -86,8 +84,8 @@ class MosaicNormalize:
 
         # Shape information of data image stack
         self.dim_imagesMosaic = sample_image_data.shape
-        self.numrows = self.dim_imagesSpec[1]
-        self.numcols = self.dim_imagesSpec[2]
+        self.numrows = self.dim_imagesMosaic[0]
+        self.numcols = self.dim_imagesMosaic[1]
         print("Dimensions mosaic: {0}".format(self.dim_imagesMosaic))
 
         ##################################
@@ -98,14 +96,10 @@ class MosaicNormalize:
 
         # Shape information of FF image stack
         self.dim_imagesFF = FF_image_data.shape
-        self.numrowsFF = self.dim_imagesFF[1]
-        self.numcolsFF = self.dim_imagesFF[2]
+        self.numrowsFF = self.dim_imagesFF[0]
+        self.numcolsFF = self.dim_imagesFF[1]
         print("Dimensions FF: {0}".format(self.dim_imagesFF))
 
-
-
-
-        """
         #########################################
         # Normalization                         #
         #########################################
@@ -116,72 +110,55 @@ class MosaicNormalize:
         if rest_rows_mosaic_to_FF == 0.0 and rest_cols_mosaic_to_FF == 0.0:
 
             rel_cols_mosaic_to_FF = int(self.numcols / self.numcolsFF)
-        
-            self.norm_grp['mosaic_normalized'] = nxs.NXfield(
-                            name='mosaic_normalized', dtype='float32' , 
-                            shape=[self.numrows, self.numcols])
+
+            self.norm_grp.create_dataset(
+                "mosaic_normalized",
+                shape=(self.numrows, self.numcols),
+                chunks=(1, self.numcols),
+                dtype='float32')
 
             self.norm_grp['mosaic_normalized'].attrs[
-                                                    'Pixel Rows'] = self.numrows    
+                'Pixel Rows'] = self.numrows
             self.norm_grp['mosaic_normalized'].attrs[
-                                                 'Pixel Columns'] = self.numcols
-            self.norm_grp['mosaic_normalized'].write()
-               
-               
-            self.input_nexusfile.opengroup('bright_field')
-            self.input_nexusfile.opendata('data')                
-            FF_image = self.input_nexusfile.getslab(
-                 [0, 0], [self.numrowsFF, self.numcolsFF])               
-            #print(np.shape(FF_image))
-            #print(len(FF_image[0])) 
-            self.input_nexusfile.closedata()
-            self.input_nexusfile.closegroup()                   
-        
-            self.input_nexusfile.opengroup('sample')
-            self.input_nexusfile.opendata('data')   
+                'Pixel Columns'] = self.numcols
+
+            FF_image = FF_image_data.value
 
             #########################################
             # Normalization row by row              #
             #########################################
-            for numrow in range (0, self.numrows):
+            for numrow in range(self.numrows):
 
                 individual_FF_row = list(FF_image[numrow%self.numrowsFF])
+
                 collageFFrow = individual_FF_row * rel_cols_mosaic_to_FF 
 
-                individual_mosaic_row = self.input_nexusfile.getslab(
-                                [numrow, 0, 0], [1, self.numcols, 1])    
+                individual_mosaic_row = sample_image_data[numrow]
 
                 # Formula #
                 numerator = np.array(individual_mosaic_row)
                 numerator = numerator.astype(float)
-                numerator = numerator[0,:,0]
-
                 denominator = np.array(collageFFrow)
                 denominator = denominator.astype(float)
-                
-                self.norm_mosaic_row = np.array(numerator / (
-                        denominator * self.ratio_exptimes), dtype = np.float32) 
-                
-                slab_offset = [numrow, 0]
-                imgdata = np.reshape(self.norm_mosaic_row, (1, self.numcols), order='A')
 
-                self.norm_grp['mosaic_normalized'].put(
-                imgdata, slab_offset, refresh=False)
-                self.norm_grp['mosaic_normalized'].write()
-                
-                if (numrow % 200 == 0):
+                self.norm_mosaic_row = np.array(numerator / (
+                    denominator * self.ratio_exptimes), dtype = np.float32)
+
+                imgdata = np.reshape(self.norm_mosaic_row,
+                                     (1, self.numcols),
+                                     order='A')
+
+                self.norm_grp['mosaic_normalized'][numrow] = imgdata
+
+                if numrow % 200 == 0:
                     print('Row %d has been normalized' % numrow)
-            
-            self.input_nexusfile.closedata()
-            self.input_nexusfile.closegroup()
-            self.input_nexusfile.close()
+
             print('\nMosaic has been normalized using the FF image.\n')
 
         else:
             print("Normalization of Mosaic is not possible because the " +
                   "dimensions of the Mosaic image are not a multiple of the " + 
                   "FF dimensions.")
-        """
 
         self.input_nexusfile.close()
         self.mosaicnorm.close()
