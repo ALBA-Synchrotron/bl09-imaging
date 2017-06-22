@@ -106,19 +106,19 @@ def main():
             reader = xrmReader(tomo_files)
 
             xrm = xrmNXtomo(reader, ffreader,
-                            'sb', # TODO This allow to discard xrm files. Not need
+
+                            'sb',  # TODO: Not need?
                             'xrm2nexus',
-                            '1.0', #TODO Add a not hardcode version number
-                            program_args=sys.argv[1:], # TODO show default args?
+                            '1.0',  # TODO Add a not hardcoded version number
+                            program_args=sys.argv[1:],  # TODO:show args?
                             hdf5_output_path=output_dir,
                             title=args.title,
-                            zero_deg_in=None, # TODO Not well implemented
-                            zero_deg_final=None, # TODO Not well implemented
+                            zero_deg_in=None,  # TODO Not well implemented
+                            zero_deg_final=None,  # TODO Not well implemented
                             sourcename=args.source_name,
                             sourcetype=args.source_type,
                             sourceprobe=args.source_probe,
                             instrument=args.instrument_name,
-                            #sample= # TODO has sense?
                             )
             xrm.convert_metadata()
             xrm.convert_tomography()
