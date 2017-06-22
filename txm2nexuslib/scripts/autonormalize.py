@@ -27,7 +27,7 @@ import os
 def main():
 
     # Storage of current directory: initial path before executing the script.
-    intitialpath=os.getcwd()
+    intitialpath = os.getcwd()
 
     parser = argparse.ArgumentParser(
         description='Automate the process of normalizing the tomographies \n '
@@ -44,9 +44,8 @@ def main():
     args = parser.parse_args()
     general_folder = args.folder
 
-    normalize_program_name='normalize'
+    normalize_program_name = 'normalize'
 
-    
     for folder in os.listdir(general_folder):
              
         specific_folder=os.path.join(general_folder, folder)
@@ -60,13 +59,13 @@ def main():
 
             for file_in_folder in os.listdir("."):
                 if (file_in_folder.endswith(".hdf5") and
-                        (not 'norm' in file_in_folder) and
-                        (not 'crop' in file_in_folder)):
+                        ('norm' not in file_in_folder) and
+                        ('crop' not in file_in_folder)):
                     tomo_hdf5_file = file_in_folder
             
                 if (tomo_hdf5_file != 'None' and
-                        (not 'norm' in file_in_folder) and
-                        (not 'crop' in file_in_folder)):
+                        ('norm' not in file_in_folder) and
+                        ('crop' not in file_in_folder)):
                     call_normalize = normalize_program_name + ' ' + \
                                      tomo_hdf5_file
                     os.system(call_normalize)
