@@ -19,20 +19,27 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import datetime
+
 import argparse
 import os
-import sys
 
 
 def main():
 
-    #Storage of current directory: initial path before executing the script.
+    # Storage of current directory: initial path before executing the script.
     intitialpath=os.getcwd()
 
-    parser = argparse.ArgumentParser(description='Automate the process of normalizing the tomographies \n The tomography and the FF are extracted from an input HDF5 file.')
-    parser.add_argument('-f','--folder', type=str, default=os.getcwd(), 
-        help="Indicates the folder adress where the subfolders 'tomo1' 'tomo2' and so on, are located.")   
+    parser = argparse.ArgumentParser(
+        description='Automate the process of normalizing the tomographies \n '
+                    'The tomography and the FF are extracted from an input '
+                    'HDF5 file.')
+    parser.add_argument('-f',
+                        '--folder',
+                        type=str,
+                        default=os.getcwd(),
+                        help="Indicates the folder adress where the "
+                             "subfolders 'tomo1' 'tomo2' and so on, "
+                             "are located.")
 
     args = parser.parse_args()
     general_folder = args.folder
@@ -44,18 +51,24 @@ def main():
              
         specific_folder=os.path.join(general_folder, folder)
         # Checking if the subfolder is a subfolder of tomos.
-        if os.path.isdir(specific_folder) and (('tomo' in folder) or ('TOMO' in folder)):
+        if os.path.isdir(specific_folder) and \
+                (('tomo' in folder) or ('TOMO' in folder)):
 
             tomo_hdf5_file='None'
             os.chdir(specific_folder)
             print('Converting tomos from folder '+ folder)
 
             for file_in_folder in os.listdir("."):
-                if (file_in_folder.endswith(".hdf5") and (not 'norm' in file_in_folder) and (not 'crop' in file_in_folder)):    
-                    tomo_hdf5_file=file_in_folder
+                if (file_in_folder.endswith(".hdf5") and
+                        (not 'norm' in file_in_folder) and
+                        (not 'crop' in file_in_folder)):
+                    tomo_hdf5_file = file_in_folder
             
-                if (tomo_hdf5_file!='None' and (not 'norm' in file_in_folder) and (not 'crop' in file_in_folder)):
-                    call_normalize=normalize_program_name+' '+tomo_hdf5_file
+                if (tomo_hdf5_file != 'None' and
+                        (not 'norm' in file_in_folder) and
+                        (not 'crop' in file_in_folder)):
+                    call_normalize = normalize_program_name + ' ' + \
+                                     tomo_hdf5_file
                     os.system(call_normalize)
             os.chdir(general_folder)
 
@@ -65,5 +78,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-     
