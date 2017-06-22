@@ -22,6 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 import h5py
 
+
 class recons_normalize:
 
     def __init__(self, inputfile, avgtomnorm, gaussianblur, avgff, diffraction):
