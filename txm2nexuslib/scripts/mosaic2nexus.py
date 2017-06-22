@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 """
-(C) Copyright 2014 Marc Rosanes
+(C) Copyright 2014-2017 Marc Rosanes
 The program is distributed under the terms of the 
 GNU General Public License.
 

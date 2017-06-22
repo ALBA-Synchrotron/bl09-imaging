@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 """
-(C) Copyright 2016 Carlos Falcon, Marc Rosanes
+(C) Copyright 2016-2017 Carlos Falcon, Marc Rosanes
 The program is distributed under the terms of the 
 GNU General Public License (or the Lesser GPL).
 
