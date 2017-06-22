@@ -79,7 +79,6 @@ def main():
                                args.instrument_name,
                                args.sample_name)
 
-
     if nexus.exitprogram != 1:
         nexus.NXtomo_structure()
         nexus.convert_metadata()
