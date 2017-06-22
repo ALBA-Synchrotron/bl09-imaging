@@ -19,7 +19,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from txm2nexuslib import recons
+
+from txm2nexuslib import tomonorm
 from txm2nexuslib import specnorm
 from txm2nexuslib import mosaicnorm
 import argparse
@@ -72,10 +73,13 @@ def main():
                              'the normalized images (-a=1).\n '
                              'Available only for Tomo normalization.')
 
-    parser.add_argument('-d', '--diffraction', type=int, default=0, 
-           help='Correct diffraction pattern with external given avgFF (-d=1).')
+    parser.add_argument('-d',
+                        '--diffraction',
+                        type=int,
+                        default=0,
+                        help='Correct diffraction pattern with external '
+                             'given avgFF (-d=1).')
 
-                          
     args = parser.parse_args()
 
     if args.mosaicnorm == 1:
@@ -87,11 +91,13 @@ def main():
     else:
         if args.spectroscopy == 0:
             print("\nNormalizing Tomography images")
-            """ We reconstruct the tomography using the tomography images, 
+            """ We normalize the tomography using the tomography images,
             the FF (flatfield) images, the experimental times of FF, images, 
             and the machine current for each image."""
-            normalize_object = recons.recons_normalize(args.inputfile, 
-                        args.avgtomnorm, args.gaussianblur, args.avgff, 
+            normalize_object = tomonorm.TomoNormalize(args.inputfile,
+                                                      args.avgtomnorm,
+                                                      args.gaussianblur,
+                                                      args.avgff,
                         args.diffraction)
             normalize_object.normalize_tomo()
         else:

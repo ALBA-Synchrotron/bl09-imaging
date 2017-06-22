@@ -23,7 +23,7 @@ import numpy as np
 import h5py
 
 
-class recons_normalize:
+class TomoNormalize:
 
     def __init__(self, inputfile, avgtomnorm, gaussianblur, avgff, diffraction):
 
