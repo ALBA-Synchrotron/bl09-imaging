@@ -202,8 +202,6 @@ class MosaicNex:
         else:
             print("There is no information about Current")
 
-
-        """
         # Mosaic data size 
         if (ole.exists('ImageInfo/NoOfImages') and 
             ole.exists('ImageInfo/ImageWidth') and 
@@ -283,11 +281,11 @@ class MosaicNex:
                 struct_fmt = '<'+"f"+"36xf"*(self.nSampleFrames-1)
                 energies = struct.unpack(struct_fmt, data)
             if verbose: print "ImageInfo/Energy: \n ",  energies  
-            self.nxinstrument['source']['energy'] = nxs.NXfield(
-                name = 'energy', value = energies, attrs = {'units': 'eV'})
+            self.inst_source_grp['energy'] = energies
+            self.inst_source_grp['energy'].attrs['units'] = 'eV'
         else:
-            print('There is no information about the energies with which '  
-                   'have been taken the different mosaic images')
+            print('There is no information about the energies with which '
+                  'have been taken the different mosaic images')
 
         # DataType: 10 float; 5 uint16 (unsigned 16-bit (2-byte) integers)
         if ole.exists('ImageInfo/DataType'):                  
@@ -327,7 +325,6 @@ class MosaicNex:
             starttime = datetime.datetime(year, month, day, 
                                           hour, minute, second)                 
             starttimeiso = starttime.isoformat()
-            times = time.mktime(starttime.timetuple())
 
             if verbose: 
                 print "ImageInfo/Date = %s" % starttimeiso 
@@ -365,12 +362,14 @@ class MosaicNex:
             angles = struct.unpack(struct_fmt, data)
             if verbose: 
                 print "ImageInfo/Angles: \n ",  angles
-            self.nxsample['rotation_angle'] = nxs.NXfield(
-                                                    name = 'rotation_angle', 
-                                                    value=angles, 
-                                                    attrs={'units': 'degrees'})
-            self.nxdata['rotation_angle'] = nxs.NXlink(
-                target = self.nxsample['rotation_angle'], group=self.nxdata)
+
+            self.nxsample['rotation_angle'] = angles
+            self.nxsample['rotation_angle'].attrs['target'] = \
+                "/NXmosaic/sample/rotation_angle"
+            self.nxsample['rotation_angle'].attrs['units'] = 'degrees'
+
+            # This should be a Link: test total storage space at the end
+            self.nxdata["rotation_angle"] = self.nxsample["rotation_angle"]
 
         else:
             print('There is no information about the angles at' 
@@ -379,7 +378,6 @@ class MosaicNex:
         # Sample translations in X, Y and Z 
         # X sample translation: nxsample['z_translation']
         if ole.exists('ImageInfo/XPosition'):
-
             stream = ole.openstream('ImageInfo/XPosition')
             data = stream.read()
             struct_fmt = "<{0:10}f".format(self.nSampleFrames)
@@ -394,17 +392,14 @@ class MosaicNex:
                 struct_fmt = '<'+"f"+"36xf"*(self.nSampleFrames-1)
                 xpositions = struct.unpack(struct_fmt, data)
             if verbose: 
-                print "ImageInfo/XPosition: \n ",  xpositions  
-
-            self.nxsample['x_translation'] = nxs.NXfield(
-                name = 'x_translation', value=xpositions, attrs={'units': 'mm'})
-
+                print "ImageInfo/XPosition: \n ",  xpositions
+            self.nxsample['x_translation'] = xpositions
+            self.nxsample['x_translation'].attrs['units'] = 'mm'
         else:
             print("There is no information about xpositions")
 
         # Y sample translation: nxsample['z_translation']
         if ole.exists('ImageInfo/YPosition'):
-
             stream = ole.openstream('ImageInfo/YPosition')
             data = stream.read()
             struct_fmt = "<{0:10}f".format(self.nSampleFrames)
@@ -420,16 +415,13 @@ class MosaicNex:
                 ypositions = struct.unpack(struct_fmt, data)
             if verbose: 
                 print "ImageInfo/YPosition: \n ",  ypositions  
-      
-            self.nxsample['y_translation'] = nxs.NXfield(
-                name = 'y_translation', value=ypositions, attrs={'units': 'mm'})
-
+            self.nxsample['y_translation'] = xpositions
+            self.nxsample['y_translation'].attrs['units'] = 'mm'
         else:
             print("There is no information about xpositions")
 
         # Z sample translation: nxsample['z_translation']
         if ole.exists('ImageInfo/ZPosition'):
-
             stream = ole.openstream('ImageInfo/ZPosition')
             data = stream.read()
             struct_fmt = "<{0:10}f".format(self.nSampleFrames)
@@ -444,11 +436,9 @@ class MosaicNex:
                 struct_fmt = '<'+"f"+"36xf"*(self.nSampleFrames-1)
                 zpositions = struct.unpack(struct_fmt, data)
             if verbose: 
-                print "ImageInfo/ZPosition: \n ",  zpositions  
-      
-            self.nxsample['z_translation'] = nxs.NXfield(
-                name = 'z_translation', value=zpositions, attrs={'units': 'mm'})
-
+                print "ImageInfo/ZPosition: \n ",  zpositions
+            self.nxsample['z_translation'] = xpositions
+            self.nxsample['z_translation'].attrs['units'] = 'mm'
         else:
             print("There is no information about xpositions")
 
@@ -456,17 +446,36 @@ class MosaicNex:
         # Used to normalize in function fo the beam intensity (to verify). 
         # In the ALBA-BL09 case all the values will be set to 1.
         self.monitorsize = self.nSampleFrames
-        self.monitorcounts = np.ones((self.monitorsize), dtype= np.uint16)
-        self.nxmonitor['data'] = nxs.NXfield(
-            name='data', value=self.monitorcounts)
+        self.monitorcounts = np.ones(self.monitorsize, dtype=np.uint16)
+        self.nxmonitor['data'] = self.monitorcounts
 
         ole.close()
         print ("Meta-Data conversion from 'xrm' to NeXus HDF5 has been done.\n")  
         return
 
-        """
+
+
+
+
+
 
         self.mosaichdf.close()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     # Converts a Mosaic image fromt xrm to NeXus hdf5.
