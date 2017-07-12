@@ -21,13 +21,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from OleFileIO_PL import *   
 import numpy as np
-import nxs
+import h5py
 import sys
 import struct
 import datetime
 import time
 import argparse
 
+import nxs
 
 class mosaicnex:
 
@@ -36,14 +37,14 @@ class mosaicnex:
                  sourceprobe='x-ray', instrument='BL09 @ ALBA', 
                  sample='Unknown'): 
 
-        self.files=files 
+        self.files = files
         self.num_input_files = len(files) #number of files.
         self.orderlist = list(files_order)
-        #number of 's' (sample), 'b' (brightfield (FF)) and 'd' (darkfield).    
+        # number of 's' (sample), 'b' (brightfield (FF)) and 'd' (darkfield).
         self.num_input_files_verify = len(self.orderlist) 
 
         self.exitprogram = 0
-        if(self.num_input_files != self.num_input_files_verify):
+        if self.num_input_files != self.num_input_files_verify:
             print('Number of input files must be equal ' + 
                   'to number of characters of files_order.\n')
             self.exitprogram=1
@@ -52,20 +53,20 @@ class mosaicnex:
         if 's' not in files_order:
             print('Mosaic data file (xrm) has to be specified, ' + 
                   'inicate it as \'s\' in the argument option -o.\n')
-            self.exitprogram=1
+            self.exitprogram = 1
             return
 
         index_sample_file = files_order.index('s')
         self.mosaic_file_xrm = self.files[index_sample_file]        
         self.filename_hdf5 = self.mosaic_file_xrm.split('.xrm')[0] + '.hdf5'
 
-        self.index_FF_file= -1
+        self.index_FF_file = -1
         self.brightexists = 0
         for i in range (0, self.num_input_files):
-            #Create bright field structure    
-            if(self.orderlist[i] == 'b'):
+            # Create bright field structure
+            if self.orderlist[i] == 'b':
                 self.mosaic_file_FF_xrm = self.files[i]  
-                self.index_FF_file= i
+                self.index_FF_file = i
                 self.brightexists = 1
                 self.numrowsFF = 0
                 self.numcolsFF = 0
@@ -79,9 +80,9 @@ class mosaicnex:
         self.instrumentname = instrument
         self.samplename = sample
         self.sampledistance = 0
-        self.datatype = 'uint16' #two bytes
+        self.datatype = 'uint16'  # two bytes
         self.sequence_number = 0
-        self.sequence_number_sample=0
+        self.sequence_number_sample = 0
         
         self.programname = 'mosaic2nexus.py'
         self.nxentry = 0
@@ -89,8 +90,7 @@ class mosaicnex:
         self.nxmonitor = 0
         self.nxinstrument = 0
         self.nxdata = 0
-        #self.nxdataFF = 0
-        
+
         self.nxdetectorsample = 0
         
         self.numrows = 0
@@ -102,7 +102,7 @@ class mosaicnex:
         return
      
     def NXmosaic_structure(self):    
-        #create_basic_structure
+        # create_basic_structure
     
         self.nxentry = nxs.NXentry(name= "NXmosaic") 
         
@@ -119,9 +119,6 @@ class mosaicnex:
         self.nxdata = nxs.NXdata()
         self.nxentry.insert(self.nxdata)
 
-        #self.nxdataFF = nxs.NXdata()
-        #self.nxentry.insert(self.nxdataFF)
-        
         self.nxinstrument = nxs.NXinstrument(name= 'instrument')
         self.nxinstrument['name'] = self.instrumentname        
         self.nxentry.insert(self.nxinstrument)
@@ -139,40 +136,40 @@ class mosaicnex:
 
         return 
 
-    #### Function used to convert the metadata from .xrm to NeXus .hdf5
+    # Function used to convert the metadata from .xrm to NeXus .hdf5
     def convert_metadata(self):
 
         verbose = False
         print("Trying to convert xrm metadata to NeXus HDF5.")
         
-        #Opening the .xrm files as Ole structures
+        # Opening the .xrm files as Ole structures
         ole = OleFileIO(self.mosaic_file_xrm)
-        #xrm files have been opened
 
-
+        # xrm files have been opened
         self.nxentry['program_name'] = self.programname
         self.nxentry['program_name'].attrs['version']='1.0'
-        self.nxentry['program_name'].attrs['configuration'] = (self.programname 
-                                                      + ' ' 
-                                                      + ' '.join(sys.argv[1:]))
+        self.nxentry['program_name'].attrs['configuration'] = \
+            (self.programname
+             + ' '
+             + ' '.join(sys.argv[1:]))
         self.nxentry['program_name'].write()
                                                               
         # SampleID
         if ole.exists('SampleInfo/SampleID'):   
             stream = ole.openstream('SampleInfo/SampleID')
             data = stream.read()
-            struct_fmt ='<'+'50s' 
+            struct_fmt = '<'+'50s'
             samplename = struct.unpack(struct_fmt, data)
             if self.samplename != 'Unknown':
                 self.samplename = samplename[0]    
             if verbose: 
                 print "SampleInfo/SampleID: %s " % self.samplename 
             self.nxsample['name'] = nxs.NXfield(
-                name = 'name', value = self.samplename)    
+                name='name', value=self.samplename)
             self.nxsample['name'].write()    
         else:
             print("There is no information about SampleID")
-	            
+
         # Pixel-size
         if ole.exists('ImageInfo/PixelSize'):   
             stream = ole.openstream('ImageInfo/PixelSize')
@@ -181,12 +178,12 @@ class mosaicnex:
             pixelsize = struct.unpack(struct_fmt, data)
             pixelsize = pixelsize[0]
             if verbose: 
-                print "ImageInfo/PixelSize: %f " %  pixelsize  
+                print "ImageInfo/PixelSize: %f " % pixelsize
             self.nxinstrument['sample']['x_pixel_size'] = nxs.NXfield(
-                name='x_pixel_size', value = pixelsize, attrs = {'units': 'um'})
+                name='x_pixel_size', value=pixelsize, attrs = {'units': 'um'})
             self.nxinstrument['sample']['x_pixel_size'].write()    
             self.nxinstrument['sample']['y_pixel_size'] = nxs.NXfield(
-                name='y_pixel_size', value = pixelsize, attrs = {'units': 'um'}) 
+                name='y_pixel_size', value=pixelsize, attrs = {'units': 'um'})
             self.nxinstrument['sample']['y_pixel_size'].write()    
         else:
             print("There is no information about PixelSize")
@@ -199,9 +196,9 @@ class mosaicnex:
             current = struct.unpack(struct_fmt, data)
             current = current[0]
             if verbose: 
-                print "ImageInfo/Current: %f " %  current  
+                print "ImageInfo/Current: %f " % current
             self.nxinstrument['sample']['current'] = nxs.NXfield(
-                name = 'current', value=current, attrs = {'units': 'mA'})
+                name = 'current', value=current, attrs={'units': 'mA'})
             self.nxinstrument['sample']['current'].write()
         else:
             print("There is no information about Current")
@@ -236,8 +233,8 @@ class mosaicnex:
             print('There is no information about the mosaic size ' +
                   '(ImageHeight, ImageWidth or Number of images)')
 
- 	    # FF data size 
-        if(self.brightexists == 1): 
+        # FF data size
+        if self.brightexists == 1:
             oleFF = OleFileIO(self.mosaic_file_FF_xrm)
             if (ole.exists('ImageInfo/NoOfImages') 
                 and oleFF.exists('ImageInfo/ImageWidth') 
@@ -272,11 +269,11 @@ class mosaicnex:
         # Energy            	
         if ole.exists('ImageInfo/Energy'):
             stream = ole.openstream('ImageInfo/Energy')
-    	    data = stream.read()
-     	    struct_fmt = "<{0:10}f".format(self.nSampleFrames)
+            data = stream.read()
+            struct_fmt = "<{0:10}f".format(self.nSampleFrames)
             # we found some xrm images (flatfields) with different encoding 
             # of data
-       	    try:
+            try:
                 energies = struct.unpack(struct_fmt, data)
             except struct.error:
                 print >> sys.stderr, ('Unexpected data length (%i bytes). ' +  
@@ -304,7 +301,7 @@ class mosaicnex:
             else:
                 self.datatype = 'float'
             if verbose: 
-                print "ImageInfo/DataType: %s " %  self.datatype      
+                print "ImageInfo/DataType: %s " % self.datatype
         else:
             print("There is no information about DataType")
 
@@ -353,8 +350,7 @@ class mosaicnex:
             endtime = datetime.datetime(endyear, endmonth, endday, 
                                         endhour, endminute, endsecond)                 
             endtimeiso = endtime.isoformat()
-            endtimes = time.mktime(endtime.timetuple())   
-            
+
             if verbose: 
                 print "ImageInfo/Date = %s" % endtimeiso 
             self.nxentry['end_time']= str(endtimeiso)
@@ -476,11 +472,10 @@ class mosaicnex:
         print ("Meta-Data conversion from 'xrm' to NeXus HDF5 has been done.\n")  
         return
 
-
-    #### Converts a Mosaic image fromt xrm to NeXus hdf5.    
+    # Converts a Mosaic image fromt xrm to NeXus hdf5.
     def convert_mosaic(self): 
 
-        #Bright-Field
+        # Bright-Field
         if not self.brightexists:
             print('\nWarning: Bright-Field is not present, normalization ' + 
                   'will not be possible if you do not insert a ' + 
@@ -489,7 +484,7 @@ class mosaicnex:
         verbose = False
         print("Converting mosaic image data from xrm to NeXus HDF5.")
 
-        #Opening the mosaic .xrm file as an Ole structure.
+        # Opening the mosaic .xrm file as an Ole structure.
         olemosaic = OleFileIO(self.mosaic_file_xrm)
 
         # Mosaic data image
@@ -510,7 +505,7 @@ class mosaicnex:
         for i in range(0, self.numrows):
             
             if self.datatype == 'uint16':    
-                if (i%100 == 0):
+                if i%100 == 0:
                     print('Mosaic row %i is being converted' % (i+1))
                 dt = np.uint16
                 data = stream.read(self.numcols*2)              
@@ -522,7 +517,7 @@ class mosaicnex:
                 self.nxinstrument['sample']['data'].write()
      
             elif self.datatype == 'float':  
-                if (i%100 == 0):
+                if i%100 == 0:
                     print('Mosaic row %i is being converted' % (i+1))
                 dt = np.float          
                 data = stream.read(self.numcols*4)                      
@@ -543,18 +538,17 @@ class mosaicnex:
         self.nxdata['data'].write()
         print ("Mosaic image data conversion to NeXus HDF5 has been done.\n")
 
-        #### FF Data
-        if (self.index_FF_file != -1):
+        # FF Data
+        if self.index_FF_file != -1:
             
             oleFF = OleFileIO(self.mosaic_file_FF_xrm)
             print ("\nTrying to convert FF xrm image to NeXus HDF5.\n")
             
             self.nxbright = nxs.NXgroup(name= 'bright_field')
             self.nxinstrument.insert(self.nxbright)
-            self.nxbright.write() 
-            # Mosaic FF data image
+            self.nxbright.write()
 
-                       
+            # Mosaic FF data image
             img_string = "ImageData1/Image1"
             stream = oleFF.openstream(img_string)        
             for i in range(0, self.nSampleFramesFF):
