@@ -60,7 +60,7 @@ def main():
 
     args = parser.parse_args()
 
-    nexusmosaic = mosaicnex.mosaicnex(args.files, args.files_order, args.title, 
+    nexusmosaic = mosaicnex.MosaicNex(args.files, args.files_order, args.title,
                                       args.source_name, args.source_type, 
                                       args.source_probe, args.instrument_name, 
                                       args.sample_name)
@@ -68,7 +68,7 @@ def main():
     if nexusmosaic.exitprogram != 1:
         nexusmosaic.NXmosaic_structure()  
         nexusmosaic.convert_metadata() 
-        nexusmosaic.convert_mosaic()   
+        #nexusmosaic.convert_mosaic()
     else:
         return 
 
