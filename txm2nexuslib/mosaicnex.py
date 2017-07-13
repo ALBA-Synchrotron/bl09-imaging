@@ -28,8 +28,6 @@ import datetime
 import time
 import argparse
 
-import nxs
-
 
 class MosaicNex:
 
@@ -105,7 +103,6 @@ class MosaicNex:
 
         self.monitorsize = self.nSampleFrames 
         self.monitorcounts = 0
-        return
 
     def NXmosaic_structure(self):    
         # create_basic_structure
@@ -134,11 +131,6 @@ class MosaicNex:
         self.inst_source_grp.attrs['NX_class'] = "NXsource"
         self.inst_sample_grp.attrs['NX_class'] = "NXdetector"
         self.inst_FF_grp.attrs['NX_class'] = "unknown"
-
-        return 
-
-
-
 
     # Function used to convert the metadata from .xrm to NeXus .hdf5
     def convert_metadata(self):
@@ -368,8 +360,13 @@ class MosaicNex:
                 "/NXmosaic/sample/rotation_angle"
             self.nxsample['rotation_angle'].attrs['units'] = 'degrees'
 
-            # This should be a Link: test total storage space at the end
-            self.nxdata["rotation_angle"] = self.nxsample["rotation_angle"]
+            # h5py NeXus link
+            #self.nxdata["rotation_angle"] = self.nxsample["rotation_angle"]
+
+            source_addr = '/NXmosaic/sample/rotation_angle'
+            target_addr = 'rotation_angle'
+            self.nxsample['rotation_angle'].attrs['target'] = source_addr
+            self.nxdata._id.link(source_addr, target_addr, h5py.h5g.LINK_HARD)
 
         else:
             print('There is no information about the angles at' 
@@ -415,7 +412,7 @@ class MosaicNex:
                 ypositions = struct.unpack(struct_fmt, data)
             if verbose: 
                 print "ImageInfo/YPosition: \n ",  ypositions  
-            self.nxsample['y_translation'] = xpositions
+            self.nxsample['y_translation'] = ypositions
             self.nxsample['y_translation'].attrs['units'] = 'mm'
         else:
             print("There is no information about xpositions")
@@ -437,7 +434,7 @@ class MosaicNex:
                 zpositions = struct.unpack(struct_fmt, data)
             if verbose: 
                 print "ImageInfo/ZPosition: \n ",  zpositions
-            self.nxsample['z_translation'] = xpositions
+            self.nxsample['z_translation'] = zpositions
             self.nxsample['z_translation'].attrs['units'] = 'mm'
         else:
             print("There is no information about xpositions")
@@ -450,33 +447,7 @@ class MosaicNex:
         self.nxmonitor['data'] = self.monitorcounts
 
         ole.close()
-        print ("Meta-Data conversion from 'xrm' to NeXus HDF5 has been done.\n")  
-        return
-
-
-
-
-
-
-
-        self.mosaichdf.close()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        print ("Meta-Data conversion from 'xrm' to NeXus HDF5 has been done.\n")
 
     # Converts a Mosaic image fromt xrm to NeXus hdf5.
     def convert_mosaic(self): 
@@ -494,114 +465,81 @@ class MosaicNex:
         olemosaic = OleFileIO(self.mosaic_file_xrm)
 
         # Mosaic data image
-        self.nxinstrument['sample']['data'] = nxs.NXfield(name='data', 
-                                        dtype=self.datatype , 
-                                        shape=[self.numrows, self.numcols])
-        sample_data = self.nxinstrument['sample']['data']
-        sample_data.attrs['Data Type']=self.datatype 
-        sample_data.attrs['Number of Subimages'] = self.nSampleFrames
-        sample_data.attrs['Image Height'] = self.numrows
-        sample_data.attrs['Image Width'] = self.numcols
+        self.inst_sample_grp.create_dataset(
+            "data",
+            shape=(self.numrows, self.numcols),
+            chunks=(1, self.numcols),
+            dtype=self.datatype)
+
+        self.inst_sample_grp['data'].attrs['Data Type'] = self.datatype
+        self.inst_sample_grp['data'].attrs['Number of Subimages'] = \
+            self.nSampleFrames
+        self.inst_sample_grp['data'].attrs['Image Height'] = self.numrows
+        self.inst_sample_grp['data'].attrs['Image Width'] = self.numcols
 
         img_string = "ImageData1/Image1"
         stream = olemosaic.openstream(img_string)
 
-        slab_offset = [0, 0]
         for i in range(0, self.numrows):
-            
-            if self.datatype == 'uint16':    
-                if i%100 == 0:
-                    print('Mosaic row %i is being converted' % (i+1))
+            if self.datatype == 'uint16':
                 dt = np.uint16
-                data = stream.read(self.numcols*2)              
-                imgdata = np.frombuffer(data, dtype=dt, count=self.numcols)
-                imgdata = np.reshape(imgdata, (1, self.numcols), order='A')
-                slab_offset = [i, 0]
-                self.nxinstrument['sample']['data'].put(imgdata, slab_offset, 
-                                                        refresh=False)
-     
+                data = stream.read(self.numcols*2)
             elif self.datatype == 'float':  
-                if i%100 == 0:
-                    print('Mosaic row %i is being converted' % (i+1))
+
                 dt = np.float          
                 data = stream.read(self.numcols*4)                      
-                imgdata = np.frombuffer(data, dtype=dt, count=self.numcols)
-                imgdata = np.reshape(imgdata, (1, self.numcols), order='A')
-                slab_offset = [i, 0]
-                self.nxinstrument['sample']['data'].put(imgdata, slab_offset, 
-                                                        refresh=False)
-
-            else:                            
+            else:
                 print "Wrong data type"
                 return
-           
-        self.nxdata['data'] = nxs.NXlink(
-                                    target=self.nxinstrument['sample']['data'], 
-                                    group=self.nxdata)
+
+            imgdata = np.frombuffer(data, dtype=dt, count=self.numcols)
+            imgdata = np.reshape(imgdata, (1, self.numcols), order='A')
+            self.inst_sample_grp['data'][i] = imgdata
+            if i % 100 == 0:
+                print('Mosaic row %i converted' % (i + 1))
+
+        olemosaic.close()
+
+        source_addr = '/NXmosaic/instrument/sample/data'
+        target_addr = 'data'
+        self.inst_sample_grp['data'].attrs['target'] = source_addr
+        self.nxdata._id.link(source_addr, target_addr, h5py.h5g.LINK_HARD)
+
         print ("Mosaic image data conversion to NeXus HDF5 has been done.\n")
 
         # FF Data
         if self.index_FF_file != -1:
             
             oleFF = OleFileIO(self.mosaic_file_FF_xrm)
-            print ("\nTrying to convert FF xrm image to NeXus HDF5.\n")
-            
-            self.nxbright = nxs.NXgroup(name='bright_field')
-            self.nxinstrument.insert(self.nxbright)
+            print ("Trying to convert FF xrm image to NeXus HDF5.")
 
             # Mosaic FF data image
             img_string = "ImageData1/Image1"
             stream = oleFF.openstream(img_string)        
-            for i in range(0, self.nSampleFramesFF):
-                
-                if self.datatypeFF == 'uint16':    
-                    dt = np.uint16
-                    data = stream.read() 
-                    struct_fmt = "<{0:10}H".format(
-                                            self.numrowsFF*self.numcolsFF)
-                    imgdata = struct.unpack(struct_fmt, data)
-                    
-                    imgdataFF = np.reshape(imgdata,     
-                                    (self.numrowsFF, self.numcolsFF), order='A')
-                    self.nxinstrument['bright_field']['data'] = nxs.NXfield(
-                                        name='data', value = imgdataFF, 
-                                        dtype=self.datatypeFF, 
-                                        shape=[self.numrowsFF, self.numcolsFF])
-                    FF_data = self.nxinstrument['bright_field']['data']
-                    FF_data.attrs['Data Type']=self.datatypeFF 
-                    FF_data.attrs['Number of images']=self.nSampleFramesFF
-                    FF_data.attrs['Image Height']=self.numrowsFF
-                    FF_data.attrs['Image Width']=self.numcolsFF
-                    print("FF image converted")
-                    
-                elif self.datatypeFF == 'float':  
-                    dt = np.float          
-                    data = stream.read()  
-                    struct_fmt = "<{0:10}f".format(
-                            self.numrowsFF*self.numcolsFF)
-                    imgdata = struct.unpack(struct_fmt, data)
-                    
-                    imgdataFF = np.reshape(imgdata, 
-                                    (self.numrowsFF, self.numcolsFF), order='A')
-                    self.nxinstrument['bright_field']['data'] = nxs.NXfield(
-                        name='data', value = imgdataFF, dtype='float' , 
-                        shape=[self.numrowsFF, self.numcolsFF])
-                    FF_data = self.nxinstrument['bright_field']['data']
-                    FF_data.attrs['Data Type']=self.datatypeFF 
-                    FF_data.attrs['Number of images']=self.nSampleFramesFF
-                    FF_data.attrs['Image Height']=self.numrowsFF
-                    FF_data.attrs['Image Width']=self.numcolsFF
-                    print("FF image converted")
-                       
-                else:                            
-                    print "Wrong FF data type"
-                    return
-                      
-            self.nxdata['data'] = nxs.NXlink(
-                            target=self.nxinstrument['bright_field']['data'], 
-                            group=self.nxdata)
-        
-            oleFF.close()    
-            print ("Mosaic FF image data conversion to NeXus HDF5 " + 
-                   "has been done.\n")
-            return
+
+            if self.datatypeFF == 'uint16':
+                data = stream.read()
+                struct_fmt = "<{0:10}H".format(self.numrowsFF*self.numcolsFF)
+
+            elif self.datatypeFF == 'float':
+                data = stream.read()
+                struct_fmt = "<{0:10}f".format(self.numrowsFF*self.numcolsFF)
+
+            else:
+                print "Wrong FF data type"
+                return
+
+            imgdata = struct.unpack(struct_fmt, data)
+            imgdataFF = np.reshape(imgdata,
+                                   (self.numrowsFF, self.numcolsFF), order='A')
+
+            self.inst_FF_grp['data'] = imgdataFF
+            self.inst_FF_grp['data'].attrs['Data Type'] = self.datatypeFF
+            self.inst_FF_grp['data'].attrs['Number of images'] = \
+                self.nSampleFramesFF
+            self.inst_FF_grp['data'].attrs['Image Height'] = self.numrowsFF
+            self.inst_FF_grp['data'].attrs['Image Width'] = self.numcolsFF
+
+            oleFF.close()
+            print("FF image converted")
+

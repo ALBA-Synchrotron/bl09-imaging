@@ -68,7 +68,7 @@ def main():
     if nexusmosaic.exitprogram != 1:
         nexusmosaic.NXmosaic_structure()  
         nexusmosaic.convert_metadata() 
-        #nexusmosaic.convert_mosaic()
+        nexusmosaic.convert_mosaic()
     else:
         return 
 
