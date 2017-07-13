@@ -19,15 +19,23 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from OleFileIO_PL import *
-import numpy as np
-import nxs
+import re
 import sys
 import struct
 import datetime
-import time
+
+from OleFileIO_PL import *
+import numpy as np
 import argparse
-import re
+import h5py
+
+
+
+
+
+
+import nxs
+
 
 
 class txrmNXtomo:
@@ -66,6 +74,7 @@ class txrmNXtomo:
         index_tomography_file = files_order.index('s')
         self.filename_txrm = files[index_tomography_file]        
         self.filename_hdf5 = self.filename_txrm.split('.txrm')[0] + '.hdf5'
+        self.txrmhdf = h5py.File(self.filename_hdf5, 'w')
 
         self.filename_zerodeg_in = zero_deg_in
         self.filename_zerodeg_final = zero_deg_final
@@ -87,7 +96,6 @@ class txrmNXtomo:
                 self.numcols_bright = 0
                 self.datatype_bright = 'uint16'      
 
-                            
             # Create dark field structure
             if self.orderlist[i] == 'd':
                 self.darkexists = 1
@@ -129,6 +137,7 @@ class txrmNXtomo:
         self.nxinstrument = 0
         self.nxdata = 0
         self.nxdetectorsample = 0
+        self.nxsource = 0
 
         self.pixelsize=1
         self.CCDdetector_pixelsize = 13
@@ -145,40 +154,54 @@ class txrmNXtomo:
 
     def NXtomo_structure(self):
         # create_basic_structure
-    
-        self.nxentry = nxs.NXentry(name="NXtomo")
-           
-        self.nxentry['title'] = self.filename_txrm
-        self.nxentry['definition'] = 'NXtomo'
-        
-        self.nxsample = nxs.NXsample()
-        self.nxentry.insert(self.nxsample)
-        self.nxsample['name'] = self.samplename
 
-        self.nxmonitor = nxs.NXmonitor(name = 'control')
-        self.nxentry.insert(self.nxmonitor)
+        self.nxentry = self.txrmhdf.create_group("NXtomo")
+        self.nxentry.attrs['NX_class'] = "NXentry"
 
-        self.nxdata = nxs.NXdata()
-        self.nxentry.insert(self.nxdata)
+        self.nxentry.create_dataset("title", data=self.filename_txrm)
+        self.nxentry.create_dataset("definition", data="NXtomo")
 
-        self.nxinstrument = nxs.NXinstrument(name = 'instrument')
-        self.nxinstrument['name'] = self.instrumentname        
+        self.nxinstrument = self.nxentry.create_group("instrument")
+        self.nxsample = self.nxentry.create_group("sample")
+        self.nxmonitor = self.nxentry.create_group("control")
+        self.nxdata = self.nxentry.create_group("data")
+
+        self.nxinstrument['name'] = self.instrumentname
         self.nxinstrument['name'].attrs['CCD pixel size'] = \
             self.CCDdetector_pixelsize_string
-        self.nxentry.insert(self.nxinstrument)
 
-        self.nxsource = nxs.NXsource(name='source')
-        self.nxinstrument.insert(self.nxsource)
+        self.nxsource= self.nxinstrument.create_group("source")
+        self.nxdetectorsample = self.nxinstrument.create_group("sample")
+
+        self.nxsample['name'] = self.samplename
         self.nxinstrument['source']['name'] = self.sourcename
         self.nxinstrument['source']['type'] = self.sourcetype
         self.nxinstrument['source']['probe'] = self.sourceprobe
 
-        self.nxdetectorsample = nxs.NXdetector(name='sample')
-        self.nxinstrument.insert(self.nxdetectorsample)  
+        self.nxentry['program_name'] = self.programname
+        self.nxentry['program_name'].attrs['version'] = '2.0'
+        self.nxentry['program_name'].attrs['configuration'] = \
+            (self.programname + ' ' + ' '.join(sys.argv[1:]))
 
-        self.nxentry.save(self.filename_hdf5, 'w5')
+        self.nxmonitor.attrs['NX_class'] = "NXmonitor"
+        self.nxsample.attrs['NX_class'] = "NXsample"
+        self.nxdata.attrs['NX_class'] = "NXdata"
+        self.nxinstrument.attrs['NX_class'] = "NXinstrument"
+        self.nxsource.attrs['NX_class'] = "NXsource"
+        self.nxdetectorsample.attrs['NX_class'] = "NXdetector"
+
+        self.txrmhdf.flush()
+        self.txrmhdf.close()
 
         return 
+
+
+
+
+
+
+
+
 
     # Function used to convert the metadata from .txrm to NeXus .hdf5
     def convert_metadata(self):
@@ -190,11 +213,7 @@ class txrmNXtomo:
         ole = OleFileIO(self.filename_txrm)
         # txrm files have been opened
         
-        self.nxentry['program_name'] = self.programname
-        self.nxentry['program_name'].attrs['version'] = '1.0'
-        self.nxentry['program_name'].attrs['configuration'] = \
-            (self.programname + ' ' + ' '.join(sys.argv[1:]))
-        self.nxentry['program_name'].write()
+
 
         # Sample-ID
         if ole.exists('SampleInfo/SampleID'):   
@@ -226,8 +245,8 @@ class txrmNXtomo:
             self.num_axis = len(axis_names)-1
             sample_enc_z_string = axis_names[2]
             detector_enc_z_string = axis_names[23]
-            energy_name=axis_names[27] 
-            current_name=axis_names[28]
+            energy_name = axis_names[27]
+            current_name = axis_names[28]
             try:
                 energyenc_name = axis_names[30]
             except:
@@ -236,10 +255,10 @@ class txrmNXtomo:
         ##########################################
         where_detzero = ("ConfigureBackup/ConfigCamera/" +
                         "Camera 1/ConfigZonePlates/DetZero")
-        if (ole.exists(where_detzero)):   
+        if ole.exists(where_detzero):
             stream = ole.openstream(where_detzero)
             data = stream.read()
-            if (len(data) != 0):
+            if len(data) != 0:
                 struct_fmt = '<1f'
                 sample_to_detector_zero_enc = struct.unpack(struct_fmt, data)
                 self.sample_detector_zeroenc = sample_to_detector_zero_enc[0]
@@ -478,7 +497,6 @@ class txrmNXtomo:
             starttime = datetime.datetime(year, month, day, 
                                           hour, minute, second)                 
             starttimeiso = starttime.isoformat()
-            times = time.mktime(starttime.timetuple())
 
             if verbose: 
                 print "ImageInfo/Date = %s" % starttimeiso 
@@ -501,7 +519,6 @@ class txrmNXtomo:
             endtime = datetime.datetime(endyear, endmonth, endday, 
                                         endhour, endminute, endsecond)                 
             endtimeiso = endtime.isoformat()
-            endtimes = time.mktime(endtime.timetuple())   
             
             if verbose: 
                 print "ImageInfo/Date = %s" % endtimeiso 
@@ -673,6 +690,16 @@ class txrmNXtomo:
             imgdata_zerodeg = 0
         return imgdata_zerodeg
 
+
+
+
+
+
+
+
+
+
+
     # Read single image. Function that will only be used inside
     # convert_tomography() for converting the full tomography
     # thanks to multiple slabs.
@@ -733,9 +760,8 @@ class txrmNXtomo:
                                            (self.numrows_bright,
                                             self.numcols_bright),
                                            order='A'))
-        singleimage = np.reshape(singleimage, (1,
-                                               self.numrows_bright,
-                                               self.numcols_bright),
+        singleimage = np.reshape(singleimage,
+                                 (1, self.numrows_bright, self.numcols_bright),
                                  order='A')
         return singleimage
 
@@ -765,11 +791,33 @@ class txrmNXtomo:
         singleimage = np.flipud(np.reshape(imgdata, (self.numrows_dark,
                                                      self.numcols_dark),
                                            order='A'))
-        singleimage = np.reshape(singleimage, (1,
-                                               self.numrows_dark,
-                                               self.numcols_dark),
+        singleimage = np.reshape(singleimage,
+                                 (1, self.numrows_dark, self.numcols_dark),
                                  order='A')
         return singleimage
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     # Function used to convert all the tomography images (main data),
     # from .txrm to NeXus .hdf5.
