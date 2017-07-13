@@ -173,7 +173,6 @@ class txrmNXtomo:
         self.nxsource= self.nxinstrument.create_group("source")
         self.nxdetectorsample = self.nxinstrument.create_group("sample")
 
-        self.nxsample['name'] = self.samplename
         self.nxinstrument['source']['name'] = self.sourcename
         self.nxinstrument['source']['type'] = self.sourcetype
         self.nxinstrument['source']['probe'] = self.sourceprobe
@@ -190,18 +189,7 @@ class txrmNXtomo:
         self.nxsource.attrs['NX_class'] = "NXsource"
         self.nxdetectorsample.attrs['NX_class'] = "NXdetector"
 
-        self.txrmhdf.flush()
-        self.txrmhdf.close()
-
         return 
-
-
-
-
-
-
-
-
 
     # Function used to convert the metadata from .txrm to NeXus .hdf5
     def convert_metadata(self):
@@ -211,9 +199,6 @@ class txrmNXtomo:
         
         # Opening the .txrm files as Ole structures
         ole = OleFileIO(self.filename_txrm)
-        # txrm files have been opened
-        
-
 
         # Sample-ID
         if ole.exists('SampleInfo/SampleID'):   
@@ -224,11 +209,10 @@ class txrmNXtomo:
             if self.samplename != 'Unknown':
                 self.samplename = samplename[0]    
             if verbose: 
-                print "SampleInfo/SampleID: %s " % self.samplename 
-            self.nxsample['name'] = nxs.NXfield(
-                name='name', value=self.samplename)    
-            self.nxsample['name'].write()    
+                print "SampleInfo/SampleID: %s " % self.samplename
+            self.nxsample.create_dataset("name", data=self.samplename)
         else:
+            self.nxsample.create_dataset("name", data="Unknown")
             print("There is no information about SampleID")
 
         # Detector to Sample distance
@@ -252,7 +236,6 @@ class txrmNXtomo:
             except:
                 energyenc_name = " "
 
-        ##########################################
         where_detzero = ("ConfigureBackup/ConfigCamera/" +
                         "Camera 1/ConfigZonePlates/DetZero")
         if ole.exists(where_detzero):
@@ -268,23 +251,21 @@ class txrmNXtomo:
             data = stream.read(112)
             struct_fmt = '<28f'
             axis = struct.unpack(struct_fmt, data)
-            self.sample_distance_enc = axis[2] #this is already in um
-            self.detector_distance_enc = axis[23]*1000 #from mm to um
+            self.sample_distance_enc = axis[2]  # this is already in um
+            self.detector_distance_enc = axis[23]*1000  # from mm to um
         if (sample_enc_z_string == "Sample Z" and
                     detector_enc_z_string == "Detector Z"):
             self.sample_detector_distance = self.sample_detector_zeroenc + \
                           self.detector_distance_enc + self.sample_distance_enc
-            self.nxinstrument['sample']['distance'] = nxs.NXfield(
-                                        name='x_pixel_size', 
-                                        value=self.sample_detector_distance, 
-                                        attrs = {'units': 'um'}) 
-            self.nxinstrument['sample']['distance'].write()  
+
+            self.nxdetectorsample.create_dataset(
+                "distance", data=self.sample_detector_distance)
+            self.nxdetectorsample["distance"].attrs["units"] = "um"
         else:     
             print("Microscope motor names have changed. " 
                   "Maybe motors have been added or deleted.")
             print("Distances between detector and sample, and positions will "
                   "NOT be correctly calculated")
-        ########################################## 
 
         # Pixel-size
         if ole.exists('ImageInfo/PixelSize'):   
@@ -294,21 +275,16 @@ class txrmNXtomo:
             pixelsize = struct.unpack(struct_fmt, data)
             self.pixelsize = pixelsize[0]
             if verbose: 
-                print "ImageInfo/PixelSize: %f " %  pixelsize  
-            self.nxinstrument['sample']['x_pixel_size'] = nxs.NXfield(
-                                                    name='x_pixel_size', 
-                                                    value=self.pixelsize, 
-                                                    attrs = {'units': 'um'})
-            self.nxinstrument['sample']['x_pixel_size'].write()    
-            self.nxinstrument['sample']['y_pixel_size'] = nxs.NXfield(
-                                                    name='y_pixel_size', 
-                                                    value=self.pixelsize, 
-                                                    attrs = {'units': 'um'}) 
-            self.nxinstrument['sample']['y_pixel_size'].write()    
+                print "ImageInfo/PixelSize: %f " % pixelsize
+            self.nxdetectorsample.create_dataset("x_pixel_size",
+                                                 data=pixelsize)
+            self.nxdetectorsample.create_dataset("y_pixel_size",
+                                                 data=pixelsize)
+            self.nxdetectorsample["x_pixel_size"].attrs["units"] = "um"
+            self.nxdetectorsample["y_pixel_size"].attrs["units"] = "um"
         else:
             print("There is no information about PixelSize")
 
-        #Magnification
         # X-Ray Magnification
         if ole.exists('ImageInfo/XrayMagnification'):   
             stream = ole.openstream('ImageInfo/XrayMagnification')
@@ -325,11 +301,9 @@ class txrmNXtomo:
                 print("Magnification could not be deduced.")	
                 self.magnification = 0.0
             if verbose: 
-                print "ImageInfo/XrayMagnification: %f " %  XrayMagnification  
-            self.nxinstrument['sample']['magnification'] = nxs.NXfield(
-                    name = 'magnification', value=self.magnification)
-            self.nxinstrument['sample']['magnification'].write()
-    
+                print "ImageInfo/XrayMagnification: %f " % XrayMagnification
+            self.nxdetectorsample['magnification'] = self.magnification
+
         # Tomography data size
         if (ole.exists('ImageInfo/NoOfImages') and 
             ole.exists('ImageInfo/ImageWidth') and 
@@ -360,28 +334,25 @@ class txrmNXtomo:
             print('There is no information about the tomography size ' 
                   '(ImageHeight, ImageWidth or Number of images)')
 
-
         # Accelerator current for each image (machine current)
-        if (current_name == "machine_current"):
+        if current_name == "machine_current":
             if ole.exists('PositionInfo/MotorPositions'):   
                 stream = ole.openstream('PositionInfo/MotorPositions')
                 number_of_floats= self.num_axis*self.nSampleFrames
                 struct_fmt = '<'+str(number_of_floats)+'f'
-                number_of_bytes = number_of_floats * 4 #4 bytes every float
+                number_of_bytes = number_of_floats * 4  # 4 bytes every float
                 data = stream.read(number_of_bytes)
                 axis = struct.unpack(struct_fmt, data)
 
                 currents = self.nSampleFrames*[0]
                 for i in range(self.nSampleFrames):
-                    currents[i] = axis[self.num_axis*i+28] #In mA  
-                self.nxinstrument['sample']['current'] = nxs.NXfield(
-                    name = 'current', value=currents, attrs = {'units': 'mA'})
-                self.nxinstrument['sample']['current'].write()  
+                    currents[i] = axis[self.num_axis*i+28] #In mA
+                self.nxdetectorsample['current'] = currents
+                self.nxdetectorsample['current'].attrs["units"] = "mA"
         else:     
             print("Microscope motor names have changed. "
                   "Index 28 does not correspond to machine_current.")
 
-        ##############################
         # Energy for each image:
         # Energy for each image calculated from Energyenc ####
         if energyenc_name.lower()=="energyenc":
@@ -389,32 +360,27 @@ class txrmNXtomo:
                 stream = ole.openstream('PositionInfo/MotorPositions')
                 number_of_floats= self.num_axis*self.nSampleFrames
                 struct_fmt = '<'+str(number_of_floats)+'f'
-                number_of_bytes = number_of_floats * 4 #4 bytes every float
+                number_of_bytes = number_of_floats * 4  # 4 bytes every float
                 data = stream.read(number_of_bytes)
                 axis = struct.unpack(struct_fmt, data)
                 energenc = self.nSampleFrames*[0]
                 for i in range(self.nSampleFrames):
-                    energenc[i] = axis[self.num_axis*i+30] #In eV 
-                if verbose: print "Energyenc: \n ",  energenc     
-                self.nxinstrument['source']['energy'] = nxs.NXfield(
-                   name = 'energy', value=energenc, attrs = {'units': 'eV'})
-                self.nxinstrument['source']['energy'].write()
+                    energenc[i] = axis[self.num_axis*i+30]  # In eV
+                if verbose: print "Energyenc: \n ",  energenc
+                energies_hdf = energenc
         # Energy for each image calculated from Energy motor ####
         elif energy_name == "Energy":
             if ole.exists('PositionInfo/MotorPositions'):   
                 stream = ole.openstream('PositionInfo/MotorPositions')
                 number_of_floats= self.num_axis*self.nSampleFrames
                 struct_fmt = '<'+str(number_of_floats)+'f'
-                number_of_bytes = number_of_floats * 4 #4 bytes every float
+                number_of_bytes = number_of_floats * 4  # 4 bytes every float
                 data = stream.read(number_of_bytes)
                 axis = struct.unpack(struct_fmt, data)
-                energies = self.nSampleFrames*[0]
+                energies_hdf = self.nSampleFrames*[0]
                 for i in range(self.nSampleFrames):
-                    energies[i] = axis[self.num_axis*i+27] #In eV 
-                if verbose: print "ImageInfo/Energy: \n ",  energies     
-                self.nxinstrument['source']['energy'] = nxs.NXfield(
-                    name = 'energy', value=energies, attrs = {'units': 'eV'})
-                self.nxinstrument['source']['energy'].write() 
+                    energies_hdf[i] = axis[self.num_axis*i+27]  # In eV
+                if verbose: print "ImageInfo/Energy: \n ",  energies_hdf
         # Energy for each image calculated from ImageInfo ####
         elif ole.exists('ImageInfo/Energy'):
             stream = ole.openstream('ImageInfo/Energy')
@@ -422,22 +388,22 @@ class txrmNXtomo:
             struct_fmt = "<{0:10}f".format(self.nSampleFrames)
             # Some txrm images (flatfields) have different encoding of data
             try:
-                energies = struct.unpack(struct_fmt, data)
+                energies_hdf = struct.unpack(struct_fmt, data)
             except struct.error:
                 print >> sys.stderr, 'Unexpected data length (%i bytes). ' \
                                      'Trying to unpack energies with: ' \
                                      '"f"+"36xf"*(nSampleFrames-1)' % len(data)
                 struct_fmt = '<'+"f"+"36xf"*(self.nSampleFrames-1)
-                energies = struct.unpack(struct_fmt, data)
-            if verbose: print "ImageInfo/Energy: \n ",  energies  
-            self.nxinstrument['source']['energy'] = nxs.NXfield(
-                name='energy', value = energies, attrs = {'units': 'eV'}) 
-            self.nxinstrument['source']['energy'].write()      
+                energies_hdf = struct.unpack(struct_fmt, data)
+            if verbose: print "ImageInfo/Energy: \n ",  energies_hdf
         else:
+            energies_hdf = 0
             print('There is no information about the energies at which '
                   'have been taken the different images.')
+        self.nxsource["energy"] = energies_hdf
+        self.nxsource["energy"].attrs["units"] = "eV"
 
-        # Exposure Times            	
+        # Exposure Times
         if ole.exists('ImageInfo/ExpTimes'):
             stream = ole.openstream('ImageInfo/ExpTimes')
             data = stream.read()
@@ -451,10 +417,11 @@ class txrmNXtomo:
                                      '"f"+"36xf"*(nSampleFrames-1)' % len(data)
                 struct_fmt = '<'+"f"+"36xf"*(self.nSampleFrames-1)
                 exptimes = struct.unpack(struct_fmt, data)
-            if verbose: print "ImageInfo/ExpTimes: \n ",  exptimes  
-            self.nxinstrument['sample']['ExpTimes'] = nxs.NXfield(
-                name='ExpTimes', value=exptimes, attrs={'units': 's'})
-            self.nxinstrument['sample']['ExpTimes'].write()
+            if verbose:
+                print "ImageInfo/ExpTimes: \n ",  exptimes
+            self.nxdetectorsample["ExpTimes"] = exptimes
+            self.nxdetectorsample["ExpTimes"].attrs["units"] = "s"
+
         else:
             print('There is no information about the exposure times with '
                   'which have been taken the different tomography images')
@@ -501,7 +468,6 @@ class txrmNXtomo:
             if verbose: 
                 print "ImageInfo/Date = %s" % starttimeiso 
             self.nxentry['start_time'] = str(starttimeiso)
-            self.nxentry['start_time'].write()    
 
             enddate = dates[self.nSampleFrames-1]    
             [endday, endhour] = enddate.split(" ")
@@ -523,7 +489,6 @@ class txrmNXtomo:
             if verbose: 
                 print "ImageInfo/Date = %s" % endtimeiso 
             self.nxentry['end_time'] = str(endtimeiso)
-            self.nxentry['end_time'].write()
 
         else:
             print("There is no information about Date")
@@ -536,14 +501,13 @@ class txrmNXtomo:
             angles = struct.unpack(struct_fmt, data)
             if verbose: 
                 print "ImageInfo/Angles: \n ",  angles
-            self.nxsample['rotation_angle'] = nxs.NXfield(
-                name='rotation_angle', value=angles,
-                attrs={'units': 'degrees'})
-            self.nxsample['rotation_angle'].write() 
-            self.nxdata['rotation_angle'] = nxs.NXlink(
-                target=self.nxsample['rotation_angle'], group=self.nxdata)
-            self.nxdata['rotation_angle'].write()
-
+            self.nxsample['rotation_angle'] = angles
+            self.nxsample["rotation_angle"].attrs["units"] = "degrees"
+            # h5py NeXus link
+            source_addr = '/NXtomo/sample/rotation_angle'
+            target_addr = 'rotation_angle'
+            self.nxsample['rotation_angle'].attrs['target'] = source_addr
+            self.nxdata._id.link(source_addr, target_addr, h5py.h5g.LINK_HARD)
         else:
             print('There is no information about the angles at' 
                    'which have been taken the different tomography images')
@@ -566,10 +530,8 @@ class txrmNXtomo:
                 xpositions = struct.unpack(struct_fmt, data)
             if verbose: 
                 print "ImageInfo/XPosition: \n ",  xpositions  
-
-            self.nxsample['x_translation'] = nxs.NXfield(
-                name='x_translation', value=xpositions, attrs={'units': 'um'})   
-            self.nxsample['x_translation'].write()
+            self.nxsample['x_translation'] = xpositions
+            self.nxsample['x_translation'].attrs['units'] = 'um'
 
         else:
             print("There is no information about xpositions")
@@ -590,10 +552,8 @@ class txrmNXtomo:
                 ypositions = struct.unpack(struct_fmt, data)
             if verbose: 
                 print "ImageInfo/YPosition: \n ",  ypositions  
-      
-            self.nxsample['y_translation'] = nxs.NXfield(
-                name='y_translation', value=ypositions, attrs={'units': 'um'})   
-            self.nxsample['y_translation'].write()
+            self.nxsample['y_translation'] = ypositions
+            self.nxsample['y_translation'].attrs['units'] = 'um'
 
         else:
             print("There is no information about xpositions")
@@ -613,11 +573,9 @@ class txrmNXtomo:
                 struct_fmt = '<'+"f"+"36xf"*(self.nSampleFrames-1)
                 zpositions = struct.unpack(struct_fmt, data)
             if verbose: 
-                print "ImageInfo/ZPosition: \n ",  zpositions  
-      
-            self.nxsample['z_translation'] = nxs.NXfield(
-                name='z_translation', value=zpositions, attrs={'units': 'um'})   
-            self.nxsample['z_translation'].write()
+                print "ImageInfo/ZPosition: \n ",  zpositions
+            self.nxsample['z_translation'] = zpositions
+            self.nxsample['z_translation'].attrs['units'] = 'um'
 
         else:
             print("There is no information about xpositions")
@@ -627,11 +585,12 @@ class txrmNXtomo:
         ole.close()
         print("Meta-Data conversion from 'txrm' to NeXus HDF5 "
               "has been done.\n")
+
         return
 
     def convert_zero_deg_images(self, ole_zerodeg):
-        verbose=False
 
+        verbose = False
         # DataType: 10 float; 5 uint16 (unsigned 16-bit (2-byte) integers)
         if ole_zerodeg.exists('ImageInfo/DataType'):                  
             stream = ole_zerodeg.openstream('ImageInfo/DataType')
@@ -684,21 +643,13 @@ class txrmNXtomo:
             else:                            
                 print "Wrong data type"
 
-            imgdata_zerodeg = np.flipud(np.reshape(imgdata, 
-                                    (self.numrows, self.numcols), order='A'))
+            imgdata_zerodeg = np.flipud(np.reshape(imgdata,
+                                                   (self.numrows,
+                                                    self.numcols),
+                                                   order='A'))
         else:
             imgdata_zerodeg = 0
         return imgdata_zerodeg
-
-
-
-
-
-
-
-
-
-
 
     # Read single image. Function that will only be used inside
     # convert_tomography() for converting the full tomography
@@ -796,79 +747,44 @@ class txrmNXtomo:
                                  order='A')
         return singleimage
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     # Function used to convert all the tomography images (main data),
     # from .txrm to NeXus .hdf5.
     def convert_tomography(self):    
-        
-        verbose = False
 
         if self.metadata == 1:
                 
             if self.filename_zerodeg_in is not None:
                 ole_zerodeg_in = OleFileIO(self.filename_zerodeg_in)        
                 image_zerodeg_in = self.convert_zero_deg_images(ole_zerodeg_in)
-                self.nxinstrument['sample'][
-                    '0_degrees_initial_image'] = nxs.NXfield(
-                    name='0_degrees_initial_image',
-                    value=image_zerodeg_in,
+                self.nxdetectorsample.create_dataset(
+                    '0_degrees_initial_image',
+                    data=image_zerodeg_in,
                     dtype=self.datatype_zerodeg)
-                self.nxinstrument['sample'][
-                    '0_degrees_initial_image'].attrs[
+                self.nxdetectorsample['0_degrees_initial_image'].attrs[
                     'Data Type'] = self.datatype_zerodeg
-                self.nxinstrument['sample'][
-                    '0_degrees_initial_image'].attrs[
-                    'Image Height']=self.numrows_zerodeg
-                self.nxinstrument['sample'][
-                    '0_degrees_initial_image'].attrs[
-                    'Image Width']=self.numcols_zerodeg
-                self.nxinstrument['sample'][
-                    '0_degrees_initial_image'].write()
-                print('Zero degrees initial image converted')	
+                self.nxdetectorsample['0_degrees_initial_image'].attrs[
+                    'Image Height'] = self.numrows_zerodeg
+                self.nxdetectorsample['0_degrees_initial_image'].attrs[
+                    'Image Width'] = self.numcols_zerodeg
+                print('Zero degrees initial image converted')
 
             if self.filename_zerodeg_final is not None:
                 ole_zerodeg_final = OleFileIO(self.filename_zerodeg_final)
                 image_zerodeg_final = self.convert_zero_deg_images(
                     ole_zerodeg_final)
-                self.nxinstrument['sample'][
-                    '0_degrees_final_image'] = nxs.NXfield(
-                    name='0_degrees_final_image',
-                    value=image_zerodeg_final,
+                self.nxdetectorsample.create_dataset(
+                    '0_degrees_final_image',
+                    data=image_zerodeg_final,
                     dtype=self.datatype_zerodeg)
-                self.nxinstrument['sample'][
-                    '0_degrees_final_image'].attrs[
+                self.nxdetectorsample['0_degrees_final_image'].attrs[
                     'Data Type'] = self.datatype_zerodeg
-                self.nxinstrument['sample'][
-                    '0_degrees_final_image'].attrs[
+                self.nxdetectorsample['0_degrees_final_image'].attrs[
                     'Image Height'] = self.numrows_zerodeg
-                self.nxinstrument['sample'][
-                    '0_degrees_final_image'].attrs[
+                self.nxdetectorsample['0_degrees_final_image'].attrs[
                     'Image Width'] = self.numcols_zerodeg
-                self.nxinstrument['sample']['0_degrees_final_image'].write()
-                print('Zero degrees final image converted')        
+                print('Zero degrees final image converted')
 
+            """
             print("\nConverting tomography image data "
                   "from txrm to NeXus HDF5.")
             # Opening the .txrm files as Ole structures
@@ -1314,5 +1230,8 @@ class txrmNXtomo:
             print('Function convert_metadata() has to be called before '
                   'calling convert_tomography().')
 
-        return
+        """
+        self.txrmhdf.flush()
+        self.txrmhdf.close()
+
 
