@@ -361,8 +361,6 @@ class MosaicNex:
             self.nxsample['rotation_angle'].attrs['units'] = 'degrees'
 
             # h5py NeXus link
-            #self.nxdata["rotation_angle"] = self.nxsample["rotation_angle"]
-
             source_addr = '/NXmosaic/sample/rotation_angle'
             target_addr = 'rotation_angle'
             self.nxsample['rotation_angle'].attrs['target'] = source_addr
