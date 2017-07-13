@@ -542,4 +542,5 @@ class MosaicNex:
 
             oleFF.close()
             print("FF image converted")
-
+        self.mosaichdf.flush()
+        self.mosaichdf.close()
