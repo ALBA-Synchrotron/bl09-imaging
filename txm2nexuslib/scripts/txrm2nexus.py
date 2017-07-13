@@ -41,7 +41,7 @@ def main():
                         nargs='+', default=None,
                         help='Tomography, BrightField and DarkField txrm files '
                              'in the order that have to be processed')
-    parser.add_argument('-o', '--files_order', type=str, default='s',
+    parser.add_argument('-o', '--files_order', type=str, default='sb',
                         help="Indicates the order in which the "
                              "sample file 's', bright fields 'b' "
                              "and dark fields 'd' have to be processed")
