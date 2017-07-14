@@ -87,9 +87,7 @@ def main():
     else:
         return 
 
-    print("\n")
     print(datetime.datetime.today())
-    print("\n")
 
 
 if __name__ == "__main__":
