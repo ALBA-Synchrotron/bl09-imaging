@@ -82,7 +82,7 @@ def main():
     if nexus.exitprogram != 1:
         nexus.NXtomo_structure()
         nexus.convert_metadata()
-        nexus.convert_tomography()
+        nexus.convert_image_stack()
         
     else:
         return 

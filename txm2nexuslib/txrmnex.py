@@ -30,18 +30,10 @@ import argparse
 import h5py
 
 
-
-
-
-
-import nxs
-
-
-
 class txrmNXtomo:
 
     def __init__(self, files, files_order='sb', zero_deg_in=None,
-                 zero_deg_final=None, title='X-ray tomography', 
+                 zero_deg_final=None, title='X-ray imaging',
                  sourcename='ALBA', sourcetype='Synchrotron X-ray Source', 
                  sourceprobe='x-ray', instrument='BL09 @ ALBA', 
                  sample='Unknown'):
@@ -66,13 +58,13 @@ class txrmNXtomo:
             return
                    
         if 's' not in files_order:
-            print('Tomography data file (txrm) has to be specified, ' 
+            print('Image stack data file (txrm) has to be specified, '
                   'inicate it as \'s\' in the argument option -o.\n')
             self.exitprogram = 1
             return
 
-        index_tomography_file = files_order.index('s')
-        self.filename_txrm = files[index_tomography_file]        
+        index_samplestack_file = files_order.index('s')
+        self.filename_txrm = files[index_samplestack_file]
         self.filename_hdf5 = self.filename_txrm.split('.txrm')[0] + '.hdf5'
         self.txrmhdf = h5py.File(self.filename_hdf5, 'w')
 
@@ -304,7 +296,7 @@ class txrmNXtomo:
                 print "ImageInfo/XrayMagnification: %f " % XrayMagnification
             self.nxdetectorsample['magnification'] = self.magnification
 
-        # Tomography data size
+        # Stack data size
         if (ole.exists('ImageInfo/NoOfImages') and 
             ole.exists('ImageInfo/ImageWidth') and 
             ole.exists('ImageInfo/ImageHeight')):                  
@@ -331,7 +323,7 @@ class txrmNXtomo:
             self.numcols = np.int(yimage[0])
 
         else:
-            print('There is no information about the tomography size ' 
+            print('There is no information about the image stack size '
                   '(ImageHeight, ImageWidth or Number of images)')
 
         # Accelerator current for each image (machine current)
@@ -423,8 +415,8 @@ class txrmNXtomo:
             self.nxdetectorsample["ExpTimes"].attrs["units"] = "s"
 
         else:
-            print('There is no information about the exposure times with '
-                  'which have been taken the different tomography images')
+            print('There is no information about the exposure times at '
+                  'which have been taken the different images')
 
         # DataType: 10 float; 5 uint16 (unsigned 16-bit (2-byte) integers)
         if ole.exists('ImageInfo/DataType'):                  
@@ -509,8 +501,8 @@ class txrmNXtomo:
             self.nxsample['rotation_angle'].attrs['target'] = source_addr
             self.nxdata._id.link(source_addr, target_addr, h5py.h5g.LINK_HARD)
         else:
-            print('There is no information about the angles at' 
-                   'which have been taken the different tomography images')
+            print('There is no information about the angles at '
+                  'which have been taken the different images')
 
         # Sample translations in X, Y and Z 
         # X sample translation: nxsample['z_translation']
@@ -651,9 +643,9 @@ class txrmNXtomo:
             imgdata_zerodeg = 0
         return imgdata_zerodeg
 
-    # Read single image. Function that will only be used inside
-    # convert_tomography() for converting the full tomography
-    # thanks to multiple slabs.
+    # Read single image. Function that will be used inside
+    # convert_image_stack() for converting the full image stack
+    # thanks to multiple chunks.
     def extract_single_image(self, ole, numimage): 
 
         # Read the images - They are stored in the txrm as ImageData1,
@@ -682,9 +674,8 @@ class txrmNXtomo:
                                  order='A')
         return singleimage
 
-    # Read single image. Function that will only be used inside
-    # convert_tomography() for converting the full tomography thanks
-    # to multiple slabs.
+    # Read single image. Function that will be used inside
+    # convert_image_stack()
     def extract_single_image_bright(self, ole, numimage): 
 
         # Read the images - They are stored in the txrm as ImageData1,
@@ -717,8 +708,7 @@ class txrmNXtomo:
         return singleimage
 
     # Read single image. Function that will only be used inside
-    # convert_tomography() for converting the full tomography thanks
-    # to multiple slabs.
+    # convert_image_stack().
     def extract_single_image_dark(self, ole, numimage): 
 
         # Read the images - They are stored in the txrm as ImageData1,
@@ -747,10 +737,11 @@ class txrmNXtomo:
                                  order='A')
         return singleimage
 
-    # Function used to convert all the tomography images (main data),
+    # Function used to convert all the images (main data),
     # from .txrm to NeXus .hdf5.
-    def convert_tomography(self):    
+    def convert_image_stack(self):
 
+        verbose = False
         if self.metadata == 1:
                 
             if self.filename_zerodeg_in is not None:
@@ -784,75 +775,71 @@ class txrmNXtomo:
                     'Image Width'] = self.numcols_zerodeg
                 print('Zero degrees final image converted')
 
-            """
-            print("\nConverting tomography image data "
-                  "from txrm to NeXus HDF5.")
-            # Opening the .txrm files as Ole structures
-            ole = OleFileIO(self.filename_txrm)
+            print("\nConverting image data from txrm to NeXus HDF5.")
 
             #Bright-Field
             if not self.brightexists:
-                print('\nWarning: Bright-Field is not present, the '
-                      'generated HDF5 file will not be compliant with '
-                      'the NeXus standard. \n')
+                print('\nWARNING: Bright-Field is not present \n')
 
             count_brightfield_file = 0
             count_darkfield_file = 0
             counter_bright_frames = 0
             counter_dark_frames = 0
-            for i in range(0, len(self.orderlist)):
-                print(self.orderlist)
+            print(self.orderlist)
+            for i in range(len(self.orderlist)):
 
                 ole = OleFileIO(self.files[i])
 
-                # Tomography Data Images
+                # Data Images
                 if self.orderlist[i] == 's':
                     if self.datatype == 'float':
-                        self.nxinstrument['sample']['data'] = nxs.NXfield(
-                            name='data', dtype='float32' ,
-                            shape=[nxs.UNLIMITED, self.numrows, self.numcols])
-                    else:
-                        self.nxinstrument['sample']['data'] = nxs.NXfield(
-                            name='data', dtype=self.datatype,
-                            shape=[nxs.UNLIMITED, self.numrows, self.numcols])
+                        self.datatype = 'float32'
 
-                    self.nxinstrument['sample']['data'].attrs[
+                    self.nxdetectorsample.create_dataset(
+                        "data",
+                        shape=(self.nSampleFrames,
+                               self.numrows,
+                               self.numcols),
+                        chunks=(1,
+                                self.numrows,
+                                self.numcols),
+                        dtype=self.datatype)
+
+                    self.nxdetectorsample['data'].attrs[
                         'Data Type'] = self.datatype
-                    self.nxinstrument['sample'][
+                    self.nxdetectorsample[
                         'data'].attrs['Number of Frames'] = self.nSampleFrames
-                    self.nxinstrument['sample']['data'].attrs[
+                    self.nxdetectorsample['data'].attrs[
                         'Image Height'] = self.numrows
-                    self.nxinstrument['sample']['data'].attrs[
+                    self.nxdetectorsample['data'].attrs[
                         'Image Width'] = self.numcols
-                    self.nxinstrument['sample']['data'].write()
 
-                    for numimage in range(0, self.nSampleFrames):
-                        print('Image %i converted' % (numimage+1))
+                    print('Image pixels are {0}rows * {1}columns \n'.format(
+                        self.numrows, self.numcols))
+                    for numimage in range(self.nSampleFrames):
                         self.count_num_sequence = self.count_num_sequence+1
                         tomoimagesingle = self.extract_single_image(ole,
                                                                     numimage+1)
-                        
                         self.num_sample_sequence.append(
                             self.count_num_sequence)
+                        self.nxdetectorsample['data'][numimage] = \
+                            tomoimagesingle
+                        if numimage % 10 == 0:
+                            print('Image %i converted' % numimage)
 
-                        slab_offset = [numimage, 0, 0]
-                        self.nxinstrument['sample']['data'].put(
-                            tomoimagesingle,
-                            slab_offset,
-                            refresh=False)
-                        self.nxinstrument['sample']['data'].write()
-
-                    self.nxdata['data'] = nxs.NXlink(target=
-                                                     self.nxinstrument[
-                                                         'sample']['data'],
-                                                     group=self.nxdata)
-                    self.nxdata['data'].write()
+                    # h5py NeXus link
+                    source_addr = '/NXtomo/instrument/sample/data'
+                    target_addr = 'data'
+                    self.nxdetectorsample['data'].attrs[
+                        'target'] = source_addr
+                    self.nxdata._id.link(source_addr, target_addr,
+                                         h5py.h5g.LINK_HARD)
                     ole.close()
-                    print('\n Image pixels are {0}rows * {1}columns \n'.format(
-                        self.numrows, self.numcols))
+                    print('%i images have been converted\n'
+                          % self.nSampleFrames)
 
-                #Bright-Field
-                elif self.orderlist[i] == 'b':                
+                # Bright-Field
+                elif self.orderlist[i] == 'b':
                     count_brightfield_file = count_brightfield_file+1
                     
                     # DataType_bright: 10 float; 5 uint16
@@ -874,8 +861,7 @@ class txrmNXtomo:
                         print("There is no information about "
                               "BrightField DataType")
 
-
-                    # Tomography data size 
+                    # Image stack data size
                     if (ole.exists('ImageInfo/NoOfImages') and 
                         ole.exists('ImageInfo/ImageWidth') and 
                         ole.exists('ImageInfo/ImageHeight')):                  
@@ -903,55 +889,52 @@ class txrmNXtomo:
                             self.numcols_bright = np.int(yimage[0])
 
                     else:
-                        print('There is no information about the tomography '
-                              'size (ImageHeight, ImageWidth or '
-                              'Number of images)')
+                        print('There is no information about the bright field'
+                              ' stack size (ImageHeight, ImageWidth or'
+                              ' Number of images)')
 
                     if count_brightfield_file == 1:
-                        
-                        self.nxbright = nxs.NXgroup(name='bright_field')
-                        self.nxinstrument.insert(self.nxbright)
-                        self.nxbright.write() 
-                        self.nxinstrument['bright_field'][
-                            'data'] = nxs.NXfield(
-                            name='data',
-                            dtype=self.datatype_bright,
-                            shape=[nxs.UNLIMITED,
+                        self.nxbright = self.nxinstrument.create_group(
+                            "bright_field")
+                        self.nxbright.attrs['NX_class'] = "Unknown"
+                        self.nxbright.create_dataset(
+                            "data",
+                            shape=(nBrightFrames,
                                    self.numrows_bright,
-                                   self.numcols_bright])
+                                   self.numcols_bright),
+                            chunks=(1,
+                                    self.numrows_bright,
+                                    self.numcols_bright),
+                            dtype=self.datatype_bright)
+                        self.nxbright['data'].attrs['Data Type'] = \
+                            self.datatype_bright
+                        self.nxbright['data'].attrs['Image Height'] = \
+                            self.numrows_bright
+                        self.nxbright['data'].attrs['Image Width'] = \
+                            self.numcols_bright
 
-                        self.nxinstrument['bright_field'][
-                            'data'].attrs['Data Type'] = self.datatype_bright
-                        self.nxinstrument['bright_field'][
-                            'data'].attrs['Image Height'] = self.numrows_bright
-                        self.nxinstrument['bright_field'][
-                            'data'].attrs['Image Width'] = self.numcols_bright
-                        self.nxinstrument['bright_field'][
-                            'data'].write()
-
-                    for numimage in range(0, nBrightFrames):
-                        print ('Bright-Field image %i '
-                               'converted' % (numimage+1))
-                        self.count_num_sequence = self.count_num_sequence+1
+                    print('BrightField pixels are {0}rows * '
+                          '{1}columns'.format(self.numrows_bright,
+                                              self.numcols_bright))
+                    for numimage in range(nBrightFrames):
+                        if numimage + 1 == nBrightFrames:
+                            print ('%i Bright-Field images '
+                                   'converted\n' % nBrightFrames)
+                        self.count_num_sequence = self.count_num_sequence + 1
                         tomoimagebright = self.extract_single_image_bright(
-                            ole,
-                            numimage+1)
-                    
+                            ole, numimage+1)
                         self.num_bright_sequence.append(
                             self.count_num_sequence)
-                        slab_offset = [counter_bright_frames, 0, 0]
-                        self.nxinstrument['bright_field']['data'].put(
-                            tomoimagebright, slab_offset, refresh=False)
-                        self.nxinstrument['bright_field']['data'].write()
+                        self.nxbright['data'][counter_bright_frames] = \
+                            tomoimagebright
                         counter_bright_frames = counter_bright_frames+1
 
-                    ################################################
-                    # machine_current name of FF images
+                    # machine_current name of FF images #
                     if ole.exists('PositionInfo/AxisNames'):   
                         stream = ole.openstream('PositionInfo/AxisNames')
                         data = stream.read()
-                        lendatabytes=len(data)
-                        formatstring='<'+str(lendatabytes)+'c'
+                        lendatabytes = len(data)
+                        formatstring = '<'+str(lendatabytes)+'c'
                         struct_fmt = formatstring
                         axis_names_raw = struct.unpack(struct_fmt, data)
                         axis_names_raw = ''.join(axis_names_raw)
@@ -971,18 +954,13 @@ class txrmNXtomo:
                             number_of_bytes = number_of_floats * 4
                             data = stream.read(number_of_bytes)
                             axis = struct.unpack(struct_fmt, data)
-
                             currents_FF = nBrightFrames*[0]
                             for i in range(nBrightFrames):
                                 # In mA
                                 currents_FF[i] = axis[self.num_axis*i+28]
-                            self.nxinstrument['bright_field']['current'] = \
-                                nxs.NXfield(
-                                    name='current',
-                                    value=currents_FF,
-                                    attrs={'units': 'mA'})
-                            self.nxinstrument['bright_field'][
-                                'current'].write()
+                            self.nxbright.create_dataset(
+                                "current", data=currents_FF)
+                            self.nxbright["current"].attrs["units"] = "mA"
                         else:
                             print('PositionInfo/MotorPositions '
                                   'does not exist in txrm FF tree')
@@ -1010,22 +988,16 @@ class txrmNXtomo:
                                                  % len(data)
                             struct_fmt = '<'+"f"+"36xf"*(nBrightFrames-1)
                             exptimes = struct.unpack(struct_fmt, data)
-                        if verbose: print "ImageInfo/ExpTimes: \n ",  exptimes  
-                        self.nxinstrument['bright_field']['ExpTimes'] = \
-                            nxs.NXfield(
-                            name='ExpTimes',
-                            value=exptimes,
-                            attrs={'units': 's'})
-                        self.nxinstrument['bright_field']['ExpTimes'].write()
+                        if verbose: print "ImageInfo/ExpTimes: \n ",  exptimes
+                        self.nxbright.create_dataset(
+                            "ExpTimes", data=exptimes)
+                        self.nxbright["ExpTimes"].attrs["units"] = "s"
                     else:
                         print('There is no information about the '
                               'exposure times with which have been taken '
-                              'the different tomography images')
+                              'the different images')
    
                     ole.close()
-                    print('\n BrightField pixels are {0}rows * {1}columns '
-                          '\n'.format(self.numrows_bright,
-                                      self.numcols_bright))
 
                 # Post-Dark-Field
                 elif self.orderlist[i] == 'd':
@@ -1050,7 +1022,7 @@ class txrmNXtomo:
                         print("There is no information about "
                               "DarkField DataType")
 
-                    # Tomography data size 
+                    # Image stack data size
                     if (ole.exists('ImageInfo/NoOfImages') and 
                         ole.exists('ImageInfo/ImageWidth') and 
                         ole.exists('ImageInfo/ImageHeight')):                  
@@ -1079,46 +1051,45 @@ class txrmNXtomo:
 
                     else:
                         print('There is no information about the '
-                              'tomography size (ImageHeight,'
+                              'dark field stack size (ImageHeight,'
                               'ImageWidth or Number of images)')
 
                     if count_darkfield_file == 1:
-                        self.nxdark = nxs.NXgroup(name='dark_field')
-                        self.nxinstrument.insert(self.nxdark)
-                        self.nxdark.write() 
-                        self.nxinstrument['dark_field']['data'] = nxs.NXfield(
-                            name='data',
-                            dtype=self.datatype_dark,
-                            shape=[nxs.UNLIMITED,
+                        self.nxdark = self.nxinstrument.create_group(
+                            "dark_field")
+                        self.nxdark.attrs['NX_class'] = "Unknown"
+                        self.nxdark.create_dataset(
+                            "data",
+                            shape=(nDarkFrames,
                                    self.numrows_dark,
-                                   self.numcols_dark])
+                                   self.numcols_dark),
+                            chunks=(1,
+                                    self.numrows_dark,
+                                    self.numcols_dark),
+                            dtype=self.datatype_dark)
 
-                        self.nxinstrument['dark_field']['data'].attrs[
-                            'Data Type'] = self.datatype_dark
-                        self.nxinstrument['dark_field']['data'].attrs[
-                            'Image Height'] = self.numrows_dark
-                        self.nxinstrument['dark_field']['data'].attrs[
-                            'Image Width'] = self.numcols_dark
-                        self.nxinstrument['dark_field']['data'].write()
+                        self.nxdark['data'].attrs['Data Type'] = \
+                            self.datatype_dark
+                        self.nxdark['data'].attrs['Image Height'] = \
+                            self.numrows_dark
+                        self.nxdark['data'].attrs['Image Width'] = \
+                            self.numcols_dark
 
-
-                    for numimage in range(0, nDarkFrames):
-                        print ('Dark-Field image %i converted' % (numimage+1))
+                    print('DarkField pixels are {0}rows * '
+                          '{1}columns'.format(self.numrows_dark,
+                                              self.numcols_dark))
+                    for numimage in range(nDarkFrames):
+                        if numimage + 1 == nDarkFrames:
+                            print ('%i Dark-Field images '
+                                   'converted\n' % nDarkFrames)
                         self.count_num_sequence = self.count_num_sequence+1
                         tomoimagedark = self.extract_single_image_dark(
                             ole, numimage+1)
-
                         self.num_dark_sequence.append(self.count_num_sequence)
-                        slab_offset = [counter_dark_frames, 0, 0]
-                        self.nxinstrument['dark_field'][
-                            'data'].put(tomoimagedark,
-                                        slab_offset,
-                                        refresh=False)
-                        self.nxinstrument['dark_field']['data'].write()
-                        counter_dark_frames = counter_dark_frames+1
+                        self.nxdark['data'][counter_dark_frames] = \
+                            tomoimagedark
 
-                    ################################################
-                    # machine_current name of DF images
+                    # machine_current name of DF images #
                     if ole.exists('PositionInfo/AxisNames'):   
                         stream = ole.openstream('PositionInfo/AxisNames')
                         data = stream.read()
@@ -1147,12 +1118,9 @@ class txrmNXtomo:
                             for i in range(nDarkFrames):
                                 # In mA
                                 currents_DF[i] = axis[self.num_axis*i+28]
-                            self.nxinstrument['dark_field'][
-                                'current'] = nxs.NXfield(
-                                name='current',
-                                value=currents_DF,
-                                attrs={'units': 'mA'})
-                            self.nxinstrument['dark_field']['current'].write()
+                            self.nxdark.create_dataset(
+                                "current", data=currents_DF)
+                            self.nxdark["current"].attrs["units"] = "mA"
                         else:
                             print('PositionInfo/MotorPositions does not exist '
                                   'in txrm DarkField tree')
@@ -1179,35 +1147,22 @@ class txrmNXtomo:
                                                  % len(data)
                             struct_fmt = '<'+"f"+"36xf"*(nDarkFrames-1)
                             exptimes = struct.unpack(struct_fmt, data)
-                        if verbose: print "ImageInfo/ExpTimes: \n ",  exptimes  
-                        self.nxinstrument['dark_field']['ExpTimes'] = \
-                            nxs.NXfield(
-                            name='ExpTimes',
-                            value=exptimes,
-                            attrs={'units': 's'})
-                        self.nxinstrument['dark_fieldd']['ExpTimes'].write()
+                        if verbose: print "ImageInfo/ExpTimes: \n ",  exptimes
+                        self.nxdark.create_dataset(
+                            "ExpTimes", data=exptimes)
+                        self.nxdark["ExpTimes"].attrs["units"] = "s"
                     else:
                         print('There is no information about the '
                               'exposure times with which have been taken '
-                              'the different tomography images')
-                                                                  
+                              'the different images')
                     ole.close()
-                    print('\n DarkField pixels are {0}rows * {1}columns '
-                          '\n'.format(self.numrows_dark, self.numcols_dark))
 
-            self.nxinstrument['sample'][
-                'sequence_number'] = self.num_sample_sequence
-            self.nxinstrument['sample']['sequence_number'].write()
-
+            self.nxdetectorsample['sequence_number'] = \
+                self.num_sample_sequence
             if self.brightexists:
-                self.nxinstrument['bright_field'][
-                    'sequence_number'] = self.num_bright_sequence
-                self.nxinstrument['bright_field']['sequence_number'].write()
-
+                self.nxbright['sequence_number'] = self.num_bright_sequence
             if self.darkexists:
-                self.nxinstrument['dark_field'][
-                    'sequence_number'] = self.num_dark_sequence
-                self.nxinstrument['dark_field']['sequence_number'].write()
+                self.nxdark['sequence_number'] = self.num_dark_sequence
 
             self.nFramesSampleTotal = len(self.num_sample_sequence)
             self.nFramesBrightTotal = len(self.num_bright_sequence)
@@ -1220,17 +1175,14 @@ class txrmNXtomo:
                                 self.nFramesBrightTotal +
                                 self.nFramesDarkTotal)
             self.monitorcounts = np.ones(self.monitorsize, dtype=np.uint16)
-            self.nxmonitor['data'] = nxs.NXfield(
-                name='data', value=self.monitorcounts)
-            self.nxmonitor['data'].write()
+            self.nxmonitor['data'] = self.monitorcounts
 
         else:
             print('Metadata had not been extracted; ' 
-                  'thus, the tomography image data cannot be extracted.')
+                  'thus, the image stack data cannot be extracted.')
             print('Function convert_metadata() has to be called before '
-                  'calling convert_tomography().')
+                  'calling convert_image_stack().')
 
-        """
         self.txrmhdf.flush()
         self.txrmhdf.close()
 
