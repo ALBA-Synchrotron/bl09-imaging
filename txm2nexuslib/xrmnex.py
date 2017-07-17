@@ -799,7 +799,7 @@ class xrmNXtomo(object):
         return imgdata_zerodeg
 
     def convert_tomography(self):
-        # TODO: Extract numcols_zerodeg and numrows_zerodeg
+        # TODO: 0 degree images not implemented in xrm2nexs
         if self.filename_zerodeg_in is not None:
             ole_zerodeg_in = OleFileIO(self.filename_zerodeg_in)
             image_zerodeg_in = self._convert_zero_deg_images(ole_zerodeg_in)
