@@ -1168,8 +1168,7 @@ class txrmNXtomo:
             self.nFramesBrightTotal = len(self.num_bright_sequence)
             self.nFramesDarkTotal = len(self.num_dark_sequence)
 
-            # NXMonitor data: Not used in TXM microscope. 
-            # Used to normalize in function fo the beam intensity (to verify). 
+            # NXMonitor data: Not used in TXM microscope.
             # In the ALBA-BL09 case all the values will be set to 1.
             self.monitorsize = (self.nFramesSampleTotal + 
                                 self.nFramesBrightTotal +
