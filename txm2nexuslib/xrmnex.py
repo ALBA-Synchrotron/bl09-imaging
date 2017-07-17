@@ -22,7 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from OleFileIO_PL import *
 import numpy as np
-import nxs
+import h5py
 import sys
 import struct
 import datetime
@@ -471,8 +471,9 @@ class XradiaFile(object):
 
 class xrmNXtomo(object):
     definition = 'NXtomo'
+    # CCD detector pixelsize in micrometers
     CCDdetector_pixelsize = 13
-    CCDdetector_pixelsize_unit = 'um'  # in micrometers
+    CCDdetector_pixelsize_unit = 'um'
 
     def __init__(self, reader, ffreader, file_order,
                  program_name, program_version, program_args,
@@ -494,6 +495,24 @@ class xrmNXtomo(object):
         if not os.path.exists(path):
             os.makedirs(path)
         self.hdf5_file_name = os.path.join(path, "%s.hdf5" % sample_name)
+        self.txrmhdf = h5py.File(self.hdf5_file_name, 'w')
+
+        self.filename_zerodeg_in = zero_deg_in
+        self.filename_zerodeg_final = zero_deg_final
+
+        self.nxentry = None
+        self.nxsample = None
+        self.nxmonitor = None
+        self.nxinstrument = None
+        self.nxdata = None
+        self.nxdetectorsample = None
+        self.nxsource = None
+
+        self.count_num_sequence = 0
+        self.num_sample_sequence = []
+        self.num_bright_sequence = []
+        self.num_dark_sequence = []
+
         self.program_name = program_name
         self.program_version = program_version
         self.program_args = program_args
@@ -503,42 +522,55 @@ class xrmNXtomo(object):
         self.sourceprobe = sourceprobe
         self.instrument = instrument
         self.sample = sample
-        self.nxentry = None
         self.file_order = list(file_order)
+
+        self.datatype_zerodeg = 'uint16'
+        self.numrows_zerodeg = 0
+        self.numcols_zerodeg = 0
         self.filename_zerodeg_in = zero_deg_in
         self.filename_zerodeg_final = zero_deg_final
 
+        self.numrows = 0
+        self.numcols = 0
+        self.nSampleFrames = 0
+        self.datatype = None
+
+        self.numrows_bright = 0
+        self.numcols_bright = 0
+        self.nFramesBright = 0
+        self.datatype_bright = 'uint16'
+
     def convert_metadata(self):
-        self.nxentry = nxs.NXentry(name=self.definition)
 
-        self.nxentry['title'] = self.title
-        self.nxentry['definition'] = self.definition
+        self.nxentry = self.txrmhdf.create_group(self.definition)
+        self.nxentry.attrs['NX_class'] = "NXentry"
 
-        self.nxsample = nxs.NXsample()
-        self.nxentry.insert(self.nxsample)
-        self.nxsample['name'] = self.sample
+        self.nxentry.create_dataset("title", data=self.title)
+        self.nxentry.create_dataset("definition", data=self.definition)
 
-        self.nxmonitor = nxs.NXmonitor(name='control')
-        self.nxentry.insert(self.nxmonitor)
+        self.nxinstrument = self.nxentry.create_group("instrument")
+        self.nxsample = self.nxentry.create_group("sample")
+        self.nxmonitor = self.nxentry.create_group("control")
+        self.nxdata = self.nxentry.create_group("data")
 
-        self.nxdata = nxs.NXdata()
-        self.nxentry.insert(self.nxdata)
+        self.nxmonitor.attrs['NX_class'] = "NXmonitor"
+        self.nxsample.attrs['NX_class'] = "NXsample"
+        self.nxdata.attrs['NX_class'] = "NXdata"
+        self.nxinstrument.attrs['NX_class'] = "NXinstrument"
 
-        self.nxinstrument = nxs.NXinstrument(name='instrument')
         self.nxinstrument['name'] = self.instrument
         pixel_size = "%d %s" % (self.CCDdetector_pixelsize,
                                 self.CCDdetector_pixelsize_unit)
         self.nxinstrument['name'].attrs['CCD pixel size'] = pixel_size
-        self.nxentry.insert(self.nxinstrument)
 
-        self.nxsource = nxs.NXsource(name='source')
-        self.nxinstrument.insert(self.nxsource)
+        self.nxsource= self.nxinstrument.create_group("source")
+        self.nxdetectorsample = self.nxinstrument.create_group("sample")
+        self.nxsource.attrs['NX_class'] = "NXsource"
+        self.nxdetectorsample.attrs['NX_class'] = "NXdetector"
+
         self.nxinstrument['source']['name'] = self.sourcename
         self.nxinstrument['source']['type'] = self.sourcetype
         self.nxinstrument['source']['probe'] = self.sourceprobe
-
-        self.nxdetectorsample = nxs.NXdetector(name='sample')
-        self.nxinstrument.insert(self.nxdetectorsample)
 
         self.nxentry['program_name'] = self.program_name
         self.nxentry['program_name'].attrs['version'] = self.program_version
@@ -547,41 +579,39 @@ class xrmNXtomo(object):
 
         # Sample-ID
         sample_name = self.reader.get_sample_name()
-        self.nxsample['name'] = nxs.NXfield(name='name', value=sample_name)
+        self.nxsample['name'] = sample_name
 
         distance = self.reader.get_distance()
-        self.nxinstrument['sample']['distance'] = nxs.NXfield(
-            name='x_pixel_size',
-            value=distance,
-            attrs={'units': 'um'})
+        self.nxdetectorsample.create_dataset("distance", data=distance)
+        self.nxdetectorsample["distance"].attrs["units"] = "um"
+
+        # Pixel-size
         pixel_size = self.reader.get_pixel_size()
-        self.nxinstrument['sample']['x_pixel_size'] = nxs.NXfield(
-            name='x_pixel_size',
-            value=pixel_size,
-            attrs={'units': 'um'})
-        self.nxinstrument['sample']['y_pixel_size'] = nxs.NXfield(
-            name='y_pixel_size',
-            value=pixel_size,
-            attrs={'units': 'um'})
+        self.nxdetectorsample.create_dataset("x_pixel_size",
+                                             data=pixel_size)
+        self.nxdetectorsample.create_dataset("y_pixel_size",
+                                             data=pixel_size)
+        self.nxdetectorsample["x_pixel_size"].attrs["units"] = "um"
+        self.nxdetectorsample["y_pixel_size"].attrs["units"] = "um"
 
         # X-Ray Magnification
         magnification = self.reader.get_xray_magnification()
-        self.nxinstrument['sample']['magnification'] = nxs.NXfield(
-            name='magnification', value=magnification)
+        self.nxdetectorsample['magnification'] = magnification
+
         # Accelerator current for each image (machine current)
         currents = self.reader.get_machine_currents()
-        self.nxinstrument['sample']['current'] = nxs.NXfield(
-            name='current', value=currents, attrs={'units': 'mA'})
+        self.nxdetectorsample['current'] = currents
+        self.nxdetectorsample['current'].attrs["units"] = "mA"
 
         # Energy for each image:
         energies = self.reader.get_energies()
-        self.nxinstrument['source']['energy'] = nxs.NXfield(
-            name='energy', value=energies, attrs={'units': 'eV'})
+        self.nxsource["energy"] = energies
+        self.nxsource["energy"].attrs["units"] = "eV"
 
         # Exposure Times
         exptimes = self.reader.get_exp_times()
-        self.nxinstrument['sample']['ExpTimes'] = nxs.NXfield(
-            name='ExpTimes', value=exptimes, attrs={'units': 's'})
+        self.nxdetectorsample["ExpTimes"] = exptimes
+        self.nxdetectorsample["ExpTimes"].attrs["units"] = "s"
 
         # Start and End Times
         starttimeiso = self.reader.get_start_time()
@@ -591,136 +621,215 @@ class xrmNXtomo(object):
 
         # Sample rotation angles
         angles = self.reader.get_angles()
-        self.nxsample['rotation_angle'] = nxs.NXfield(
-            name='rotation_angle', value=angles, attrs={'units': 'degrees'})
+        self.nxsample['rotation_angle'] = angles
+        self.nxsample["rotation_angle"].attrs["units"] = "degrees"
 
-        # self.nxdata['rotation_angle'] = nxs.NXlink(
-        #     target=self.nxsample['rotation_angle'], group=self.nxdata)
-        # TODO: use links
-        self.nxdata['rotation_angle'] = nxs.NXfield(
-            name='rotation_angle', value=angles, attrs={'units': 'degrees'})
+        # h5py NeXus link
+        source_addr = '/NXtomo/sample/rotation_angle'
+        target_addr = 'rotation_angle'
+        self.nxsample['rotation_angle'].attrs['target'] = source_addr
+        self.nxdata._id.link(source_addr, target_addr, h5py.h5g.LINK_HARD)
+
         # X sample translation: nxsample['z_translation']
         xpositions = self.reader.get_x_positions()
-        self.nxsample['x_translation'] = nxs.NXfield(
-            name='x_translation', value=xpositions, attrs={'units': 'um'})
+        self.nxsample['x_translation'] = xpositions
+        self.nxsample['x_translation'].attrs['units'] = 'um'
+
         # Y sample translation: nxsample['z_translation']
         ypositions = self.reader.get_y_positions()
-        self.nxsample['y_translation'] = nxs.NXfield(
-            name='y_translation', value=ypositions, attrs={'units': 'um'})
+        self.nxsample['y_translation'] = ypositions
+        self.nxsample['y_translation'].attrs['units'] = 'um'
+
         # Z sample translation: nxsample['z_translation']
         zpositions = self.reader.get_z_positions()
-        self.nxsample['z_translation'] = nxs.NXfield(
-            name='z_translation', value=zpositions, attrs={'units': 'um'})
-
-        self.nxentry.save(self.hdf5_file_name, 'w5')
+        self.nxsample['z_translation'] = zpositions
+        self.nxsample['z_translation'].attrs['units'] = 'um'
 
     def _convert_samples(self):
-        height, width = self.reader.get_image_size()
+        self.numrows, self.numcols = self.reader.get_image_size()
         data_type = self.reader.get_data_type()
-        n_sample_frames = self.reader.get_images_number()
+        self.nSampleFrames = self.reader.get_images_number()
+
         if data_type == 'float':
-            self.nxinstrument['sample']['data'] = nxs.NXfield(
-                name='data', dtype='float32', shape=[nxs.UNLIMITED, height,
-                                                     width])
+            self.datatype = 'float32'
         else:
-            self.nxinstrument['sample']['data'] = nxs.NXfield(
-                name='data', dtype=data_type,
-                shape=[nxs.UNLIMITED, height, width])
+            self.datatype = data_type
 
-        self.nxinstrument['sample']['data'].attrs['Data Type'] = data_type
-        self.nxinstrument['sample']['data'].attrs['Number of Frames'] = \
-            n_sample_frames
-        self.nxinstrument['sample']['data'].attrs['Image Height'] = height
-        self.nxinstrument['sample']['data'].attrs['Image Width'] = width
-        self.nxinstrument['sample']['data'].write()
+        self.nxdetectorsample.create_dataset(
+            "data",
+            shape=(self.nSampleFrames,
+                   self.numrows,
+                   self.numcols),
+            chunks=(1,
+                    self.numrows,
+                    self.numcols),
+            dtype=self.datatype)
 
-        for id in range(n_sample_frames):
-            tomoimagesingle = self.reader.get_image(id)
-            slab_offset = [id, 0, 0]
-            self.nxinstrument['sample']['data'].put(tomoimagesingle,
-                                                    slab_offset, refresh=False)
-            self.nxinstrument['sample']['data'].write()
+        self.nxdetectorsample['data'].attrs[
+            'Data Type'] = self.datatype
+        self.nxdetectorsample[
+            'data'].attrs['Number of Frames'] = self.nSampleFrames
+        self.nxdetectorsample['data'].attrs[
+            'Image Height'] = self.numrows
+        self.nxdetectorsample['data'].attrs[
+            'Image Width'] = self.numcols
 
-        self.nxdata['data'] = nxs.NXlink(
-            target=self.nxinstrument['sample']['data'], group=self.nxdata)
-        self.nxdata['data'].write()
+        for numimage in range(self.nSampleFrames):
+            self.count_num_sequence = self.count_num_sequence + 1
+            tomoimagesingle = self.reader.get_image(numimage)
+            self.num_sample_sequence.append(
+                self.count_num_sequence)
+            self.nxdetectorsample['data'][numimage] = tomoimagesingle
+            if numimage % 20 == 0:
+                print('Image %i converted' % numimage)
+            if numimage + 1 == self.nSampleFrames:
+                print ('%i images converted\n' % self.nSampleFrames)
+
+        # h5py NeXus link
+        source_addr = '/NXtomo/instrument/sample/data'
+        target_addr = 'data'
+        self.nxdetectorsample['data'].attrs[
+            'target'] = source_addr
+        self.nxdata._id.link(source_addr, target_addr,
+                             h5py.h5g.LINK_HARD)
 
     def _convert_bright(self):
-        datatype_bright = self.ff_reader.get_data_type()
-        height, width = self.ff_reader.get_image_size()
-        n_sample_frames = self.ff_reader.get_images_number()
+        self.datatype_bright = self.ff_reader.get_data_type()
+        self.numrows_bright, self.numcols_bright = \
+            self.ff_reader.get_image_size()
+        self.nFramesBright = self.ff_reader.get_images_number()
 
-        self.nxbright = nxs.NXgroup(name='bright_field')
-        self.nxinstrument.insert(self.nxbright)
-        self.nxbright.write()
-        self.nxinstrument['bright_field']['data'] = nxs.NXfield(
-            name='data', dtype=datatype_bright,
-            shape=[nxs.UNLIMITED, height, width])
+        self.nxbright = self.nxinstrument.create_group("bright_field")
+        self.nxbright.attrs['NX_class'] = "Unknown"
+        self.nxbright.create_dataset(
+            "data",
+            shape=(self.nFramesBright,
+                   self.numrows_bright,
+                   self.numcols_bright),
+            chunks=(1,
+                    self.numrows_bright,
+                    self.numcols_bright),
+            dtype=self.datatype_bright)
+        self.nxbright['data'].attrs['Data Type'] = \
+            self.datatype_bright
+        self.nxbright['data'].attrs['Image Height'] = \
+            self.numrows_bright
+        self.nxbright['data'].attrs['Image Width'] = \
+            self.numcols_bright
 
-        self.nxinstrument['bright_field']['data'].attrs['Data Type'] = \
-            datatype_bright
-        self.nxinstrument['bright_field']['data'].attrs[
-            'Image Height'] = height
-        self.nxinstrument['bright_field']['data'].attrs['Image Width'] = width
-        self.nxinstrument['bright_field']['data'].write()
+        for numimage in range(self.nFramesBright):
+            if numimage + 1 == self.nFramesBright:
+                print ('%i Bright-Field images '
+                       'converted\n' % self.nFramesBright)
+            self.count_num_sequence = self.count_num_sequence + 1
+            tomoimagesingle = self.ff_reader.get_image(numimage)
+            self.num_bright_sequence.append(self.count_num_sequence)
+            self.nxbright['data'][numimage] = tomoimagesingle
 
-        for id in range(n_sample_frames):
-            tomoimagebright = self.ff_reader.get_image(id)
-            slab_offset = [id, 0, 0]
-            self.nxinstrument['bright_field']['data'].put(tomoimagebright,
-                                                          slab_offset,
-                                                          refresh=False)
-            self.nxinstrument['bright_field']['data'].write()
-
-        ################################################
         # Accelerator current for each image of FF (machine current)
         ff_currents = self.ff_reader.get_machine_currents()
-        self.nxinstrument['bright_field']['current'] = nxs.NXfield(
-            name='current', value=ff_currents, attrs={'units': 'mA'})
-        self.nxinstrument['bright_field']['current'].write()
-        ###########################################
+        self.nxbright.create_dataset("current", data=ff_currents)
+        self.nxbright["current"].attrs["units"] = "mA"
+
         # Exposure Times
         exp_times = self.ff_reader.get_exp_times()
-        self.nxinstrument['bright_field']['ExpTimes'] = nxs.NXfield(
-            name='ExpTimes', value=exp_times, attrs={'units': 's'})
-        self.nxinstrument['bright_field']['ExpTimes'].write()
+        self.nxbright.create_dataset("ExpTimes", data=exp_times)
+        self.nxbright["ExpTimes"].attrs["units"] = "s"
+
+    def _convert_zero_deg_images(self, ole_zerodeg):
+        verbose = False
+        # DataType: 10 float; 5 uint16 (unsigned 16-bit (2-byte) integers)
+        if ole_zerodeg.exists('ImageInfo/DataType'):
+            stream = ole_zerodeg.openstream('ImageInfo/DataType')
+            data = stream.read()
+            struct_fmt = '<1I'
+            datatype_zerodeg = struct.unpack(struct_fmt, data)
+            datatype_zerodeg = int(datatype_zerodeg[0])
+            if datatype_zerodeg == 5:
+                self.datatype_zerodeg = 'uint16'
+            else:
+                self.datatype_zerodeg = 'float'
+            if verbose:
+                print "ImageInfo/DataType: %s " % self.datatype_zerodeg
+        else:
+            print("There is no information about DataType")
+
+        # Zero degrees data size
+        if (ole_zerodeg.exists('ImageInfo/NoOfImages') and
+                ole_zerodeg.exists('ImageInfo/ImageWidth') and
+                ole_zerodeg.exists('ImageInfo/ImageHeight')):
+
+            stream = ole_zerodeg.openstream('ImageInfo/ImageHeight')
+            data = stream.read()
+            yimage = struct.unpack('<I', data)
+            self.numrows_zerodeg = np.int(yimage[0])
+            if verbose:
+                print "ImageInfo/ImageHeight = %i" % yimage[0]
+            stream = ole_zerodeg.openstream('ImageInfo/ImageWidth')
+            data = stream.read()
+            ximage = struct.unpack('<I', data)
+            self.numcols_zerodeg = np.int(ximage[0])
+            if verbose:
+                print "ImageInfo/ImageWidth = %i" % ximage[0]
+        else:
+            print('There is no information about the 0 degrees image size '
+                  '(ImageHeight, or about ImageWidth)')
+
+        if ole_zerodeg.exists('ImageData1/Image1'):
+            img_string = "ImageData1/Image1"
+            stream = ole_zerodeg.openstream(img_string)
+            data = stream.read()
+            if self.datatype == 'uint16':
+                struct_fmt = "<{0:10}H".format(self.numrows_zerodeg *
+                                               self.numcols_zerodeg)
+                imgdata = struct.unpack(struct_fmt, data)
+            elif self.datatype == 'float':
+                struct_fmt = "<{0:10}f".format(self.numrows_zerodeg *
+                                               self.numcols_zerodeg)
+                imgdata = struct.unpack(struct_fmt, data)
+            else:
+                print "Wrong data type"
+
+            imgdata_zerodeg = np.flipud(np.reshape(imgdata,
+                                                   (self.numrows,
+                                                    self.numcols),
+                                                   order='A'))
+        else:
+            imgdata_zerodeg = 0
+        return imgdata_zerodeg
 
     def convert_tomography(self):
-
+        # TODO: Extract numcols_zerodeg and numrows_zerodeg
         if self.filename_zerodeg_in is not None:
-            with XradiaFile(self.filename_zerodeg_in) as xrm_file:
-                image_zerodeg_in = xrm_file.get_image()
-                dtype = xrm_file.data_type
-                width = xrm_file.image_width
-                height = xrm_file.image_height
-
-                sample = self.nxinstrument['sample']
-                sample['0_degrees_initial_image'] = nxs.NXfield(
-                    name='0_degrees_initial_image', value=image_zerodeg_in,
-                    dtype=dtype)
-                sample['0_degrees_initial_image'].attrs['Data Type'] = dtype
-                sample['0_degrees_initial_image'].attrs[
-                    'Image Height'] = height
-                sample['0_degrees_initial_image'].attrs['Image Width'] = width
-                sample['0_degrees_initial_image'].write()
-                print('Zero degrees initial image converted')
+            ole_zerodeg_in = OleFileIO(self.filename_zerodeg_in)
+            image_zerodeg_in = self._convert_zero_deg_images(ole_zerodeg_in)
+            self.nxdetectorsample.create_dataset(
+                '0_degrees_initial_image',
+                data=image_zerodeg_in,
+                dtype=self.datatype_zerodeg)
+            self.nxdetectorsample['0_degrees_initial_image'].attrs[
+                'Data Type'] = self.datatype_zerodeg
+            self.nxdetectorsample['0_degrees_initial_image'].attrs[
+                'Image Height'] = self.numrows_zerodeg
+            self.nxdetectorsample['0_degrees_initial_image'].attrs[
+                'Image Width'] = self.numcols_zerodeg
+            print('Zero degrees initial image converted')
 
         if self.filename_zerodeg_final is not None:
-            with XradiaFile(self.filename_zerodeg_final) as xrm_file:
-                image_zerodeg_final = xrm_file.get_image()
-                dtype = xrm_file.data_type
-                width = xrm_file.image_width
-                height = xrm_file.image_height
-
-                self.nxinstrument['sample']['0_degrees_initial_image'] = \
-                    nxs.NXfield(name='0_degrees_initial_image',
-                                value=image_zerodeg_final, dtype=dtype)
-                sample = self.nxinstrument['sample']
-                sample['0_degrees_final_image'].attrs['Data Type'] = dtype
-                sample['0_degrees_final_image'].attrs['Image Height'] = height
-                sample['0_degrees_final_image'].attrs['Image Width'] = width
-                sample['0_degrees_final_image'].write()
-                print('Zero degrees final image converted')
+            ole_zerodeg_final = OleFileIO(self.filename_zerodeg_final)
+            image_zerodeg_final = self._convert_zero_deg_images(
+                ole_zerodeg_final)
+            self.nxdetectorsample.create_dataset(
+                '0_degrees_final_image',
+                data=image_zerodeg_final,
+                dtype=self.datatype_zerodeg)
+            self.nxdetectorsample['0_degrees_final_image'].attrs[
+                'Data Type'] = self.datatype_zerodeg
+            self.nxdetectorsample['0_degrees_final_image'].attrs[
+                'Image Height'] = self.numrows_zerodeg
+            self.nxdetectorsample['0_degrees_final_image'].attrs[
+                'Image Width'] = self.numcols_zerodeg
+            print('Zero degrees final image converted')
 
         print("\nConverting tomography image data from xrm(s) to NeXus HDF5.")
 
@@ -740,37 +849,26 @@ class xrmNXtomo(object):
                 # TODO
                 pass
 
-        n_brights = 0
-        n_darks = 0  # TODO
-        n_samples = self.reader.get_images_number()
-        if self.ff_reader:
-            n_brights = self.ff_reader.get_images_number()
+        self.nxinstrument['sample']['sequence_number'] = \
+            self.num_sample_sequence
 
-        self.nxinstrument['sample']['sequence_number'] = range(0, n_samples)
-        self.nxinstrument['sample']['sequence_number'].write()
-
-        if (brightexists):
+        if brightexists:
             self.nxinstrument['bright_field']['sequence_number'] = \
-                range(0, n_brights)
-            self.nxinstrument['bright_field']['sequence_number'].write()
+                self.num_bright_sequence
 
-        if (darkexists):
+        if darkexists:
             self.nxinstrument['dark_field']['sequence_number'] = \
-                range(0, n_darks)
-            self.nxinstrument['dark_field']['sequence_number'].write()
+                self.num_dark_sequence
 
         # NXMonitor data: Not used in TXM microscope.
-        # Used to normalize in function fo the beam intensity (to verify).
         # In the ALBA-BL09 case all the values will be set to 1.
-        monitor_size = n_samples + n_brights + n_darks
-        monitor_counts = np.ones((monitor_size), dtype=np.uint16)
-        self.nxmonitor['data'] = nxs.NXfield(
-            name='data', value=monitor_counts)
-        self.nxmonitor['data'].write()
+        monitor_size = self.nSampleFrames + self.nFramesBright
+        monitor_counts = np.ones(monitor_size, dtype=np.uint16)
+        self.nxmonitor['data'] = monitor_counts
 
         # Flush and close the nexus file
-        self.nxentry.nxfile.flush()
-        self.nxentry.nxfile.close()
+        self.txrmhdf.flush()
+        self.txrmhdf.close()
 
 
 class xrmReader(object):
