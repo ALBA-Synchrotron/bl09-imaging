@@ -96,8 +96,8 @@ def main():
         for tomo in tomos.keys():
             tomo_files = samples[sample]['tomos'][tomo]
             if len(ff_files) == 0:
-                print "WARNING: %s of Sample: %s have not BrightField files. " \
-                      "HDF5 file can not be created for this tomo" %\
+                print "WARNING: %s of Sample: %s have not BrightField " \
+                      "files. HDF5 file can not be created for this tomo" %\
                       (tomo, sample)
                 continue
             # sort files
@@ -109,7 +109,7 @@ def main():
 
                             'sb',  # TODO: Not need?
                             'xrm2nexus',
-                            '1.0',  # TODO Add a not hardcoded version number
+                            '2.0',  # TODO Add a not hardcoded version number
                             program_args=sys.argv[1:],  # TODO:show args?
                             hdf5_output_path=output_dir,
                             title=args.title,
