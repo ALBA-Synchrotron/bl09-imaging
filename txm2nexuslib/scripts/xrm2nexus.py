@@ -109,7 +109,6 @@ def main():
 
                             'sb',  # TODO: Not need?
                             'xrm2nexus',
-                            '2.0',  # TODO Add a not hardcoded version number
                             program_args=sys.argv[1:],  # TODO:show args?
                             hdf5_output_path=output_dir,
                             title=args.title,

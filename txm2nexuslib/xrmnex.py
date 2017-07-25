@@ -28,6 +28,8 @@ import struct
 import datetime
 import argparse
 import re
+import pkg_resources
+
 
 
 SAMPLEENC = 2
@@ -476,7 +478,7 @@ class xrmNXtomo(object):
     CCDdetector_pixelsize_unit = 'um'
 
     def __init__(self, reader, ffreader, file_order,
-                 program_name, program_version, program_args,
+                 program_name, program_args,
                  hdf5_output_path=None, title='X-ray tomography',
                  zero_deg_in=None, zero_deg_final=None, sourcename='ALBA',
                  sourcetype='Synchrotron X-ray Source',
@@ -514,7 +516,8 @@ class xrmNXtomo(object):
         self.num_dark_sequence = []
 
         self.program_name = program_name
-        self.program_version = program_version
+        version = pkg_resources.get_distribution("txrm2nexus").version 
+        self.program_version = version
         self.program_args = program_args
         self.title = title
         self.sourcename = sourcename
