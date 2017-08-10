@@ -19,8 +19,9 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import numpy as np
+import cv2
 import h5py
+import numpy as np
 
 
 class Magnify(object):
@@ -126,6 +127,7 @@ class Magnify(object):
                             "to number of images in the stack.")
 
     def store_metadata(self):
+        """Method to store the metadata"""
         self.store_currents()
         self.store_currents_FF()
         self.store_exposure_times()
@@ -135,6 +137,46 @@ class Magnify(object):
         self.store_angles()
         self.retrieve_image_dimensions()
         self.store_magnification_ratios()
+
+    def magnifyimage(self, img, ratio):
+        """Scale (magnify) an image. It can be magnified if ratio is bigger
+        than 1; demagnified if the ratio is smaller than 1; and the image
+        is not scaled if the ratio is equal 1."""
+        if ratio == 1:
+            magnified = img
+
+        elif ratio > 1:
+            rows, cols = img.shape
+            magnified_1 = cv2.resize(img,
+                                     (int(ratio * cols), int(ratio * rows)),
+                                     interpolation=cv2.INTER_LINEAR)
+
+            rows_m1, cols_m1 = magnified_1.shape
+
+            from_row = rows_m1 / 2 - rows / 2
+            to_row = rows_m1 / 2 + rows / 2
+            total_rows = to_row - from_row
+            if total_rows == rows - 1:
+                to_row += 1
+            elif total_rows == rows + 1:
+                to_row -= 1
+
+            from_col = cols_m1 / 2 - cols / 2
+            to_col = cols_m1 / 2 + cols / 2
+            total_cols = to_col - from_col
+            if total_cols == cols - 1:
+                to_col += 1
+            elif total_cols == cols + 1:
+                to_col -= 1
+
+            magnified = magnified_1[from_row:to_row, from_col:to_col]
+
+        elif ratio < 1:
+            # TODO: Treat case where a demagnification exist. Black image
+            # with the demagnified image at the middle.
+            pass
+
+        return magnified
 
     def magnify_spectrum(self):
 
