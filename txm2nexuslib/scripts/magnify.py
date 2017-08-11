@@ -30,17 +30,18 @@ class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter,
 
 def main():
     parser = argparse.ArgumentParser(description="Magnification of "
-                                                 "images of a "
-                                                 "normalized stack",
+                                                 "a stack of images.\n"
+                                                 "Magnification of a "
+                                                 "normalized spectroscopic "
+                                                 "ALBA-BL09 image stack.",
                                      formatter_class=CustomFormatter)
 
     parser.add_argument('inputfile', type=str, default=None,
-                        help='Enter the normalized image stack')
+                        help='Enter the hdf5 normalized image stack')
     parser.add_argument('magnificationsfile', type=str, default=None,
                         help='Magnification ratios txt file')
     parser.add_argument('-s', '--spectroscopy', type=int, default=1,
-                        help='Magnification of spectroscopy images (-s=1).' +
-                             'Default is 1')
+                        help='Magnification of spectroscopy images (-s=1).')
 
     args = parser.parse_args()
 
