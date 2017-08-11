@@ -135,37 +135,28 @@ class Magnify(object):
         is not scaled if the ratio is equal 1."""
         if ratio == 1:
             magnified_img = img
+        else:
+            scaled_img = cv2.resize(img,
+                                    (int(ratio * self.numcols),
+                                     int(ratio * self.numrows)),
+                                    interpolation=cv2.INTER_LINEAR)
+            rows_scaled_img, cols_scaled_img = scaled_img.shape
+            from_row = abs(rows_scaled_img - self.numrows) / 2
+            from_col = abs(cols_scaled_img - self.numcols) / 2
 
-        elif ratio > 1:
-            rows, cols = img.shape
-            magnified_1 = cv2.resize(img,
-                                     (int(ratio * cols), int(ratio * rows)),
-                                     interpolation=cv2.INTER_LINEAR)
+            if ratio > 1:
+                to_row = from_row + self.numrows
+                to_col = from_col + self.numcols
 
-            rows_m1, cols_m1 = magnified_1.shape
+                magnified_img = scaled_img[from_row:to_row, from_col:to_col]
 
-            from_row = rows_m1 / 2 - rows / 2
-            to_row = rows_m1 / 2 + rows / 2
-            total_rows = to_row - from_row
-            if total_rows == rows - 1:
-                to_row += 1
-            elif total_rows == rows + 1:
-                to_row -= 1
+            elif ratio < 1:
+                magnified_img = np.zeros((self.numrows, self.numcols),
+                                         dtype=np.float32)
 
-            from_col = cols_m1 / 2 - cols / 2
-            to_col = cols_m1 / 2 + cols / 2
-            total_cols = to_col - from_col
-            if total_cols == cols - 1:
-                to_col += 1
-            elif total_cols == cols + 1:
-                to_col -= 1
-
-            magnified_img = magnified_1[from_row:to_row, from_col:to_col]
-
-        elif ratio < 1:
-            # TODO: Treat case where a demagnification exist. Black image
-            # with the demagnified image at the middle.
-            magnified_img = img
+                to_row = from_row + rows_scaled_img
+                to_col = from_col + cols_scaled_img
+                magnified_img[from_row:to_row, from_col:to_col] = scaled_img
 
         return magnified_img
 
@@ -199,7 +190,7 @@ class Magnify(object):
         ################################################
         # Create empty dataset for image data storage ##
         ################################################
-        print('Initialize store images\n')
+        print('Initialize magnify images\n')
         self.create_image_storage_dataset()
 
         for num_img in range(self.nFrames):
@@ -209,5 +200,4 @@ class Magnify(object):
             self.magnified[self.img_stack][num_img] = img_magnified
             if num_img % 10 == 0:
                 print("%d images have been magnified" % num_img)
-
-
+        print('Images have been magnified\n')
