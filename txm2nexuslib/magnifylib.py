@@ -27,7 +27,7 @@ import numpy as np
 class Magnify(object):
 
     def __init__(self, inputfile, magnificationsfile, spectroscopy):
-
+        # Constructor method
         self.filename_nexus = inputfile
         self.magnifications_ratios_file = magnificationsfile
         self.spectroscopy = spectroscopy
@@ -35,16 +35,16 @@ class Magnify(object):
         self.input_nexusfile = h5py.File(self.filename_nexus, 'r')
         self.norm_grp = self.input_nexusfile["SpecNormalized"]
 
-        self.outputfilehdf5 = inputfile.rsplit('.', 1)[0] + '_magnified.hdf5'
-        self.specnorm = h5py.File(self.outputfilehdf5, 'w')
-        self.magnified = self.specnorm.create_group("SpecNormalized")
+        output_h5_filename = inputfile.rsplit('.', 1)[0] + '_magnified.hdf5'
+        self.outputh5file = h5py.File(output_h5_filename, 'w')
+        self.magnified = self.outputh5file.create_group("SpecNormalized")
         self.magnified.attrs['NX_class'] = "NXentry"
 
+        self.img_stack = 'spectroscopy_normalized'
+        self.magnification_ratios = 0
         self.nFrames = 0
         self.numrows = 0
         self.numcols = 0
-
-        return
 
     def store_pixel_size(self):
         """Retrieving Pixel Size"""
@@ -59,58 +59,49 @@ class Magnify(object):
     def store_energies(self):
         """Retrieving Energies"""
         try:
-            energies = self.norm_grp["energy"].value
-            self.magnified.create_dataset("energy", data=energies)
+            self.magnified["energy"] = self.norm_grp["energy"].value
         except:
             print("\nEnergies could not be extracted.\n")
 
     def store_angles(self):
         """Retrieving Angles"""
         try:
-            angles = self.norm_grp["rotation_angle"].value
-            self.magnified.create_dataset("rotation_angle", data=angles)
+            self.magnified["rotation_angle"] = \
+                self.norm_grp["rotation_angle"].value
         except:
             print("\nAngles could not be extracted.\n")
 
     def store_currents(self):
         """Retrieving important data from currents"""
         try:
-            currents_dataset_name = 'Currents'
-            currents = self.norm_grp[currents_dataset_name].value
-            self.magnified["Currents"] = currents
+            self.magnified["Currents"] = self.norm_grp["Currents"].value
         except:
             print("\nCurrents could NOT be extracted.\n")
 
     def store_currents_FF(self):
         """Retrieving important data from currents for FF images"""
         try:
-            currentsFF_dataset_name = 'CurrentsFF'
-            currentsFF = self.norm_grp[currentsFF_dataset_name].value
-            self.magnified["CurrentsFF"] = currentsFF
+            self.magnified["CurrentsFF"] = self.norm_grp["CurrentsFF"].value
         except:
             print("\nCurrents could NOT be extracted.\n")
 
     def store_exposure_times(self):
         """Retrieving important data from Exposure Times"""
         try:
-            exposure_dataset_name = 'ExpTimes'
-            exptimes = self.norm_grp[exposure_dataset_name].value
-            self.magnified["ExpTimes"] = exptimes
+            self.magnified["ExpTimes"] = self.norm_grp["ExpTimes"].value
         except:
             print("\nExposure Times could NOT be extracted.\n")
 
     def store_exposure_times_FF(self):
         """Retrieving important data from Exposure Times for FF images"""
         try:
-            exposureFF_dataset_name = 'ExpTimesFF'
-            exptimesFF = self.norm_grp[exposureFF_dataset_name].value
-            self.magnified["ExpTimesFF"] = exptimesFF
+            self.magnified["ExpTimesFF"] = self.norm_grp['ExpTimesFF'].value
         except:
             print("\nExposure Times could NOT be extracted.\n")
 
     def retrieve_image_dimensions(self):
         """Retrieving data from images shape"""
-        infoshape = self.norm_grp['spectroscopy_normalized'].shape
+        infoshape = self.norm_grp[self.img_stack].shape
         self.nFrames = infoshape[0]
         self.numrows = infoshape[1]
         self.numcols = infoshape[2]
@@ -118,10 +109,10 @@ class Magnify(object):
 
     def store_magnification_ratios(self):
         """Storing magnification ratios"""
-        magnification_ratios = np.loadtxt(self.magnifications_ratios_file)
+        self.magnification_ratios = np.loadtxt(self.magnifications_ratios_file)
         # compare number of magnification ratios with images in the stack
-        if len(magnification_ratios) == self.nFrames:
-            self.magnified["magnification_ratios"] = magnification_ratios
+        if len(self.magnification_ratios) == self.nFrames:
+            self.magnified["magnification_ratios"] = self.magnification_ratios
         else:
             raise Exception("Number of magnification ratios is not equal "
                             "to number of images in the stack.")
@@ -143,7 +134,7 @@ class Magnify(object):
         than 1; demagnified if the ratio is smaller than 1; and the image
         is not scaled if the ratio is equal 1."""
         if ratio == 1:
-            magnified = img
+            magnified_img = img
 
         elif ratio > 1:
             rows, cols = img.shape
@@ -169,14 +160,32 @@ class Magnify(object):
             elif total_cols == cols + 1:
                 to_col -= 1
 
-            magnified = magnified_1[from_row:to_row, from_col:to_col]
+            magnified_img = magnified_1[from_row:to_row, from_col:to_col]
 
         elif ratio < 1:
             # TODO: Treat case where a demagnification exist. Black image
             # with the demagnified image at the middle.
-            pass
+            magnified_img = img
 
-        return magnified
+        return magnified_img
+
+    def create_image_storage_dataset(self):
+        self.magnified.create_dataset(
+            self.img_stack,
+            shape=(self.nFrames,
+                   self.numrows,
+                   self.numcols),
+            chunks=(1,
+                    self.numrows,
+                    self.numcols),
+            dtype='float32')
+
+        self.magnified[self.img_stack].attrs[
+            'Number of Frames'] = self.nFrames
+        self.magnified[self.img_stack].attrs[
+            'Pixel Rows'] = self.numrows
+        self.magnified[self.img_stack].attrs[
+            'Pixel Columns'] = self.numcols
 
     def magnify_spectrum(self):
 
@@ -191,7 +200,14 @@ class Magnify(object):
         # Create empty dataset for image data storage ##
         ################################################
         print('Initialize store images\n')
-        #self.retrieve_image_dimensions()
-        #self.create_image_storage_dataset()
+        self.create_image_storage_dataset()
+
+        for num_img in range(self.nFrames):
+            magnification_ratio = self.magnification_ratios[num_img]
+            img_from_stack = self.norm_grp[self.img_stack][num_img]
+            img_magnified = self.magnifyimage(img_from_stack, magnification_ratio)
+            self.magnified[self.img_stack][num_img] = img_magnified
+            if num_img % 10 == 0:
+                print("%d images have been magnified" % num_img)
 
 
