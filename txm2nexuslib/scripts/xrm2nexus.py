@@ -18,7 +18,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
-import os, sys
+import os
 import datetime
 import argparse
 from txm2nexuslib.xrmnex import xrmNXtomo, xrmReader
@@ -106,10 +106,8 @@ def main():
             reader = xrmReader(tomo_files)
 
             xrm = xrmNXtomo(reader, ffreader,
-
                             'sb',  # TODO: Not need?
                             'xrm2nexus',
-                            program_args=sys.argv[1:],  # TODO:show args?
                             hdf5_output_path=output_dir,
                             title=args.title,
                             zero_deg_in=None,  # TODO Not well implemented

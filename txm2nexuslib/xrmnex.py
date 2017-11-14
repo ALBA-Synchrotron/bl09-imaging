@@ -26,7 +26,6 @@ import h5py
 import sys
 import struct
 import datetime
-import argparse
 import re
 import pkg_resources
 
@@ -472,18 +471,19 @@ class XradiaFile(object):
 
 
 class xrmNXtomo(object):
+
     definition = 'NXtomo'
     # CCD detector pixelsize in micrometers
     CCDdetector_pixelsize = 13
     CCDdetector_pixelsize_unit = 'um'
 
-    def __init__(self, reader, ffreader, file_order,
-                 program_name, program_args,
+    def __init__(self, reader, ffreader, file_order, program_name,
                  hdf5_output_path=None, title='X-ray tomography',
                  zero_deg_in=None, zero_deg_final=None, sourcename='ALBA',
                  sourcetype='Synchrotron X-ray Source',
                  sourceprobe='x-ray', instrument='BL09 @ ALBA',
                  sample='Unknown'):
+
         self.reader = reader
         self.ff_reader = ffreader
         if hdf5_output_path is None:
@@ -518,7 +518,6 @@ class xrmNXtomo(object):
         self.program_name = program_name
         version = pkg_resources.get_distribution("txrm2nexus").version 
         self.program_version = version
-        self.program_args = program_args
         self.title = title
         self.sourcename = sourcename
         self.sourcetype = sourcetype
@@ -578,7 +577,7 @@ class xrmNXtomo(object):
         self.nxentry['program_name'] = self.program_name
         self.nxentry['program_name'].attrs['version'] = self.program_version
         self.nxentry['program_name'].attrs['configuration'] = \
-            ('%s %s' % (self.program_name, ' '.join(self.program_args)))
+            (self.program_name + ' ' + ' '.join(sys.argv[1:]))
 
         # Sample-ID
         sample_name = self.reader.get_sample_name()
