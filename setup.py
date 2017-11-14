@@ -55,6 +55,7 @@ setup(
     entry_points={
         'console_scripts': [
             'xrm2nexus = txm2nexuslib.scripts.xrm2nexus:main',
+            'manytomos2nexus = txm2nexuslib.scripts.manytomos2nexus:main',
             'txrm2nexus = txm2nexuslib.scripts.txrm2nexus:main',
             'mosaic2nexus = txm2nexuslib.scripts.mosaic2nexus:main',
             'normalize = txm2nexuslib.scripts.normalize:main',
@@ -74,7 +75,7 @@ setup(
     description='Conversion from xrm and txrm to hdf5',
     long_description=long_description,
     requires=['setuptools (>=1.1)'],
-    install_requires=['numpy', 'h5py'],
+    install_requires=['numpy', 'h5py', 'tinydb'],
     classifiers=classifiers
 )
 
