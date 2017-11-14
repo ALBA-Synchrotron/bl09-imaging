@@ -24,6 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import os
 import copy
 import pprint
+from tinydb import TinyDB
 
 
 class ParserTXMScript:
@@ -154,7 +155,24 @@ class ParserTXMScript:
                 self.parse_collect(line)    
         return self.collected_files
                 
-        
+
+class FileIndexer(object):
+
+    def __init__(self):
+        self.parser = ParserTXMScript()
+        self.db_file_index = None
+
+    def fill_db(self, txm_script):
+        self.db_file_index = TinyDB('index.json')
+        self.db_file_index.purge()
+        collected_images = self.parser.parse_script(txm_script)
+        self.db_file_index.insert_multiple(collected_images)
+        return self.db_file_index
+
+    def close_db(self):
+        self.db_file_index.close()
+
+
 def main():
 
     parser = ParserTXMScript()
