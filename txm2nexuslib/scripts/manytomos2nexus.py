@@ -23,6 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import os
 import datetime
 import argparse
+from argparse import RawTextHelpFormatter
 #import pprint
 from operator import itemgetter
 from tinydb import Query
@@ -30,14 +31,18 @@ from tinydb import Query
 from txm2nexuslib.xrmnex import xrmNXtomo, xrmReader
 from txm2nexuslib.parser import get_db, get_file_paths
 
-def get_samples(txm_txt_script):
+def get_samples(txm_txt_script, use_existing_db=False, use_subfolders=True):
     # Organize the files by samples
+
+    if use_subfolders:
+        print("Using Subfolders for finding the files")
+    else:
+        print("Searching files through the whole root path")
 
     #prettyprinter = pprint.PrettyPrinter(indent=4)
     root_path = os.path.dirname(os.path.abspath(txm_txt_script))
 
-    db = get_db(txm_txt_script, use_existing_db=False)
-
+    db = get_db(txm_txt_script, use_existing_db=use_existing_db)
     all_file_records = db.all()
 
     dates_samples_energies = []
@@ -72,8 +77,7 @@ def get_samples(txm_txt_script):
                                             key=itemgetter('angle'))
 
             files = get_file_paths(sorted_fn_by_zpz_query, root_path,
-                                   use_subfolders=True,
-                                   only_existing_files=False)
+                                   use_subfolders=use_subfolders)
             files_by_zp[zpz] = files
 
         # Get FF image records
@@ -81,8 +85,7 @@ def get_samples(txm_txt_script):
                                  (files_query.FF == True))
         query_output = db.search(fn_ff_query_by_energy)
         files_FF = get_file_paths(query_output, root_path,
-                                  use_subfolders=True,
-                                  only_existing_files=False)
+                                  use_subfolders=use_subfolders)
 
         files_for_sample_subdict['tomos'] = files_by_zp
         files_for_sample_subdict['ff'] = files_FF
@@ -98,15 +101,32 @@ def main():
     print(datetime.datetime.today())
     print("\n")
 
+    def str2bool(v):
+        #susendberg's function
+        return v.lower() in ("yes", "true", "t", "1")
+
+
     description = 'Create a tomo hdf5 file per each group of existing xrm ' \
                   'files in the given directory'
-    parser = argparse.ArgumentParser(description=description)
+    parser = argparse.ArgumentParser(description=description,
+                                     formatter_class=RawTextHelpFormatter)
+    parser.register('type','bool',str2bool)
 
     parser.add_argument('input_txm_script', metavar='input TXM txt file',
                         type=str, help='TXM txt script used as index for the '
                                        'xrm image files')
     parser.add_argument('--output-dir', type=str, default="./out/",
-                        help='Directory where the hdf5 files will be created.')
+                        help='Directory where the hdf5 files will be created.\n'
+                             '(default: False)')
+    parser.add_argument('--use-existing-db', type='bool', default='False',
+                        help='- If True: Use exisiting file indexing DB\n'
+                             '- If False: Recreate file indexing DB\n'
+                             '(default: False)')
+    parser.add_argument('--use-subfolders', type='bool', default='True',
+                        help='- If True: Use subfolders for raw data\n'
+                             '- If False: Go through the complete list of '
+                             'folders/subfolders hang from the root folder\n'
+                             '(default: True)')
     parser.add_argument('--title', type=str, default='X-ray tomography',
                         help="Sets the title of the tomography")
     parser.add_argument('--source-name', type=str, default='ALBA',
@@ -124,8 +144,9 @@ def main():
 
     txm_txt_script = args.input_txm_script
     output_dir = os.path.abspath(args.output_dir)
-    print(output_dir)
-    samples = get_samples(txm_txt_script)
+    samples = get_samples(txm_txt_script, use_existing_db=args.use_existing_db,
+                          use_subfolders=args.use_subfolders)
+
     # Generate the hdf5 files
     for sample in samples.keys():
         tomos = samples[sample]['tomos']
