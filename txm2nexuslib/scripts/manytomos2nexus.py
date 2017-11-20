@@ -1,8 +1,9 @@
 #!/usr/bin/python
 
 """
-(C) Copyright 2016-2017 Carlos Falcon, Marc Rosanes
-The program is distributed under the terms of the 
+(C) Copyright 2016-2017 ALBA-CELLS
+Authors: Marc Rosanes, Carlos Falcon, Zbigniew Reszela, Carlos Pascual
+The program is distributed under the terms of the
 GNU General Public License (or the Lesser GPL).
 
 This program is free software: you can redistribute it and/or modify
@@ -20,72 +21,75 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import os
-import sys
 import datetime
 import argparse
-from tinydb import TinyDB, Query
+#import pprint
+from operator import itemgetter
+from tinydb import Query
+
 from txm2nexuslib.xrmnex import xrmNXtomo, xrmReader
-from txm2nexuslib.parser import FileIndexer
+from txm2nexuslib.parser import get_db, get_file_paths
 
+def get_samples(txm_txt_script):
+    # Organize the files by samples
 
-def retrieve_index_db(file_index):
+    #prettyprinter = pprint.PrettyPrinter(indent=4)
+    root_path = os.path.dirname(os.path.abspath(txm_txt_script))
 
-    msg = ("TXM txt file or JSON DB file needed as input. \n"
-           "The files cannot be converted.")
+    db = get_db(txm_txt_script, use_existing_db=False)
 
-    if os.path.isfile(file_index):
-        filename, file_extension = os.path.splitext(file_index)
-        try:
-            if file_extension == ".json":
-                # If database already exists
-                file_db = TinyDB(file_index)
-            else:
-                # Else, the raw files database is created
-                raw_files_indexer = FileIndexer()
-                file_db = raw_files_indexer.fill_db(file_index)
-        except:
-            raise Exception(msg)
-    else:
-        raise Exception(msg)
+    all_file_records = db.all()
 
-    return file_db
+    dates_samples_energies = []
+    for record in all_file_records:
+        dates_samples_energies.append(record["sample"] + "_" +
+                                      str(record["date"]) + "_" +
+                                      str(record["energy"]))
+    dates_samples_energies = list(set(dates_samples_energies))
 
-
-def get_samples(file_db, input_folder):
     samples = {}
+    files_query = Query()
+
+    for date_sample_energie in dates_samples_energies:
+
+        files_by_zp = {}
+        files_for_sample_subdict = {}
+
+        energy = date_sample_energie.split('_')[-1]
+        energy = float(energy)
+        query_impl = (files_query.energy == energy)
+        records_by_given_energy = db.search(query_impl)
+
+        zps_for_given_energy = [record["zpz"] for record in
+                                records_by_given_energy]
+        zpz_positions_for_given_energy = sorted(set(zps_for_given_energy))
+
+        for zpz in zpz_positions_for_given_energy:
+            query_impl = ((files_query.energy == energy) &
+                          (files_query.zpz == zpz) & (files_query.FF == False))
+            fn_by_zpz_query = db.search(query_impl)
+            sorted_fn_by_zpz_query = sorted(fn_by_zpz_query,
+                                            key=itemgetter('angle'))
+
+            files = get_file_paths(sorted_fn_by_zpz_query, root_path,
+                                   use_subfolders=True,
+                                   only_existing_files=False)
+            files_by_zp[zpz] = files
+
+        # Get FF image records
+        fn_ff_query_by_energy = ((files_query.energy == energy) &
+                                 (files_query.FF == True))
+        query_output = db.search(fn_ff_query_by_energy)
+        files_FF = get_file_paths(query_output, root_path,
+                                  use_subfolders=True,
+                                  only_existing_files=False)
+
+        files_for_sample_subdict['tomos'] = files_by_zp
+        files_for_sample_subdict['ff'] = files_FF
+        samples[date_sample_energie] = files_for_sample_subdict
+
+    #prettyprinter.pprint(samples)
     return samples
-
-    """
-    samples = {}
-    # Splits the files by samples
-    for file in os.listdir(dir_name):
-        fname = os.path.join(dir_name, file)
-        if not os.path.isfile(fname) or fname.rsplit('.', 1)[1] != 'xrm':
-            continue
-
-        splitted_name = file.split('_')
-        has_ff = file.find('_FF_') != -1
-
-        sample_name = "{0}_{1}_{2}".format(splitted_name[0],
-                                           splitted_name[1],
-                                           splitted_name[2],
-                                           )
-        if not samples.has_key(sample_name):
-            samples[sample_name] = {'tomos': {}, 'ff': []}
-        if not has_ff:
-            tomo_name = splitted_name[-1]
-            if not samples[sample_name]['tomos'].has_key(tomo_name):
-                samples[sample_name]['tomos'][tomo_name] = []
-            samples[sample_name]['tomos'][tomo_name].append(fname)
-        else:
-            samples[sample_name]['ff'].append(fname)
-
-
-    return samples
-    """
-
-def get_files_by_angle_for_given_zp(file_db):
-    Files = Query()
 
 
 def main():
@@ -98,13 +102,11 @@ def main():
                   'files in the given directory'
     parser = argparse.ArgumentParser(description=description)
 
-    parser.add_argument('input_folder', metavar='input path', type=str,
-                        help='Directory with the raw data xrm image files')
-    parser.add_argument('index_file', metavar='index file', type=str,
-                        help='Index file: TXM txt script or json db')
-    parser.add_argument('--output_folder', type=str, default=None,
-                        help='Directory where the hdf5 files will be created. '
-                             'If it is not given the input dir will be used')
+    parser.add_argument('input_txm_script', metavar='input TXM txt file',
+                        type=str, help='TXM txt script used as index for the '
+                                       'xrm image files')
+    parser.add_argument('--output-dir', type=str, default="./out/",
+                        help='Directory where the hdf5 files will be created.')
     parser.add_argument('--title', type=str, default='X-ray tomography',
                         help="Sets the title of the tomography")
     parser.add_argument('--source-name', type=str, default='ALBA',
@@ -120,40 +122,30 @@ def main():
 
     args = parser.parse_args()
 
-    file_db = retrieve_index_db(args.index_file)
-    #samples = get_samples(file_db, args.input_folder)
-
-
-
-
-    """
+    txm_txt_script = args.input_txm_script
+    output_dir = os.path.abspath(args.output_dir)
+    print(output_dir)
+    samples = get_samples(txm_txt_script)
     # Generate the hdf5 files
     for sample in samples.keys():
         tomos = samples[sample]['tomos']
         # Create FF reader
         ff_files = samples[sample]['ff']
-        ff_files.sort(key=lambda x: os.path.getmtime(x))
         ffreader = xrmReader(ff_files)
         for tomo in tomos.keys():
             tomo_files = samples[sample]['tomos'][tomo]
             if len(ff_files) == 0:
                 print "WARNING: %s of Sample: %s have not BrightField " \
-                      "files. HDF5 file can not be created for this tomo" %\
-                      (tomo, sample)
+                      "files." % (tomo, sample)
                 continue
-            # sort files
-            tomo_files.sort(key=lambda x: os.path.getmtime(x))
-
             reader = xrmReader(tomo_files)
-
             xrm = xrmNXtomo(reader, ffreader,
                             'sb',  # TODO: Not need?
                             'xrm2nexus',
-                            program_args=sys.argv[1:],
-                            hdf5_output_path=args.output_folder,
+                            hdf5_output_path=output_dir,
                             title=args.title,
-                            zero_deg_in=None,  # TODO Not implemented
-                            zero_deg_final=None,  # TODO Not implemented
+                            zero_deg_in=None,  # TODO Not well implemented
+                            zero_deg_final=None,  # TODO Not well implemented
                             sourcename=args.source_name,
                             sourcetype=args.source_type,
                             sourceprobe=args.source_probe,
@@ -162,10 +154,10 @@ def main():
             xrm.convert_metadata()
             xrm.convert_tomography()
 
-    print("\n")    
+    print("\n")
     print(datetime.datetime.today())
     print("\n")
-    """
+
 
 if __name__ == "__main__":
     main()
