@@ -39,7 +39,6 @@ def get_samples(txm_txt_script, use_existing_db=False, use_subfolders=True):
     else:
         print("Searching files through the whole root path")
 
-    #prettyprinter = pprint.PrettyPrinter(indent=4)
     root_path = os.path.dirname(os.path.abspath(txm_txt_script))
 
     db = get_db(txm_txt_script, use_existing_db=use_existing_db)
@@ -47,31 +46,36 @@ def get_samples(txm_txt_script, use_existing_db=False, use_subfolders=True):
 
     dates_samples_energies = []
     for record in all_file_records:
-        dates_samples_energies.append(record["sample"] + "_" +
-                                      str(record["date"]) + "_" +
-                                      str(record["energy"]))
+        dates_samples_energies.append((record["date"],
+                                       record["sample"],
+                                       record["energy"]))
     dates_samples_energies = list(set(dates_samples_energies))
 
     samples = {}
     files_query = Query()
 
     for date_sample_energie in dates_samples_energies:
-
         files_by_zp = {}
         files_for_sample_subdict = {}
 
-        energy = date_sample_energie.split('_')[-1]
-        energy = float(energy)
-        query_impl = (files_query.energy == energy)
-        records_by_given_energy = db.search(query_impl)
+        date = date_sample_energie[0]
+        sample = date_sample_energie[1]
+        energy = date_sample_energie[2]
 
-        zps_for_given_energy = [record["zpz"] for record in
-                                records_by_given_energy]
-        zpz_positions_for_given_energy = sorted(set(zps_for_given_energy))
+        query_impl = ((files_query.date == date) &
+                      (files_query.sample == sample) &
+                      (files_query.energy == energy))
+        records_by_sample_and_energy = db.search(query_impl)
+        zps_by_sample_and_e = [record["zpz"] for record in
+                               records_by_sample_and_energy]
+        zpz_positions_by_sample_e = sorted(set(zps_by_sample_and_e))
 
-        for zpz in zpz_positions_for_given_energy:
-            query_impl = ((files_query.energy == energy) &
-                          (files_query.zpz == zpz) & (files_query.FF == False))
+        for zpz in zpz_positions_by_sample_e:
+            query_impl = ((files_query.date == date) &
+                          (files_query.sample == sample) &
+                          (files_query.energy == energy) &
+                          (files_query.zpz == zpz) &
+                          (files_query.FF == False))
             fn_by_zpz_query = db.search(query_impl)
             sorted_fn_by_zpz_query = sorted(fn_by_zpz_query,
                                             key=itemgetter('angle'))
@@ -81,7 +85,9 @@ def get_samples(txm_txt_script, use_existing_db=False, use_subfolders=True):
             files_by_zp[zpz] = files
 
         # Get FF image records
-        fn_ff_query_by_energy = ((files_query.energy == energy) &
+        fn_ff_query_by_energy = ((files_query.date == date) &
+                                 (files_query.sample == sample) &
+                                 (files_query.energy == energy) &
                                  (files_query.FF == True))
         query_output = db.search(fn_ff_query_by_energy)
         files_FF = get_file_paths(query_output, root_path,
@@ -91,7 +97,8 @@ def get_samples(txm_txt_script, use_existing_db=False, use_subfolders=True):
         files_for_sample_subdict['ff'] = files_FF
         samples[date_sample_energie] = files_for_sample_subdict
 
-    #prettyprinter.pprint(samples)
+    prettyprinter = pprint.PrettyPrinter(indent=4)
+    prettyprinter.pprint(samples)
     return samples
 
 
@@ -102,9 +109,7 @@ def main():
     print("\n")
 
     def str2bool(v):
-        #susendberg's function
         return v.lower() in ("yes", "true", "t", "1")
-
 
     description = 'Create a tomo hdf5 file per each group of existing xrm ' \
                   'files in the given directory'
