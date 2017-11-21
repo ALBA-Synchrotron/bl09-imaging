@@ -35,60 +35,48 @@ class ParserTXMScript(object):
         self.collected_files = []
         self.parameters = {}
         self.filename = None
-        self.extension = None        
-        self.date = None
-        self.sample = "sample0"
-        self.energy = -1
+        self.extension = None
+        self.previous_date = 10002323
+        self.date = 10002424
+        self.previous_sample = "PreviousDefaultSamplE"
+        self.sample = "DefaultSamplE"
+        self.previous_energy = -100
+        self.energy = -10
+        self.previous_angle = -1111
         self.angle = -1000
-        self.zpz = -1
+        self.previous_zpz = 88888888
+        self.zpz = 99999999
+        self.previous_FF = False
         self.FF = False
         self.repetition = 0
-        self.first_repetition = True
         self.subfolder = None
-        
-    def reset_repetition(self):
-        self.first_repetition = True
-        self.repetition = 0    
-    
+
     def parse_energy(self, line):
-        # If a parameter is modified, the repetitions must be reset
-        self.reset_repetition()
         word_list = line.split()
         self.energy = round(float(word_list[-1]), 1)
         self.parameters['energy'] = self.energy
                 
     def parse_angle(self, line):
-        # If a parameter is modified, the repetitions must be reset
-        self.reset_repetition()
         word_list = line.split()
         self.angle = round(float(word_list[-1]), 1)
         self.parameters['angle'] = self.angle
         
     def parse_zpz(self, line):
-        # If a parameter is modified, the repetitions must be reset
-        self.reset_repetition()
         word_list = line.split()
         self.zpz = round(float(word_list[-1]), 1)
         self.parameters['zpz'] = self.zpz
 
     def parse_subfolder(self, line):
         """Subfolder where the raw data file should be located"""
-        # The repetition must not be reset in this case
         word_list = line.split()
         self.subfolder = str(int(round(float(word_list[-1]))))
         self.parameters['subfolder'] = self.subfolder
         
     def is_FF(self):
         if "_FF" in self.filename:
-            # If a parameter is modified, the repetitions must be reset
-            if not self.FF:
-                self.reset_repetition()
             self.FF = True
             self.parameters['FF'] = self.FF
         else:
-            # If a parameter is modified, the repetitions must be reset
-            if self.FF:
-                self.reset_repetition()
             self.FF = False
             self.parameters['FF'] = self.FF
         
@@ -96,25 +84,13 @@ class ParserTXMScript(object):
         try:
             date_str = self.filename.split('_')[0]
             new_date = int(date_str)
-            # If a parameter is modified, the repetitions must be reset
-            if new_date != self.date:
-                self.first_repetition = True
-            self.date = new_date
-            if (len(date_str) == 4 or 
-                len(date_str) == 6 or 
+            if (len(date_str) == 4 or len(date_str) == 6 or
                 len(date_str) == 8):
+                self.date = new_date
                 self.parameters['date'] = self.date
-                new_sample = self.filename.split('_')[1]
-                # If a parameter is modified, the repetitions must be reset
-                if new_sample != self.sample:
-                    self.first_repetition = True
-                self.sample = new_sample                    
+                self.sample = self.filename.split('_')[1]
             else:
-                new_sample = self.filename.split('_')[0]
-                # If a parameter is modified, the repetitions must be reset
-                if new_sample != self.sample:
-                    self.first_repetition = True
-                self.sample = new_sample
+                self.sample = self.filename.split('_')[0]
         except:
             self.parameters.pop('date', None)
             self.sample = self.filename.split('_')[0]
@@ -125,18 +101,32 @@ class ParserTXMScript(object):
         self.parameters['extension'] = self.extension        
         
     def parse_collect(self, line):
-        if not self.first_repetition:
-            self.repetition += 1
-        self.parameters['repetition'] = self.repetition
 
         word_list = line.split()
         self.filename = word_list[-1]
         self.parameters['filename'] = self.filename
-        self.first_repetition = False
-        
+
         self.is_FF()
         self.parse_extension()
         self.parse_sample_and_date()
+
+        if (self.date == self.previous_date and
+            self.sample == self.previous_sample and
+            self.energy == self.previous_energy and
+            self.angle == self.previous_angle and
+            self.zpz == self.previous_zpz and
+            self.FF == self.previous_FF):
+            self.repetition += 1
+        else:
+            self.repetition = 0
+        self.parameters['repetition'] = self.repetition
+
+        self.previous_date = self.date
+        self.previous_sample = self.sample
+        self.previous_energy = self.energy
+        self.previous_angle = self.angle
+        self.previous_zpz = self.zpz
+        self.previous_FF = self.FF
 
         store_parameters = copy.deepcopy(self.parameters)
         self.collected_files.append(store_parameters)
