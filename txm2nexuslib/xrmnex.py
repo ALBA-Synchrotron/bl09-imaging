@@ -28,7 +28,11 @@ import struct
 import datetime
 import re
 import pkg_resources
+import pprint
 
+from tinydb import Query
+from operator import itemgetter
+from txm2nexuslib.parser import get_db, get_file_paths
 
 
 SAMPLEENC = 2
@@ -36,6 +40,112 @@ DETECTORENC_Z = 23
 ENERGY = 27
 CURRENT = 28
 ENERGYENC = 30
+
+class FilesOrganization(object):
+
+    def __init__(self):
+        pass
+
+    def get_samples(self, txm_txt_script, use_existing_db=False,
+                    use_subfolders=True, organize_by_repetitions=False):
+        """Organize the files by samples"""
+
+        prettyprinter = pprint.PrettyPrinter(indent=4)
+
+        if use_subfolders:
+            print("Using Subfolders for finding the files")
+        else:
+            print("Searching files through the whole root path")
+
+        root_path = os.path.dirname(os.path.abspath(txm_txt_script))
+
+        db = get_db(txm_txt_script, use_existing_db=use_existing_db)
+        all_file_records = db.all()
+        #prettyprinter.pprint(all_file_records)
+
+        dates_samples_energies = []
+        for record in all_file_records:
+            dates_samples_energies.append((record["date"],
+                                           record["sample"],
+                                           record["energy"]))
+        dates_samples_energies = list(set(dates_samples_energies))
+
+        samples = {}
+        files_query = Query()
+
+        for date_sample_energie in dates_samples_energies:
+            files_raw_data = {}
+            files_for_sample_subdict = {}
+
+            date = date_sample_energie[0]
+            sample = date_sample_energie[1]
+            energy = date_sample_energie[2]
+
+            query_impl = ((files_query.date == date) &
+                          (files_query.sample == sample) &
+                          (files_query.energy == energy))
+
+            records_by_sample_and_energy = db.search(query_impl)
+
+            if not organize_by_repetitions:
+                zps_by_sample_and_e = [record["zpz"] for record in
+                                       records_by_sample_and_energy]
+                zpz_positions_by_sample_e = sorted(set(zps_by_sample_and_e))
+
+                for zpz in zpz_positions_by_sample_e:
+                    query_impl = ((files_query.date == date) &
+                                  (files_query.sample == sample) &
+                                  (files_query.energy == energy) &
+                                  (files_query.zpz == zpz) &
+                                  (files_query.FF == False))
+                    fn_by_zpz_query = db.search(query_impl)
+                    sorted_fn_by_zpz_query = sorted(fn_by_zpz_query,
+                                                    key=itemgetter('angle'))
+
+                    files = get_file_paths(sorted_fn_by_zpz_query, root_path,
+                                           use_subfolders=use_subfolders)
+                    files_raw_data[zpz] = files
+            else:
+                print("sample energy n")
+                for record in records_by_sample_and_energy:
+                    print(record["repetition"])
+
+                repetitions_by_sample_and_e = [record["repetition"] for record
+                                               in records_by_sample_and_energy]
+
+                repetitions_by_sample_and_e = sorted(set(
+                    repetitions_by_sample_and_e))
+                print(repetitions_by_sample_and_e)
+
+                for repetition in repetitions_by_sample_and_e:
+                    query_impl = ((files_query.date == date) &
+                                  (files_query.sample == sample) &
+                                  (files_query.energy == energy) &
+                                  (files_query.repetition == repetition) &
+                                  (files_query.FF == False))
+                    fn_by_repetition_query = db.search(query_impl)
+                    sorted_fn_by_repetition_query = sorted(
+                        fn_by_repetition_query, key=itemgetter('angle'))
+                    files = get_file_paths(sorted_fn_by_repetition_query,
+                                           root_path, use_subfolders=use_subfolders)
+                    files_raw_data[repetition] = files
+
+            # Get FF image records
+            fn_ff_query_by_energy = ((files_query.date == date) &
+                                     (files_query.sample == sample) &
+                                     (files_query.energy == energy) &
+                                     (files_query.FF == True))
+            query_output = db.search(fn_ff_query_by_energy)
+            files_FF = get_file_paths(query_output, root_path,
+                                      use_subfolders=use_subfolders)
+
+            files_for_sample_subdict['tomos'] = files_raw_data
+            files_for_sample_subdict['ff'] = files_FF
+            samples[date_sample_energie] = files_for_sample_subdict
+
+
+        prettyprinter.pprint(samples)
+        return samples
 
 
 class validate_getter(object):
