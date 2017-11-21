@@ -28,7 +28,7 @@ import struct
 import datetime
 import re
 import pkg_resources
-import pprint
+#import pprint
 
 from tinydb import Query
 from operator import itemgetter
@@ -50,7 +50,7 @@ class FilesOrganization(object):
                     use_subfolders=True, organize_by_repetitions=False):
         """Organize the files by samples"""
 
-        prettyprinter = pprint.PrettyPrinter(indent=4)
+        #prettyprinter = pprint.PrettyPrinter(indent=4)
 
         if use_subfolders:
             print("Using Subfolders for finding the files")
@@ -83,7 +83,8 @@ class FilesOrganization(object):
 
             query_impl = ((files_query.date == date) &
                           (files_query.sample == sample) &
-                          (files_query.energy == energy))
+                          (files_query.energy == energy) &
+                          (files_query.FF == False))
 
             records_by_sample_and_energy = db.search(query_impl)
 
@@ -106,16 +107,11 @@ class FilesOrganization(object):
                                            use_subfolders=use_subfolders)
                     files_raw_data[zpz] = files
             else:
-                print("sample energy n")
-                for record in records_by_sample_and_energy:
-                    print(record["repetition"])
-
                 repetitions_by_sample_and_e = [record["repetition"] for record
                                                in records_by_sample_and_energy]
 
                 repetitions_by_sample_and_e = sorted(set(
                     repetitions_by_sample_and_e))
-                print(repetitions_by_sample_and_e)
 
                 for repetition in repetitions_by_sample_and_e:
                     query_impl = ((files_query.date == date) &
@@ -127,7 +123,8 @@ class FilesOrganization(object):
                     sorted_fn_by_repetition_query = sorted(
                         fn_by_repetition_query, key=itemgetter('angle'))
                     files = get_file_paths(sorted_fn_by_repetition_query,
-                                           root_path, use_subfolders=use_subfolders)
+                                           root_path,
+                                           use_subfolders=use_subfolders)
                     files_raw_data[repetition] = files
 
             # Get FF image records
@@ -143,8 +140,7 @@ class FilesOrganization(object):
             files_for_sample_subdict['ff'] = files_FF
             samples[date_sample_energie] = files_for_sample_subdict
 
-
-        prettyprinter.pprint(samples)
+        #prettyprinter.pprint(samples)
         return samples
 
 
