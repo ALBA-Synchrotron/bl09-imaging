@@ -97,8 +97,8 @@ def get_samples(txm_txt_script, use_existing_db=False, use_subfolders=True):
         files_for_sample_subdict['ff'] = files_FF
         samples[date_sample_energie] = files_for_sample_subdict
 
-    prettyprinter = pprint.PrettyPrinter(indent=4)
-    prettyprinter.pprint(samples)
+    #prettyprinter = pprint.PrettyPrinter(indent=4)
+    #prettyprinter.pprint(samples)
     return samples
 
 
