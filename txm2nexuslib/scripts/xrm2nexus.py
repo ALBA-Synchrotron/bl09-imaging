@@ -36,8 +36,7 @@ def main():
     def str2bool(v):
         return v.lower() in ("yes", "true", "t", "1")
 
-    description = 'Create a tomo hdf5 file per each group of existing xrm ' \
-                  'files in the given directory'
+    description = 'Create raw data hdf5 files thanks to groups of xrm files.'
     parser = argparse.ArgumentParser(description=description,
                                      formatter_class=RawTextHelpFormatter)
     parser.register('type', 'bool', str2bool)
