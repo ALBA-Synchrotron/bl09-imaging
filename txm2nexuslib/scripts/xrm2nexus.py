@@ -1,8 +1,9 @@
 #!/usr/bin/python
 
 """
-(C) Copyright 2016-2017 Carlos Falcon, Marc Rosanes
-The program is distributed under the terms of the 
+(C) Copyright 2016-2017 ALBA-CELLS
+Authors: Marc Rosanes, Carlos Falcon, Zbigniew Reszela, Carlos Pascual
+The program is distributed under the terms of the
 GNU General Public License (or the Lesser GPL).
 
 This program is free software: you can redistribute it and/or modify
@@ -18,38 +19,12 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
+
 import os
 import datetime
 import argparse
-from txm2nexuslib.xrmnex import xrmNXtomo, xrmReader
-
-
-def get_samples(dir_name):
-    samples = {}
-    # Splits the files by samples
-    for file in os.listdir(dir_name):
-        fname = os.path.join(dir_name, file)
-        if not os.path.isfile(fname) or fname.rsplit('.', 1)[1] != 'xrm':
-            continue
-
-        splitted_name = file.split('_')
-        has_ff = file.find('_FF_') != -1
-
-        sample_name = "{0}_{1}_{2}".format(splitted_name[0],
-                                           splitted_name[1],
-                                           splitted_name[2],
-                                           )
-        if not samples.has_key(sample_name):
-            samples[sample_name] = {'tomos': {}, 'ff': []}
-        if not has_ff:
-            tomo_name = splitted_name[-1]
-            if not samples[sample_name]['tomos'].has_key(tomo_name):
-                samples[sample_name]['tomos'][tomo_name] = []
-            samples[sample_name]['tomos'][tomo_name].append(fname)
-        else:
-            samples[sample_name]['ff'].append(fname)
-
-    return samples
+from argparse import RawTextHelpFormatter
+from txm2nexuslib.xrmnex import FilesOrganization, xrmNXtomo, xrmReader
 
 
 def main():
@@ -58,16 +33,37 @@ def main():
     print(datetime.datetime.today())
     print("\n")
 
+    def str2bool(v):
+        return v.lower() in ("yes", "true", "t", "1")
+
     description = 'Create a tomo hdf5 file per each group of existing xrm ' \
                   'files in the given directory'
-    parser = argparse.ArgumentParser(description=description)
+    parser = argparse.ArgumentParser(description=description,
+                                     formatter_class=RawTextHelpFormatter)
+    parser.register('type', 'bool', str2bool)
 
-    parser.add_argument('input_dir_name', metavar='input path', type=str,
-                        help='Directory that has the Tomography, BrightField '
-                        'and DarkField xrm files')
-    parser.add_argument('--output-dir-name', type=str, default=None,
-                        help='Directory where the hdf5 files will be created. '
-                             'If it is not given the input dir will be used')
+    parser.add_argument('input_txm_script', metavar='input TXM txt file',
+                        type=str, help='TXM txt script used as index for the '
+                                       'xrm image files')
+    parser.add_argument('--output-dir', type=str, default="./out/",
+                        help='Directory where the hdf5 files will be created.'
+                             '\n(default: out)')
+    parser.add_argument('--organize-by-repetitions', type='bool',
+                        default='False',
+                        help='- If True: Organize by ZPz positions\n'
+                             '- If False: Organize by repetitions\n'
+                             '(default: False)')
+    parser.add_argument('--use-existing-db', type='bool', default='False',
+                        help='- If True: Use exisiting file indexing DB\n'
+                             '- If False: Recreate file indexing DB\n'
+                             '(default: False)')
+    # TODO: The default use-subfolders value shall be True, once subfolders...
+    # TODO: ...link implemented in the beamline.
+    parser.add_argument('--use-subfolders', type='bool', default='False',
+                        help='- If True: Use subfolders for raw data\n'
+                             '- If False: Go through the complete list of '
+                             'folders/subfolders hang from the root folder\n'
+                             '(default: False)')
     parser.add_argument('--title', type=str, default='X-ray tomography',
                         help="Sets the title of the tomography")
     parser.add_argument('--source-name', type=str, default='ALBA',
@@ -83,28 +79,28 @@ def main():
 
     args = parser.parse_args()
 
-    dir_name = args.input_dir_name
-    output_dir = args.output_dir_name
-    samples = get_samples(dir_name)
+    txm_txt_script = args.input_txm_script
+    output_dir = os.path.abspath(args.output_dir)
+    files_dict = FilesOrganization()
+    by_repetitions = args.organize_by_repetitions
+    samples = files_dict.get_samples(txm_txt_script,
+                                     use_existing_db=args.use_existing_db,
+                                     use_subfolders=args.use_subfolders,
+                                     organize_by_repetitions=by_repetitions)
+
     # Generate the hdf5 files
     for sample in samples.keys():
         tomos = samples[sample]['tomos']
         # Create FF reader
         ff_files = samples[sample]['ff']
-        ff_files.sort(key=lambda x: os.path.getmtime(x))
         ffreader = xrmReader(ff_files)
         for tomo in tomos.keys():
             tomo_files = samples[sample]['tomos'][tomo]
             if len(ff_files) == 0:
                 print "WARNING: %s of Sample: %s have not BrightField " \
-                      "files. HDF5 file can not be created for this tomo" %\
-                      (tomo, sample)
+                      "files." % (tomo, sample)
                 continue
-            # sort files
-            tomo_files.sort(key=lambda x: os.path.getmtime(x))
-
             reader = xrmReader(tomo_files)
-
             xrm = xrmNXtomo(reader, ffreader,
                             'sb',  # TODO: Not need?
                             'xrm2nexus',
@@ -120,10 +116,11 @@ def main():
             xrm.convert_metadata()
             xrm.convert_tomography()
 
-    print("\n")    
+    print("\n")
     print(datetime.datetime.today())
     print("\n")
 
 
 if __name__ == "__main__":
     main()
+
