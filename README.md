@@ -3,6 +3,8 @@
 'hdf5' format.
 
 Applications present on the package:
+- hdf2h5
+- xrm2nexus
 - txrm2nexus
 - mosaic2nexus
 - normalize
