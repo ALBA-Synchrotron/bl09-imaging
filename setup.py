@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 
 # The version is updated automatically with bumpversion
 # Do not update manually
-__version = '10.2.1-alpha'
+__version = '10.2.1'
 
 long_description = """ txrm2nexus is a file format converter application
 which allow to convert .xrm and .txrm image stack files (output of the
