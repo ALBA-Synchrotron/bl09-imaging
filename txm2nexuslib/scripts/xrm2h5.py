@@ -23,7 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import os
 import argparse
 from argparse import RawTextHelpFormatter
-from txm2nexuslib.xrmnex import Xrm2H5Converter
+from txm2nexuslib.image.xrm2hdf5 import Xrm2H5Converter
 
 
 def main():
@@ -45,7 +45,7 @@ def main():
     args = parser.parse_args()
 
     xrm2h5_converter = Xrm2H5Converter(args.input_xrm)
-    xrm2h5_converter.convert_metadata_from_xrm_to_h5()
+    xrm2h5_converter.convert_xrm_to_h5_file()
 
 
 if __name__ == "__main__":
