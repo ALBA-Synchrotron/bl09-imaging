@@ -21,6 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import os
+import sys
 import h5py
 import numpy as np
 from txm2nexuslib.xrmnex import XradiaFile
@@ -28,18 +29,19 @@ from txm2nexuslib.xrmnex import XradiaFile
 
 class Xrm2H5Converter(object):
 
-    def __init__(self, xrm_file_name, h5_filename=None):
-        self.xrm_file_name = xrm_file_name
+    def __init__(self, xrm_filename, h5_filename=None):
+        self.xrm_filename = xrm_filename
+        self.h5_filename = h5_filename
         if h5_filename is None:
-            h5_filename = os.path.splitext(xrm_file_name)[0] + '.hdf5'
-        self.h5_handler = h5py.File(h5_filename, 'w')
+            self.h5_filename = os.path.splitext(xrm_filename)[0] + '.hdf5'
+        self.h5_handler = h5py.File(self.h5_filename, 'w')
         self.metadata = {}
         self.data = {}
         self.full_data = {}
 
     def _convert_metadata_from_xrm_to_h5(self):
 
-        with XradiaFile(self.xrm_file_name) as xrm_file:
+        with XradiaFile(self.xrm_filename) as xrm_file:
             try:
                 self.metadata['angle'] = xrm_file.get_angles()
                 self.h5_handler.create_dataset(
@@ -149,16 +151,7 @@ class Xrm2H5Converter(object):
                 print("data_type could not be converted from xrm to hdf5")
 
             try:
-                self.metadata['date'] = self.xrm_file_name.split('_')[0]
-                self.metadata['date'] = int(self.metadata['date'])
-                self.h5_handler.create_dataset(
-                    "date",
-                    data=self.metadata['date'])
-            except Exception:
-                print("date could not be converted from xrm to hdf5")
-
-            try:
-                self.metadata['sample_name'] = self.xrm_file_name.split('_')[1]
+                self.metadata['sample_name'] = self.xrm_filename.split('_')[1]
                 self.h5_handler.create_dataset(
                     "sample_name",
                     data=self.metadata['sample_name'])
@@ -166,8 +159,8 @@ class Xrm2H5Converter(object):
                 print("sample_name could not be converted from xrm to hdf5")
 
             try:
-                if ('_FF' in self.xrm_file_name or
-                        '_ff_' in self.xrm_file_name):
+                if ('_FF' in self.xrm_filename or
+                        '_ff_' in self.xrm_filename):
                     self.metadata['FF'] = True
                     self.h5_handler.create_dataset("FF",
                                                    data=self.metadata['FF'])
@@ -178,10 +171,50 @@ class Xrm2H5Converter(object):
             except Exception:
                 print("FF information could not be retrieved")
 
+            # Get acquisition time
+            try:
+                self.metadata['date_time'] = xrm_file.get_single_date()
+                self.h5_handler.create_dataset("date_time_acquisition",
+                                               data=self.metadata['date_time'])
+            except Exception:
+                print("acquisition date and time could not be converted "
+                      "from xrm to hdf5")
+
+            # Instrument and Source
+            self.metadata['instrument'] = "BL09 @ ALBA"
+            self.h5_handler.create_dataset("instrument",
+                                           data=self.metadata['instrument'])
+            self.metadata['source'] = "ALBA"
+            self.h5_handler.create_dataset("source",
+                                           data=self.metadata['source'])
+            self.metadata['source_probe'] = "X-Ray"
+            self.h5_handler.create_dataset("source_probe",
+                                           data=self.metadata['source_probe'])
+            self.metadata['source_type'] = "Sychrotron X-Ray Source"
+
+            # Applied program and command to convert the data
+            self.h5_handler.create_dataset("source_type",
+                                           data=self.metadata['source_type'])
+            self.metadata['program_name'] = "xrm2h5"
+            self.h5_handler.create_dataset("program_name",
+                                           data=self.metadata['program_name'])
+            command = (self.metadata['program_name'] + ' ' +
+                       ' '.join(sys.argv[1:]))
+            self.metadata['command'] = command
+            self.h5_handler.create_dataset("command",
+                                           data=self.metadata['command'])
+
+            # Input and output files
+            self.metadata['input_file'] = os.path.basename(self.xrm_filename)
+            self.h5_handler.create_dataset("input_file",
+                                           data=self.metadata['input_file'])
+            self.metadata['output_file'] = os.path.basename(self.h5_filename)
+            self.h5_handler.create_dataset("output_file",
+                                           data=self.metadata['output_file'])
         return self.metadata
 
     def _convert_raw_image_from_xrm_to_h5(self):
-        with XradiaFile(self.xrm_file_name) as self.xrm_file:
+        with XradiaFile(self.xrm_filename) as self.xrm_file:
             try:
                 self.data['data'] = self.xrm_file.get_image_2D()
                 self.h5_handler.create_dataset(
@@ -189,9 +222,12 @@ class Xrm2H5Converter(object):
                     data=self.data['data'])
             except Exception:
                 print("image raw data could not be converted from xrm to hdf5")
+        return self.data
 
     def convert_xrm_to_h5_file(self):
         self._convert_metadata_from_xrm_to_h5()
         self._convert_raw_image_from_xrm_to_h5()
+        self.full_data["metadata"] = self.metadata
+        self.full_data["data"] = self.data
         self.h5_handler.flush()
         self.h5_handler.close()
