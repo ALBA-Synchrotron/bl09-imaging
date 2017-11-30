@@ -45,6 +45,7 @@ class Xrm2H5Converter(object):
                 self.h5_handler.create_dataset(
                     "angle",
                     data=self.metadata['angle'])
+                self.h5_handler["angle"].attrs["units"] = "degrees"
             except Exception:
                 print("angle could not be converted from xrm to hdf5")
 
@@ -53,6 +54,7 @@ class Xrm2H5Converter(object):
                 self.h5_handler.create_dataset(
                     "energy",
                     data=self.metadata['energy'])
+                self.h5_handler["energy"].attrs["units"] = "eV"
             except Exception:
                 print("energy could not be converted from xrm to hdf5")
 
@@ -61,6 +63,7 @@ class Xrm2H5Converter(object):
                 self.h5_handler.create_dataset(
                     "exposure_time",
                     data=self.metadata['exposure_time'])
+                self.h5_handler["exposure_time"].attrs["units"] = "s"
             except Exception:
                 print("exposure_time could not be converted from xrm to hdf5")
 
@@ -70,6 +73,7 @@ class Xrm2H5Converter(object):
                 self.h5_handler.create_dataset(
                     "machine_current",
                     data=self.metadata['machine_current'])
+                self.h5_handler["machine_current"].attrs["units"] = "mA"
             except Exception:
                 print("machine_current could not be converted from xrm to hdf5")
 
@@ -78,6 +82,7 @@ class Xrm2H5Converter(object):
                 self.h5_handler.create_dataset(
                     "pixel_size",
                     data=self.metadata['pixel_size'])
+                self.h5_handler["pixel_size"].attrs["units"] = "um"
             except Exception:
                 print("pixel_size could not be converted from xrm to hdf5")
 
@@ -95,6 +100,7 @@ class Xrm2H5Converter(object):
                 self.h5_handler.create_dataset(
                     "image_width",
                     data=self.metadata['image_width'])
+                self.h5_handler["image_width"].attrs["units"] = "pixels"
             except Exception:
                 print("image_width could not be converted from xrm to hdf5")
 
@@ -103,6 +109,7 @@ class Xrm2H5Converter(object):
                 self.h5_handler.create_dataset(
                     "image_height",
                     data=self.metadata['image_height'])
+                self.h5_handler["image_height"].attrs["units"] = "pixels"
             except Exception:
                 print("image_height could not be converted from xrm to hdf5")
 
@@ -111,6 +118,7 @@ class Xrm2H5Converter(object):
                 self.h5_handler.create_dataset(
                     "x_position",
                     data=self.metadata['x_position'])
+                self.h5_handler["x_position"].attrs["units"] = "um"
             except Exception:
                 print("x_position could not be converted from xrm to hdf5")
 
@@ -119,6 +127,7 @@ class Xrm2H5Converter(object):
                 self.h5_handler.create_dataset(
                     "y_position",
                     data=self.metadata['y_position'])
+                self.h5_handler["y_position"].attrs["units"] = "um"
             except Exception:
                 print("y_position could not be converted from xrm to hdf5")
 
@@ -127,6 +136,7 @@ class Xrm2H5Converter(object):
                 self.h5_handler.create_dataset(
                     "z_position",
                     data=self.metadata['z_position'])
+                self.h5_handler["z_position"].attrs["units"] = "um"
             except Exception:
                 print("z_position could not be converted from xrm to hdf5")
 
