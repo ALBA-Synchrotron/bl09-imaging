@@ -530,6 +530,29 @@ class XradiaFile(object):
     data_type = property(get_data_type)
 
     @validate_getter(["ImageInfo/Date"])
+    def get_single_date(self):
+        stream = self.file.openstream('ImageInfo/Date')
+        data = stream.read()
+        date = struct.unpack('<' + '17s23x', data)[0]
+
+        [day, hour] = date.split(" ")
+        [month, day, year] = day.split("/")
+        [hour, minute, second] = hour.split(":")
+
+        year = '20' + year
+        year = int(year)
+        month = int(month)
+        day = int(day)
+        hour = int(hour)
+        minute = int(minute)
+        second = int(second)
+
+        raw_time = datetime.datetime(year, month, day,
+                                      hour, minute, second)
+        time_iso = raw_time.isoformat()
+        return time_iso
+
+    @validate_getter(["ImageInfo/Date"])
     def get_dates(self):
         if self._dates is None:
             stream = self.file.openstream('ImageInfo/Date')
