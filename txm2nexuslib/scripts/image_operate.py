@@ -50,11 +50,14 @@ The most commonly used image_operate commands are:
     def sum(self):
         parser = argparse.ArgumentParser(
             description='Sum of many images')
-        parser.add_argument('addends', metavar='[addends_hdf5_files]',
-                            type=str, help='input the addends single image '
-                                           'hdf5 files entered as a list')
+        parser.add_argument('-a', '--addends-list', action='append',
+                            required=True,
+                            metavar='[addends_hdf5_files_list]',
+                            help='input the addends single image '
+                                 'hdf5 files entered as a list')
         # prefixing the argument with -- means it's optional
         args = parser.parse_args(sys.argv[2:])
+        print(args)
         print 'Running image_operate sum'
 
     def subtract(self):
