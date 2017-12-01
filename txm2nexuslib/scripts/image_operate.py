@@ -33,8 +33,9 @@ class ImageOperate(object):
             usage="""image_operate <command> [<args>]
 
 The most commonly used image_operate commands are:
-   sum           Sum of many images
-   subtract      From a reference image, subtract another image
+   add           Addition of many images
+   subtract      From a reference image (minuend),
+                 subtract another image (subtrahend)
 """)
         parser.add_argument('command', help='Subcommand to run')
         # parse_args defaults to [1:] for args, but you need to
@@ -47,9 +48,9 @@ The most commonly used image_operate commands are:
         # use dispatch pattern to invoke method with same name
         getattr(self, args.command)()
 
-    def sum(self):
+    def add(self):
         parser = argparse.ArgumentParser(
-            description='Sum of many images')
+            description='Addition of many images')
         parser.add_argument('-a', '--addends-list', action='append',
                             required=True,
                             metavar='[addends_hdf5_files_list]',
@@ -58,7 +59,7 @@ The most commonly used image_operate commands are:
         # prefixing the argument with -- means it's optional
         args = parser.parse_args(sys.argv[2:])
         print(args)
-        print 'Running image_operate sum'
+        print 'Running image_operate add'
 
     def subtract(self):
         parser = argparse.ArgumentParser(
