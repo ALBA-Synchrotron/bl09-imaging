@@ -23,6 +23,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import argparse
 import sys
 
+from txm2nexuslib.image.image_operate_lib import \
+    extract_single_image_from_hdf5, add_images
 
 class ImageOperate(object):
 
@@ -58,6 +60,13 @@ The most commonly used image_operate commands are:
                                  'hdf5 files entered as a list')
         # prefixing the argument with -- means it's optional
         args = parser.parse_args(sys.argv[2:])
+        print(len(args))
+        for single_img_hdf5_file in args:
+            img = extract_single_image_from_hdf5(single_img_hdf5_file)
+        import numpy as np
+        print(np.shape(img))
+        #extract_image_from_hdf5file()
+        #add_images(image_list)
         print(args)
         print 'Running image_operate add'
 
