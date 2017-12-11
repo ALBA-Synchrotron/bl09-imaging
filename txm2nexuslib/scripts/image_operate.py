@@ -35,7 +35,7 @@ class ImageOperate(object):
                         'with images',
             usage="""image_operate <command> [<args>]
 
-The most commonly used image_operate commands are:
+image_operate commands are:
    add           Addition of many images
    subtract      From a reference image (minuend),
                  subtract another image (subtrahend)
@@ -43,6 +43,14 @@ The most commonly used image_operate commands are:
                  positive or negative)
    subtract_image_to_constant
                  Subtract an image to a constant
+   multiply_by_constant
+                 Multiply an image by a constant
+   divide_by_constant
+                 Divide an image by a constant
+   multiply_element_wise
+                 Multiply two images element-wise
+   divide_element_wise
+                 Divide an image by another image, element-wise
 """)
         parser.add_argument('command', help='Subcommand to run')
         # parse_args defaults to [1:] for args, but you need to
@@ -129,8 +137,7 @@ The most commonly used image_operate commands are:
         return result_image
 
     def multiply_by_constant(self):
-        """Add a constant to an image. The constant can be positive or
-        negative"""
+        """Multiply an image by a constant"""
         parser = argparse.ArgumentParser(description='Multiply an image by a '
                                                      'constant')
         parser.add_argument('image', metavar='image',
@@ -148,8 +155,7 @@ The most commonly used image_operate commands are:
         return result_image
 
     def divide_by_constant(self):
-        """Add a constant to an image. The constant can be positive or
-        negative"""
+        """Divide an image by a constant"""
         parser = argparse.ArgumentParser(description='Divide an image by a '
                                                      'constant')
         parser.add_argument('image', metavar='image',
@@ -165,9 +171,43 @@ The most commonly used image_operate commands are:
         result_image = divide_image_by_constant(image, cte)
         return result_image
 
+    def multiply_element_wise(self):
+        """Multiply two images element-wise"""
+        parser = argparse.ArgumentParser(description='Multiply an image by '
+                                                     'another image')
+        parser.add_argument('image1', metavar='image1', type=str,
+                            help='single first image hdf5 file')
+        parser.add_argument('image2', metavar='image2', type=str,
+                            help='single second image hdf5 file')
+        args = parser.parse_args(sys.argv[2:])
+        print ('\nimage_operate multiply_element_wise: %s * %s\n' %
+               (args.image1, args.image2))
+        image1 = extract_single_image_from_hdf5(args.image1)
+        image2 = extract_single_image_from_hdf5(args.image2)
+        result_image = multiply_images_element_wise(image1, image2)
+        return result_image
+
+    def divide_element_wise(self):
+        """Divide two images element-wise"""
+        parser = argparse.ArgumentParser(description='Divide a numerator '
+                                                     'image by a denominator '
+                                                     'image')
+        parser.add_argument('numerator', metavar='image1', type=str,
+                            help='numerator single image hdf5 file')
+        parser.add_argument('denominator', metavar='image2', type=str,
+                            help='denominator single image hdf5 file')
+        args = parser.parse_args(sys.argv[2:])
+        print ('\nimage_operate divide_element_wise: %s / %s\n' %
+               (args.numerator, args.denominator))
+        numerator = extract_single_image_from_hdf5(args.numerator)
+        denominator = extract_single_image_from_hdf5(args.denominator)
+        result_image = divide_images_element_wise(numerator, denominator)
+        return result_image
+
 
 def main():
     ImageOperate()
+
 
 if __name__ == '__main__':
     main()
