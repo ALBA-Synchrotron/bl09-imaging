@@ -106,7 +106,7 @@ The most commonly used image_operate commands are:
                             type=str, help='constant to be added to the image')
         args = parser.parse_args(sys.argv[2:])
         cte = args.constant
-        print ('\nimage_operate add_constant: %s - %s\n' % (args.image, cte))
+        print ('\nimage_operate add_constant: %s + %s\n' % (args.image, cte))
         image = extract_single_image_from_hdf5(args.image)
         result_image = add_cte_to_image(image, cte)
         return result_image
@@ -122,12 +122,48 @@ The most commonly used image_operate commands are:
                             type=str, help='subtrahend image hdf5 file')
         args = parser.parse_args(sys.argv[2:])
         cte = args.constant
-        print('\nimage_operate subtract_to_constant: '
+        print('\nimage_operate subtract_image_to_constant: '
               '%s - %s\n' % (cte, args.image))
         image = extract_single_image_from_hdf5(args.image)
         result_image = subtract_image_to_cte(cte, image)
         return result_image
 
+    def multiply_by_constant(self):
+        """Add a constant to an image. The constant can be positive or
+        negative"""
+        parser = argparse.ArgumentParser(description='Multiply an image by a '
+                                                     'constant')
+        parser.add_argument('image', metavar='image',
+                            type=str, help='single image hdf5 file')
+        parser.add_argument('constant', metavar='constant',
+                            type=str, help='constant by which the image '
+                                           'will be multiplied')
+
+        args = parser.parse_args(sys.argv[2:])
+        cte = float(args.constant)
+        print ('\nimage_operate multiply_by_constant: %s * %s\n' %
+               (args.image, cte))
+        image = extract_single_image_from_hdf5(args.image)
+        result_image = multiply_image_by_constant(image, cte)
+        return result_image
+
+    def divide_by_constant(self):
+        """Add a constant to an image. The constant can be positive or
+        negative"""
+        parser = argparse.ArgumentParser(description='Divide an image by a '
+                                                     'constant')
+        parser.add_argument('image', metavar='image',
+                            type=str, help='single image hdf5 file')
+        parser.add_argument('constant', metavar='constant',
+                    type=str, help='constant by which the image will be '
+                                   'divided')
+        args = parser.parse_args(sys.argv[2:])
+        cte = float(args.constant)
+        print ('\nimage_operate divide_by_constant: %s / %s\n' %
+               (args.image, cte))
+        image = extract_single_image_from_hdf5(args.image)
+        result_image = divide_image_by_constant(image, cte)
+        return result_image
 
 
 def main():

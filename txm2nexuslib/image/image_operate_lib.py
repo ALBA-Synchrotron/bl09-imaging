@@ -20,8 +20,10 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+
 import h5py
 import numpy as np
+
 
 def extract_single_image_from_hdf5(single_image_hdf5_file):
     f = h5py.File(single_image_hdf5_file, "r")
@@ -58,6 +60,17 @@ def subtract_image_to_cte(cte, image):
     result_image = img_cte - image
     return result_image
 
+def multiply_image_by_constant(image, cte):
+    image = np.array(image)
+    result_image = float(cte)*image
+    return result_image
+
+def divide_image_by_constant(image, cte):
+    image = np.array(image)
+    result_image = image / float(cte)
+    return result_image
+
+
 def main():
     ars = np.array([[2, 3], [4, 5]])
     brs = np.array([[5, 1], [2, 1]])
@@ -67,6 +80,7 @@ def main():
 
     print(add_resulting_image)
     print(subtract_resulting_image)
+
 
 if __name__ == "__main__":
     main()
