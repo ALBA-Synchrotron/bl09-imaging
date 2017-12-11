@@ -36,12 +36,25 @@ def add_images(image1, image2):
     result_image = image1 + image2
     return result_image
 
+def subtract_images(minuend_image, subtrahend_image):
+    minuend_image = np.array(minuend_image)
+    subtrahend_image = np.array(subtrahend_image)
+    shape1 = np.shape(minuend_image)
+    shape2 = np.shape(subtrahend_image)
+    if shape1 != shape2:
+        raise "Images with different dimensions cannot be subtracted"
+    result_image = minuend_image - subtrahend_image
+    return result_image
 
 def main():
     ars = np.array([[2, 3], [4, 5]])
     brs = np.array([[5, 1], [2, 1]])
-    resulting_image = add_images(ars, brs)
-    print(resulting_image)
+
+    add_resulting_image = add_images(ars, brs)
+    subtract_resulting_image = subtract_images(ars, brs)
+
+    print(add_resulting_image)
+    print(subtract_resulting_image)
 
 if __name__ == "__main__":
     main()
