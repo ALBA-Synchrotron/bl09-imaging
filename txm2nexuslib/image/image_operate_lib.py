@@ -46,6 +46,18 @@ def subtract_images(minuend_image, subtrahend_image):
     result_image = minuend_image - subtrahend_image
     return result_image
 
+def add_cte_to_image(image, cte):
+    image = np.array(image)
+    result_image = image + float(cte)
+    return result_image
+
+def subtract_image_to_cte(cte, image):
+    shape = np.shape(image)
+    cte = float(cte)
+    img_cte = cte*np.ones(shape)
+    result_image = img_cte - image
+    return result_image
+
 def main():
     ars = np.array([[2, 3], [4, 5]])
     brs = np.array([[5, 1], [2, 1]])

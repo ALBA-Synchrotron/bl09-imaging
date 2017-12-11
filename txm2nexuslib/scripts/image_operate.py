@@ -25,8 +25,7 @@ import sys
 import argparse
 import numpy as np
 
-from txm2nexuslib.image.image_operate_lib import \
-    extract_single_image_from_hdf5, add_images, subtract_images
+from txm2nexuslib.image.image_operate_lib import *
 
 class ImageOperate(object):
 
@@ -62,24 +61,13 @@ The most commonly used image_operate commands are:
                             nargs='+', default=None,
                             help='input the addends single image '
                                  'hdf5 files')
-
-        """parser.add_argument('-a', '--addends-list', action='append',
-                            required=True,
-                            metavar='[addends_hdf5_files_list]',
-                            help='input the addends single image '
-                                 'hdf5 files')"""
-        # prefixing the argument with -- means it's optional
         args = parser.parse_args(sys.argv[2:])
-
         print '\nimage_operate add:'
         print(str(sys.argv[2:]) + "\n")
-
         image_list = args.addends
-
         img1 = extract_single_image_from_hdf5(image_list[0])
         shape1 = np.shape(img1)
         result_image = np.zeros(shape1)
-
         for single_img_hdf5_file in args.addends:
             img = extract_single_image_from_hdf5(single_img_hdf5_file)
             result_image = add_images(result_image, img)
@@ -95,15 +83,46 @@ The most commonly used image_operate commands are:
         parser.add_argument('subtrahend', metavar='subtrahend_hdf5_file',
                             type=str, help='single image hdf5 file to subtract'
                                            'to the reference image')
-
         args = parser.parse_args(sys.argv[2:])
         print ('\nimage_operate subtract: %s - %s\n' %
-               (args.minuend,
-                args.subtrahend))
+               (args.minuend, args.subtrahend))
         minuend_img = extract_single_image_from_hdf5(args.minuend)
         subtrahend_img = extract_single_image_from_hdf5(args.subtrahend)
         result_image = subtract_images(minuend_img, subtrahend_img)
         return result_image
+
+    def add_constant(self):
+        """Add a constant to an image. The constant can be positive or
+        negative"""
+        parser = argparse.ArgumentParser(description='Add a constant to '
+                                                     'an image')
+        parser.add_argument('image', metavar='image',
+                            type=str, help='reference single image hdf5 file')
+        parser.add_argument('constant', metavar='constant',
+                            type=str, help='constant to be added to the image')
+        args = parser.parse_args(sys.argv[2:])
+        cte = args.constant
+        print ('\nimage_operate add_constant: %s - %s\n' % (args.image, cte))
+        image = extract_single_image_from_hdf5(args.image)
+        result_image = add_cte_to_image(image, cte)
+        return result_image
+
+    def subtract_image_to_constant(self):
+        """Subtract image to constant"""
+        parser = argparse.ArgumentParser(description='Subtract an image to '
+                                                     'a constant value image')
+        parser.add_argument('constant', metavar='constant',
+                            type=str, help='constant')
+        parser.add_argument('image', metavar='image',
+                            type=str, help='subtrahend image hdf5 file')
+        args = parser.parse_args(sys.argv[2:])
+        cte = args.constant
+        print('\nimage_operate subtract_to_constant: '
+              '%s - %s\n' % (cte, args.image))
+        image = extract_single_image_from_hdf5(args.image)
+        result_image = subtract_image_to_cte(cte, image)
+        return result_image
+
 
 
 def main():
