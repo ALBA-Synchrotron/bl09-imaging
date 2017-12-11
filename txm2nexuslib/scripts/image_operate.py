@@ -92,19 +92,22 @@ image_operate commands are:
         parser = argparse.ArgumentParser(
             description='From a reference image (minuend), '
                         'subtract another image (subtrahend)')
-
         parser.add_argument('minuend', metavar='minuend_hdf5_file',
                             type=str, help='reference single image hdf5 file')
         parser.add_argument('subtrahend', metavar='subtrahend_hdf5_file',
                             type=str, help='single image hdf5 file to subtract'
                                            'to the reference image')
+        parser.add_argument('-o', '--output',
+                            default='out.hdf5',
+                            metavar='output',
+                            type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
         print ('\nimage_operate subtract: %s - %s\n' %
                (args.minuend, args.subtrahend))
         minuend_img = extract_single_image_from_hdf5(args.minuend)
         subtrahend_img = extract_single_image_from_hdf5(args.subtrahend)
         result_image = subtract_images(minuend_img, subtrahend_img)
-        return result_image
+        store_single_image_in_hdf5(args.output, result_image)
 
     def add_constant(self):
         """Add a constant to an image. The constant can be positive or
