@@ -39,6 +39,10 @@ The most commonly used image_operate commands are:
    add           Addition of many images
    subtract      From a reference image (minuend),
                  subtract another image (subtrahend)
+   add_constant  Add a constant to an image (the constant can be
+                 positive or negative)
+   subtract_image_to_constant
+                 Subtract an image to a constant
 """)
         parser.add_argument('command', help='Subcommand to run')
         # parse_args defaults to [1:] for args, but you need to
