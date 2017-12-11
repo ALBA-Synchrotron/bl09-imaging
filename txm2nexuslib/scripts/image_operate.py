@@ -112,7 +112,8 @@ The most commonly used image_operate commands are:
         parser = argparse.ArgumentParser(description='Subtract an image to '
                                                      'a constant value image')
         parser.add_argument('constant', metavar='constant',
-                            type=str, help='constant')
+                            type=str, help='minuend constant to which an '
+                                           'image will be subtracted')
         parser.add_argument('image', metavar='image',
                             type=str, help='subtrahend image hdf5 file')
         args = parser.parse_args(sys.argv[2:])
