@@ -1,7 +1,8 @@
 #!/usr/bin/python
 
 """
-(C) Copyright 2014-2017 Marc Rosanes
+(C) Copyright 2014-2017 ALBA-CELLS
+Author: Marc Rosanes Siscart
 The program is distributed under the terms of the
 GNU General Public License (or the Lesser GPL).
 
@@ -27,18 +28,19 @@ def extract_single_image_from_hdf5(single_image_hdf5_file):
     image = f["data"]
     return image
 
-def add_images(image_list):
-    shape = np.shape(image_list[0])
-    result_image = np.zeros(shape)
-    for image in image_list:
-        result_image = result_image + image
+def add_images(image1, image2):
+    shape1 = np.shape(image1)
+    shape2 = np.shape(image2)
+    if shape1 != shape2:
+        raise "Images with different dimensions cannot be added"
+    result_image = image1 + image2
     return result_image
 
 
 def main():
     ars = np.array([[2, 3], [4, 5]])
     brs = np.array([[5, 1], [2, 1]])
-    resulting_image = add_images([ars, brs])
+    resulting_image = add_images(ars, brs)
     print(resulting_image)
 
 if __name__ == "__main__":

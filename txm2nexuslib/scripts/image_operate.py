@@ -1,7 +1,8 @@
 #!/usr/bin/python
 
 """
-(C) Copyright 2014-2017 Marc Rosanes
+(C) Copyright 2014-2017 ALBA-CELLS
+Author: Marc Rosanes Siscart
 The program is distributed under the terms of the
 GNU General Public License (or the Lesser GPL).
 
@@ -20,8 +21,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 
-import argparse
 import sys
+import argparse
+import numpy as np
 
 from txm2nexuslib.image.image_operate_lib import \
     extract_single_image_from_hdf5, add_images
@@ -44,7 +46,7 @@ The most commonly used image_operate commands are:
         # exclude the rest of the args too, or validation will fail
         args = parser.parse_args(sys.argv[1:2])
         if not hasattr(self, args.command):
-            print 'Unrecognized command'
+            print '\nUnrecognized command\n'
             parser.print_help()
             exit(1)
         # use dispatch pattern to invoke method with same name
@@ -57,18 +59,20 @@ The most commonly used image_operate commands are:
                             required=True,
                             metavar='[addends_hdf5_files_list]',
                             help='input the addends single image '
-                                 'hdf5 files entered as a list')
+                                 'hdf5 files')
         # prefixing the argument with -- means it's optional
         args = parser.parse_args(sys.argv[2:])
-        print(len(args))
-        for single_img_hdf5_file in args:
+        image_list = args.addends_list
+
+        img1 = extract_single_image_from_hdf5(image_list[0])
+        shape1 = np.shape(img1)
+        result_image = np.zeros(shape1)
+
+        for single_img_hdf5_file in args.addends_list:
             img = extract_single_image_from_hdf5(single_img_hdf5_file)
-        import numpy as np
-        print(np.shape(img))
-        #extract_image_from_hdf5file()
-        #add_images(image_list)
-        print(args)
-        print 'Running image_operate add'
+            result_image = add_images(result_image, img)
+
+        print '\nRunning image_operate add\n'
 
     def subtract(self):
         parser = argparse.ArgumentParser(
@@ -82,8 +86,9 @@ The most commonly used image_operate commands are:
                                            'to the reference image')
 
         args = parser.parse_args(sys.argv[2:])
-        print ('Running image_operate subtract: %s - %s' % (args.minuend,
-                                                            args.subtrahend))
+        print ('\nRunning image_operate subtract: %s - %s\n' %
+               (args.minuend,
+                args.subtrahend))
 
 
 def main():
