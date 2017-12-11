@@ -30,6 +30,13 @@ def extract_single_image_from_hdf5(single_image_hdf5_file):
     image = f["data"]
     return image
 
+def store_single_image_in_hdf5(hdf5_filename, image):
+    """Store a single image in an hdf5 file"""
+    f = h5py.File(hdf5_filename, "w")
+    f.create_dataset("data", data=image)
+    f.flush()
+    f.close()
+
 def add_images(image1, image2):
     shape1 = np.shape(image1)
     shape2 = np.shape(image2)

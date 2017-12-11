@@ -66,7 +66,10 @@ image_operate commands are:
     def add(self):
         parser = argparse.ArgumentParser(
             description='Addition of many images')
-
+        parser.add_argument('-o', '--output',
+                            default='out.hdf5',
+                            metavar='output',
+                            type=str, help='output hdf5 filename')
         parser.add_argument('addends',
                             metavar='addends_hdf5_files_list',
                             type=str,
@@ -75,7 +78,7 @@ image_operate commands are:
                                  'hdf5 files')
         args = parser.parse_args(sys.argv[2:])
         print '\nimage_operate add:'
-        print(str(sys.argv[2:]) + "\n")
+        print(str(args.addends) + "\n")
         image_list = args.addends
         img1 = extract_single_image_from_hdf5(image_list[0])
         shape1 = np.shape(img1)
@@ -83,7 +86,7 @@ image_operate commands are:
         for single_img_hdf5_file in args.addends:
             img = extract_single_image_from_hdf5(single_img_hdf5_file)
             result_image = add_images(result_image, img)
-        return result_image
+        store_single_image_in_hdf5(args.output, result_image)
 
     def subtract(self):
         parser = argparse.ArgumentParser(
