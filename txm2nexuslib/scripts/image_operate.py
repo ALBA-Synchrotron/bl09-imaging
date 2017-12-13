@@ -20,7 +20,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-
+import os
 import sys
 import argparse
 import numpy as np
@@ -36,6 +36,7 @@ class ImageOperate(object):
             usage="""image_operate <command> [<args>]
 
 image_operate commands are:
+   copy          Copy hdf5 file to a new hdf5 file for processing
    add           Addition of many images
    subtract      From a reference image (minuend),
                  subtract another image (subtrahend)
@@ -61,11 +62,28 @@ image_operate commands are:
         # use dispatch pattern to invoke method with same name
         getattr(self, args.command)()
 
+    def copy(self):
+        parser = argparse.ArgumentParser(
+            description='Copy a whole hdf5 file to a new file')
+        parser.add_argument('input', metavar='input_hdf5_filename',
+                            type=str, help='input hdf5 filename')
+        parser.add_argument('-o', '--output',
+                            default='default',
+                            metavar='output',
+                            type=str, help='output hdf5 filename')
+        args = parser.parse_args(sys.argv[2:])
+        if args.output == "default":
+            base_fn = os.path.splitext(args.input)[0]
+            output_fn = base_fn + "_proc.hdf5"
+        print ('\nimage_operate copy: from %s to %s\n' % (args.input,
+                                                          output_fn))
+        copy_hdf5(args.input, output_fn)
+
     def add(self):
         parser = argparse.ArgumentParser(
             description='Addition of many images')
         parser.add_argument('-o', '--output',
-                            default='out.hdf5',
+                            default='default',
                             metavar='output',
                             type=str, help='output hdf5 filename')
         parser.add_argument('addends',
@@ -78,13 +96,23 @@ image_operate commands are:
         print '\nimage_operate add:'
         print(str(args.addends) + "\n")
         image_list = args.addends
-        img1 = extract_single_image_from_hdf5(image_list[0])
+        f_handler = h5py.File(image_list[0], "r")
+        img1 = extract_single_image_from_hdf5(f_handler)
+        f_handler.close()
         shape1 = np.shape(img1)
         result_image = np.zeros(shape1)
         for single_img_hdf5_file in args.addends:
-            img = extract_single_image_from_hdf5(single_img_hdf5_file)
+            f_handler = h5py.File(single_img_hdf5_file, "r")
+            img = extract_single_image_from_hdf5(f_handler)
             result_image = add_images(result_image, img)
-        store_single_image_in_hdf5(args.output, result_image)
+            f_handler.close()
+        if args.output == "default":
+            #args.output = args.addends[0]
+            for single_img_hdf5_file in args.addends:
+                description = "image addition: %s" % args.addends
+                store_single_image_in_existing_hdf5(single_img_hdf5_file,
+                                                    result_image,
+                                                    description=description)
 
     def subtract(self):
         parser = argparse.ArgumentParser(
@@ -102,10 +130,14 @@ image_operate commands are:
         args = parser.parse_args(sys.argv[2:])
         print ('\nimage_operate subtract: %s - %s\n' %
                (args.minuend, args.subtrahend))
-        minuend_img = extract_single_image_from_hdf5(args.minuend)
-        subtrahend_img = extract_single_image_from_hdf5(args.subtrahend)
+        f_minuend = h5py.File(args.minuend, "r")
+        minuend_img = extract_single_image_from_hdf5(f_minuend)
+        f_subtrahend = h5py.File(args.subtrahend, "r")
+        subtrahend_img = extract_single_image_from_hdf5(f_subtrahend)
         result_image = subtract_images(minuend_img, subtrahend_img)
         store_single_image_in_hdf5(args.output, result_image)
+        f_minuend.close()
+        f_subtrahend.close()
 
     def add_constant(self):
         """Add a constant to an image. The constant can be positive or

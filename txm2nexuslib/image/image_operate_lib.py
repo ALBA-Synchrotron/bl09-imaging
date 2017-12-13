@@ -20,20 +20,44 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-
+import os
+import shutil
 import h5py
 import numpy as np
 
 
-def extract_single_image_from_hdf5(single_image_hdf5_file):
-    f = h5py.File(single_image_hdf5_file, "r")
-    image = f["data"]
+def copy_hdf5(input, output):
+    shutil.copy(input, output)
+
+def extract_single_image_from_hdf5(f_handler):
+    image = f_handler["data"].value
     return image
 
-def store_single_image_in_hdf5(hdf5_filename, image):
+def store_single_image_in_new_hdf5(hdf5_filename, image,
+                                   dataset="data"):
     """Store a single image in an hdf5 file"""
     f = h5py.File(hdf5_filename, "w")
-    f.create_dataset("data", data=image)
+    f.create_dataset(dataset, data=image)
+    f.flush()
+    f.close()
+
+def store_single_image_in_existing_hdf5(hdf5_filename, image,
+                                        description="default",
+                                        dataset="data"):
+    """Store a single image in an hdf5 file"""
+    f = h5py.File(hdf5_filename, "r+")
+    precedent_step = int(f["data"].attrs["step"])
+    workflow_step = precedent_step + 1
+    data_set = "data_" + str(workflow_step)
+    f.create_dataset(data_set, data=image)
+    f[data_set].attrs["step"] = workflow_step
+    f[data_set].attrs["description"] = description
+    try:
+        f[dataset] = h5py.SoftLink(data_set)
+    except:
+        del f[dataset]
+        f[dataset] = h5py.SoftLink(data_set)
+    f[dataset].attrs["Link to:"] = data_set
     f.flush()
     f.close()
 
