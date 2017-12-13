@@ -130,20 +130,37 @@ image_operate commands are:
                             type=str, help='single image hdf5 file to subtract'
                                            'to the reference image')
         parser.add_argument('-o', '--output',
-                            default='out.hdf5',
+                            default='default',
                             metavar='output',
                             type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
         print ('\nimage_operate subtract: %s - %s\n' %
                (args.minuend, args.subtrahend))
+
         f_minuend = h5py.File(args.minuend, "r")
-        minuend_img = extract_single_image_from_hdf5(f_minuend)
+        minuend_img, dset_minuend = \
+            extract_single_image_from_hdf5(f_minuend)
         f_subtrahend = h5py.File(args.subtrahend, "r")
-        subtrahend_img = extract_single_image_from_hdf5(f_subtrahend)
+        subtrahend_img, dset_subtrahend = \
+            extract_single_image_from_hdf5(f_subtrahend)
         result_image = subtract_images(minuend_img, subtrahend_img)
-        store_single_image_in_hdf5(args.output, result_image)
         f_minuend.close()
         f_subtrahend.close()
+        description = "image subtraction:\n"
+        description += (dset_minuend + "@" + str(args.minuend) + "-\n" +
+                        dset_subtrahend + "@" + str(args.subtrahend))
+        if args.output == "default":
+            store_single_image_in_existing_hdf5(args.minuend,
+                                                result_image,
+                                                description=description)
+            store_single_image_in_existing_hdf5(args.subtrahend,
+                                                result_image,
+                                                description=description)
+        else:
+                store_single_image_in_new_hdf5(args.output,
+                                               result_image,
+                                               description=description)
+
 
     def add_constant(self):
         """Add a constant to an image. The constant can be positive or
