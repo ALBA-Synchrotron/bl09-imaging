@@ -53,8 +53,6 @@ image_operate commands are:
                  Divide an image by another image, element-wise
 """)
         parser.add_argument('command', help='Subcommand to run')
-        # parse_args defaults to [1:] for args, but you need to
-        # exclude the rest of the args too, or validation will fail
         args = parser.parse_args(sys.argv[1:2])
         if not hasattr(self, args.command):
             print '\nUnrecognized command\n'
@@ -118,12 +116,16 @@ image_operate commands are:
                             type=str, help='reference single image hdf5 file')
         parser.add_argument('constant', metavar='constant',
                             type=str, help='constant to be added to the image')
+        parser.add_argument('-o', '--output',
+                    default='out.hdf5',
+                    metavar='output',
+                    type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
         cte = args.constant
         print ('\nimage_operate add_constant: %s + %s\n' % (args.image, cte))
         image = extract_single_image_from_hdf5(args.image)
         result_image = add_cte_to_image(image, cte)
-        return result_image
+        store_single_image_in_hdf5(args.output, result_image)
 
     def subtract_image_to_constant(self):
         """Subtract image to constant"""
@@ -134,13 +136,17 @@ image_operate commands are:
                                            'image will be subtracted')
         parser.add_argument('image', metavar='image',
                             type=str, help='subtrahend image hdf5 file')
+        parser.add_argument('-o', '--output',
+                    default='out.hdf5',
+                    metavar='output',
+                    type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
         cte = args.constant
         print('\nimage_operate subtract_image_to_constant: '
               '%s - %s\n' % (cte, args.image))
         image = extract_single_image_from_hdf5(args.image)
         result_image = subtract_image_to_cte(cte, image)
-        return result_image
+        store_single_image_in_hdf5(args.output, result_image)
 
     def multiply_by_constant(self):
         """Multiply an image by a constant"""
@@ -151,14 +157,17 @@ image_operate commands are:
         parser.add_argument('constant', metavar='constant',
                             type=str, help='constant by which the image '
                                            'will be multiplied')
-
+        parser.add_argument('-o', '--output',
+                    default='out.hdf5',
+                    metavar='output',
+                    type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
         cte = float(args.constant)
         print ('\nimage_operate multiply_by_constant: %s * %s\n' %
                (args.image, cte))
         image = extract_single_image_from_hdf5(args.image)
         result_image = multiply_image_by_constant(image, cte)
-        return result_image
+        store_single_image_in_hdf5(args.output, result_image)
 
     def divide_by_constant(self):
         """Divide an image by a constant"""
@@ -169,13 +178,17 @@ image_operate commands are:
         parser.add_argument('constant', metavar='constant',
                     type=str, help='constant by which the image will be '
                                    'divided')
+        parser.add_argument('-o', '--output',
+                    default='out.hdf5',
+                    metavar='output',
+                    type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
         cte = float(args.constant)
         print ('\nimage_operate divide_by_constant: %s / %s\n' %
                (args.image, cte))
         image = extract_single_image_from_hdf5(args.image)
         result_image = divide_image_by_constant(image, cte)
-        return result_image
+        store_single_image_in_hdf5(args.output, result_image)
 
     def multiply_element_wise(self):
         """Multiply two images element-wise"""
@@ -185,13 +198,17 @@ image_operate commands are:
                             help='single first image hdf5 file')
         parser.add_argument('image2', metavar='image2', type=str,
                             help='single second image hdf5 file')
+        parser.add_argument('-o', '--output',
+                    default='out.hdf5',
+                    metavar='output',
+                    type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
         print ('\nimage_operate multiply_element_wise: %s * %s\n' %
                (args.image1, args.image2))
         image1 = extract_single_image_from_hdf5(args.image1)
         image2 = extract_single_image_from_hdf5(args.image2)
         result_image = multiply_images_element_wise(image1, image2)
-        return result_image
+        store_single_image_in_hdf5(args.output, result_image)
 
     def divide_element_wise(self):
         """Divide two images element-wise"""
@@ -202,13 +219,17 @@ image_operate commands are:
                             help='numerator single image hdf5 file')
         parser.add_argument('denominator', metavar='image2', type=str,
                             help='denominator single image hdf5 file')
+        parser.add_argument('-o', '--output',
+                    default='out.hdf5',
+                    metavar='output',
+                    type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
         print ('\nimage_operate divide_element_wise: %s / %s\n' %
                (args.numerator, args.denominator))
         numerator = extract_single_image_from_hdf5(args.numerator)
         denominator = extract_single_image_from_hdf5(args.denominator)
         result_image = divide_images_element_wise(numerator, denominator)
-        return result_image
+        store_single_image_in_hdf5(args.output, result_image)
 
 
 def main():
