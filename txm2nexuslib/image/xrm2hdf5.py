@@ -221,9 +221,10 @@ class Xrm2H5Converter(object):
                     "data_1",
                     dtype=np.int16,
                     data=self.data['data'])
-                dataset = "data_1"
                 workflow_step = 1
+                dataset = "data_" + str(workflow_step)
                 self.h5_handler[dataset].attrs["step"] = workflow_step
+                self.h5_handler[dataset].attrs["dataset"] = dataset
                 self.h5_handler[dataset].attrs["description"] = "raw data"
                 self.h5_handler["data"] = h5py.SoftLink(dataset)
             except Exception:
