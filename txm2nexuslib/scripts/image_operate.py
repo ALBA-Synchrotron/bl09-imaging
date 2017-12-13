@@ -97,17 +97,16 @@ image_operate commands are:
         print(str(args.addends) + "\n")
         image_list = args.addends
         f_handler = h5py.File(image_list[0], "r")
-        img1, workflow_step = extract_single_image_from_hdf5(f_handler)
+        img1, _ = extract_single_image_from_hdf5(f_handler)
         shape1 = np.shape(img1)
         result_image = np.zeros(shape1)
         f_handler.close()
         description = "image addition:\n"
         for single_img_hdf5_file in args.addends:
             f_handler = h5py.File(single_img_hdf5_file, "r")
-            img, workflow_step = extract_single_image_from_hdf5(f_handler)
+            img, dataset = extract_single_image_from_hdf5(f_handler)
             result_image = add_images(result_image, img)
             f_handler.close()
-            dataset = "data_" + str(workflow_step)
             description += dataset + "@" + str(single_img_hdf5_file)
             if single_img_hdf5_file is not args.addends[-1]:
                 description += " + \n"
@@ -116,6 +115,10 @@ image_operate commands are:
                 store_single_image_in_existing_hdf5(single_img_hdf5_file,
                                                     result_image,
                                                     description=description)
+        else:
+                store_single_image_in_new_hdf5(args.output,
+                                               result_image,
+                                               description=description)
 
     def subtract(self):
         parser = argparse.ArgumentParser(

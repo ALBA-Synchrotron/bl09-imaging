@@ -29,19 +29,21 @@ import numpy as np
 def copy_hdf5(input, output):
     shutil.copy(input, output)
 
-def extract_single_image_from_hdf5(f_handler):
-    image = f_handler["data"].value
+def extract_single_image_from_hdf5(f_handler, data_set="data"):
+    image = f_handler[data_set].value
     try:
-        workflow_step = f_handler["data"].attrs["step"]
+        dataset_attr = f_handler[data_set].attrs["dataset"]
     except:
-        workflow_step = 0
-    return image, workflow_step
+        dataset_attr = "unknown_dataset"
+    return image, dataset_attr
 
 def store_single_image_in_new_hdf5(hdf5_filename, image,
-                                   dataset="data"):
+                                   description="default",
+                                   data_set="data"):
     """Store a single image in an hdf5 file"""
     f = h5py.File(hdf5_filename, "w")
-    f.create_dataset(dataset, data=image)
+    f.create_dataset(data_set, data=image)
+    f[data_set].attrs["description"] = description
     f.flush()
     f.close()
 
