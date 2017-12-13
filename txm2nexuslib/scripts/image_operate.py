@@ -147,7 +147,7 @@ image_operate commands are:
         f_minuend.close()
         f_subtrahend.close()
         description = "image subtraction:\n"
-        description += (dset_minuend + "@" + str(args.minuend) + "-\n" +
+        description += (dset_minuend + "@" + str(args.minuend) + " -\n" +
                         dset_subtrahend + "@" + str(args.subtrahend))
         if args.output == "default":
             store_single_image_in_existing_hdf5(args.minuend,

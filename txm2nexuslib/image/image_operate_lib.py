@@ -43,6 +43,7 @@ def store_single_image_in_new_hdf5(hdf5_filename, image,
     """Store a single image in an hdf5 file"""
     f = h5py.File(hdf5_filename, "w")
     f.create_dataset(data_set, data=image)
+    f[data_set].attrs["dataset"] = data_set
     f[data_set].attrs["description"] = description
     f.flush()
     f.close()
