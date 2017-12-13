@@ -157,10 +157,9 @@ image_operate commands are:
                                                 result_image,
                                                 description=description)
         else:
-                store_single_image_in_new_hdf5(args.output,
-                                               result_image,
-                                               description=description)
-
+            store_single_image_in_new_hdf5(args.output,
+                                           result_image,
+                                           description=description)
 
     def add_constant(self):
         """Add a constant to an image. The constant can be positive or
@@ -172,15 +171,44 @@ image_operate commands are:
         parser.add_argument('constant', metavar='constant',
                             type=str, help='constant to be added to the image')
         parser.add_argument('-o', '--output',
-                    default='out.hdf5',
+                    default='default',
                     metavar='output',
                     type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
         cte = args.constant
-        print ('\nimage_operate add_constant: %s + %s\n' % (args.image, cte))
-        image = extract_single_image_from_hdf5(args.image)
+        h5_input_handler = h5py.File(args.image, "r")
+        image, dset = extract_single_image_from_hdf5(h5_input_handler)
+        description = 'image_operate add_constant:\n'
+        description += (dset + "@" + str(args.image) + " + " +
+                        str(args.constant))
+        print(description)
         result_image = add_cte_to_image(image, cte)
-        store_single_image_in_hdf5(args.output, result_image)
+        h5_input_handler.close()
+        if args.output == "default":
+            store_single_image_in_existing_hdf5(args.image,
+                                                result_image,
+                                                description=description)
+        else:
+            store_single_image_in_new_hdf5(args.output,
+                                           result_image,
+                                           description=description)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     def subtract_image_to_constant(self):
         """Subtract image to constant"""
@@ -245,6 +273,13 @@ image_operate commands are:
         result_image = divide_image_by_constant(image, cte)
         store_single_image_in_hdf5(args.output, result_image)
 
+
+
+
+
+
+
+
     def multiply_element_wise(self):
         """Multiply two images element-wise"""
         parser = argparse.ArgumentParser(description='Multiply an image by '
@@ -285,6 +320,13 @@ image_operate commands are:
         denominator = extract_single_image_from_hdf5(args.denominator)
         result_image = divide_images_element_wise(numerator, denominator)
         store_single_image_in_hdf5(args.output, result_image)
+
+
+
+
+
+
+
 
 
 def main():
