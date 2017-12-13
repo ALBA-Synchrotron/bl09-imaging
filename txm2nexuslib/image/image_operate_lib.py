@@ -31,7 +31,11 @@ def copy_hdf5(input, output):
 
 def extract_single_image_from_hdf5(f_handler):
     image = f_handler["data"].value
-    return image
+    try:
+        workflow_step = f_handler["data"].attrs["step"]
+    except:
+        workflow_step = 0
+    return image, workflow_step
 
 def store_single_image_in_new_hdf5(hdf5_filename, image,
                                    dataset="data"):
@@ -43,23 +47,27 @@ def store_single_image_in_new_hdf5(hdf5_filename, image,
 
 def store_single_image_in_existing_hdf5(hdf5_filename, image,
                                         description="default",
-                                        dataset="data"):
+                                        dataset="default"):
     """Store a single image in an hdf5 file"""
     f = h5py.File(hdf5_filename, "r+")
     precedent_step = int(f["data"].attrs["step"])
     workflow_step = precedent_step + 1
-    data_set = "data_" + str(workflow_step)
+    if dataset == "default":
+        data_set = "data_" + str(workflow_step)
+    else:
+        data_set = dataset
     f.create_dataset(data_set, data=image)
     f[data_set].attrs["step"] = workflow_step
+    f[data_set].attrs["dataset"] = data_set
     f[data_set].attrs["description"] = description
     try:
-        f[dataset] = h5py.SoftLink(data_set)
+        f["data"] = h5py.SoftLink(data_set)
     except:
-        del f[dataset]
-        f[dataset] = h5py.SoftLink(data_set)
-    f[dataset].attrs["Link to:"] = data_set
+        del f["data"]
+        f["data"] = h5py.SoftLink(data_set)
     f.flush()
     f.close()
+    return workflow_step
 
 def add_images(image1, image2):
     shape1 = np.shape(image1)
