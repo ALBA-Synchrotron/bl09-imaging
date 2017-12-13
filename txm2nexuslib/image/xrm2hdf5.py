@@ -218,8 +218,13 @@ class Xrm2H5Converter(object):
             try:
                 self.data['data'] = self.xrm_file.get_image_2D()
                 self.h5_handler.create_dataset(
-                    "data",
+                    "data_1",
+                    dtype=np.int16,
                     data=self.data['data'])
+                dataset = "data_1"
+                self.h5_handler[dataset].attrs["step"] = 1
+                self.h5_handler[dataset].attrs["description"] = "raw data"
+                self.h5_handler["data"] = h5py.SoftLink(dataset)
             except Exception:
                 print("image raw data could not be converted from xrm to hdf5")
         return self.data
