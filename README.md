@@ -27,6 +27,29 @@ to automate the procedures of conversion for many files.
 
 This software is used at BL09 of the ALBA-CELLS Synchrotron.
 
+-----
+
+Decisions:
+
+metadata h5 group for each image data set
+(data_1, data_2... -> metadata_1, metadata_2...).
+
+
+
+
+TODO:
+
+About building blocks image_operate:
+
+Things that could be done:
+
+- Names could be shorter (image_operate, multiply_by_constant, ...)
+- metadata h5 group for each image data set (data_1, data_2... ->
+                                             metadata_1, metadata_2...).
+- Copy or link all metadata excepting the one that it has not anymore sense,
+  or the one that has been modified between one data step and the next one.
+
+
 
 -----
 
