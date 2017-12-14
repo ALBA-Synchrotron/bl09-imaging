@@ -123,13 +123,28 @@ def divide_image_by_constant(image, cte):
     result_image = np.divide(image, cte)
     return result_image
 
+def normalize_by_single_FF(image, exp_time, machine_current,
+                           image_FF, exp_time_FF, machine_current_FF):
+    """Normalize image by FlatField (FF), machine_current and exposure time.
+    The FF image was, beforehand, been normalized by its corresponding
+    machine_current and exposure time.
+    """
+    exptime_by_current = exp_time * machine_current
+    norm_img_by_cte = divide_image_by_constant(image, exptime_by_current)
+
+    exptime_by_current_FF = exp_time_FF * machine_current_FF
+    norm_img_FF_by_cte = divide_image_by_constant(image_FF,
+                                                  exptime_by_current_FF)
+    normalized_image = divide_images(norm_img_by_cte, norm_img_FF_by_cte)
+    return normalized_image
+
 def normalize_bl09_image_by_avg_FF(image_file, FF_img_files):
     """
-    Normalize BL09 hdf5 image: Normalize image by current, exposure times,
-    and FF average image, which at its turn have been normalized also by
-    current and exposure time.
-    :param arg: first images shall be the image to be normalized.
-                Subsequent images shall be the hdf5 FF image files.
+    Normalize BL09 hdf5 image: Normalize image by current, exposure time,
+    and FlatField (FF) average image. Each FF image were, beforehand,
+    been normalized by its corresponding current and exposure time.
+    :param arg: First argument: the hdf5 image to be normalized.
+                Subsequent arguments: the hdf5 FF image files.
     :return: normalized image
     """
 
@@ -140,7 +155,7 @@ def normalize_bl09_image_by_avg_FF(image_file, FF_img_files):
     img_1, _ = extract_single_image_from_hdf5(f_handler)
     img_FF_1, _ = extract_single_image_from_hdf5(f_FF_handler)
     shape_img = np.shape(img_1)
-    shape_FF_img = np.shape(img_1)
+    shape_FF_img = np.shape(img_FF_1)
     if shape_img != shape_FF_img:
         raise("Error: image shape is not equal to FF shape\n"
               "Normalization cannot be done")
@@ -154,8 +169,8 @@ def normalize_bl09_image_by_avg_FF(image_file, FF_img_files):
         img_FF, dataset = extract_single_image_from_hdf5(FF_h5_handler)
         exp_time_FF = FF_h5_handler["metadata"]["exposure_time"].value
         current_FF = FF_h5_handler["metadata"]["machine_current"].value
-        extime_by_current = exp_time_FF * current_FF
-        norm_FF_img = divide_image_by_constant(img_FF, extime_by_current)
+        exptime_by_current_FF = exp_time_FF * current_FF
+        norm_FF_img = divide_image_by_constant(img_FF, exptime_by_current_FF)
         result_image_FF = add_images(result_image_FF, norm_FF_img)
         FF_h5_handler.close()
     average_norm_FF_img = divide_image_by_constant(result_image_FF, num_FFs)
@@ -167,8 +182,8 @@ def normalize_bl09_image_by_avg_FF(image_file, FF_img_files):
                    " and exposure times"
     exp_time = h5_handler["metadata"]["exposure_time"].value
     current = h5_handler["metadata"]["machine_current"].value
-    extime_by_current = exp_time * current
-    norm_by_exttime_current = divide_image_by_constant(img, extime_by_current)
+    exptime_by_current = exp_time * current
+    norm_by_exttime_current = divide_image_by_constant(img, exptime_by_current)
     normalized_image = divide_images(norm_by_exttime_current,
                                      average_norm_FF_img)
     return normalized_image, description

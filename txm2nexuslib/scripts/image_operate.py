@@ -371,11 +371,69 @@ image_operate commands are:
                                            result_image,
                                            description=description)
 
-    def normalize(self):
-        """Divide an image by a constant"""
+    def normalize_1(self):
+        """
+        Normalize BL09 hdf5 image: Normalize image by current, exposure time,
+        and FF average image, which at its turn have been normalized also by
+        current and exposure time.
+        """
+        parser = argparse.ArgumentParser(description='normalize BL09 image')
+        parser.add_argument('image', metavar='image',
+                            type=str, help='hdf5 file containing the image '
+                                           'to be normalized')
+        parser.add_argument('image_ff', metavar='image',
+                            type=str, help='hdf5 file  containing the FF '
+                                           'image')
+        parser.add_argument('-o', '--output',
+                            default='default',
+                            metavar='output',
+                            type=str, help='output hdf5 filename')
+        args = parser.parse_args(sys.argv[2:])
 
-        # TODO: Allow as inputs, things
+        f_handler = h5py.File(args.image, "r")
+        f_FF_handler = h5py.File(args.image_ff, "r")
+        img, dset = extract_single_image_from_hdf5(f_handler)
+        img_FF, dset_FF = extract_single_image_from_hdf5(f_FF_handler)
+        shape_img = np.shape(img)
+        shape_FF_img = np.shape(img_FF)
+        if shape_img != shape_FF_img:
+            raise("Error: image shape is not equal to FF shape\n"
+                  "Normalization cannot be done")
+        exposure_time = f_handler["metadata"]["exposure_time"].value
+        machine_current = f_handler["metadata"]["machine_current"].value
+        exposure_time_FF = f_FF_handler["metadata"]["exposure_time"].value
+        machine_current_FF = f_FF_handler["metadata"]["machine_current"].value
+        description = 'image_operate normalize_1 (normalize image by' \
+                      ' single FF image):\n'
+        description += (dset + "@" + str(args.image) + " * " +
+                        str(exposure_time) + " * " + str(machine_current) +
+                        "\n / \n" +
+                        dset_FF + "@" + str(args.image_ff) + " * " +
+                        str(exposure_time_FF) + " * " +
+                        str(machine_current_FF))
+        f_handler.close()
+        f_FF_handler.close()
+        print("\n" + description + "\n")
+        normalized_image = normalize_by_single_FF(img, exposure_time,
+                                                  machine_current,
+                                                  img_FF, exposure_time_FF,
+                                                  machine_current_FF)
+        if args.output == "default":
+            store_single_image_in_existing_hdf5(args.image,
+                                                normalized_image,
+                                                description=description)
+        else:
+            store_single_image_in_new_hdf5(args.output,
+                                           normalized_image,
+                                           description=description)
 
+    def normalize_2(self):
+        """
+        Normalize BL09 hdf5 image by average FF:
+        Normalize image by current, exposure time, and average FF image,
+        Average FF image was calculated by normalizing beforehand each of
+        the FF images by its own machine current and exposure time.
+        """
         parser = argparse.ArgumentParser(description='normalize BL09 image')
         parser.add_argument('image', metavar='image',
                             type=str, help='hdf5 file with image to be '
@@ -391,16 +449,16 @@ image_operate commands are:
                             type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
 
-        normalized_img, description = normalize_bl09_image_by_avg_FF(
+        normalized_image, description = normalize_bl09_image_by_avg_FF(
             args.image, args.ff_images)
         print("\n" + description + "\n")
         if args.output == "default":
             store_single_image_in_existing_hdf5(args.image,
-                                                normalized_img,
+                                                normalized_image,
                                                 description=description)
         else:
             store_single_image_in_new_hdf5(args.output,
-                                           normalized_img,
+                                           normalized_image,
                                            description=description)
 
 def main():
