@@ -29,20 +29,14 @@ This software is used at BL09 of the ALBA-CELLS Synchrotron.
 
 -----
 
-Decisions:
-
-metadata h5 group for each image data set
-(data_1, data_2... -> metadata_1, metadata_2...).
-
-
-
 
 TODO:
 
 About building blocks image_operate:
-
 Things that could be done:
 
+- metadata h5 group for each image data set
+  (data_1, data_2... -> metadata_1, metadata_2...).
 - Names could be shorter (image_operate, multiply_by_constant, ...)
 - metadata h5 group for each image data set (data_1, data_2... ->
                                              metadata_1, metadata_2...).
