@@ -35,6 +35,7 @@ class Xrm2H5Converter(object):
         if h5_filename is None:
             self.h5_filename = os.path.splitext(xrm_filename)[0] + '.hdf5'
         self.h5_handler = h5py.File(self.h5_filename, 'w')
+        self.metadata_h5 = self.h5_handler.create_group("metadata")
         self.metadata = {}
         self.data = {}
         self.full_data = {}
@@ -44,54 +45,55 @@ class Xrm2H5Converter(object):
         with XradiaFile(self.xrm_filename) as xrm_file:
             try:
                 self.metadata['angle'] = xrm_file.get_angles()
-                self.h5_handler.create_dataset(
+                self.metadata_h5.create_dataset(
                     "angle",
                     data=self.metadata['angle'])
-                self.h5_handler["angle"].attrs["units"] = "degrees"
+                self.metadata_h5["angle"].attrs["units"] = "degrees"
             except Exception:
                 print("angle could not be converted from xrm to hdf5")
 
             try:
                 self.metadata['energy'] = xrm_file.get_energies()[0]
-                self.h5_handler.create_dataset(
+                self.metadata_h5.create_dataset(
                     "energy",
                     data=self.metadata['energy'])
-                self.h5_handler["energy"].attrs["units"] = "eV"
+                self.metadata_h5["energy"].attrs["units"] = "eV"
             except Exception:
                 print("energy could not be converted from xrm to hdf5")
 
             try:
                 self.metadata['exposure_time'] = xrm_file.get_exp_times()[0]
-                self.h5_handler.create_dataset(
+                self.metadata_h5.create_dataset(
                     "exposure_time",
                     data=self.metadata['exposure_time'])
-                self.h5_handler["exposure_time"].attrs["units"] = "s"
+                self.metadata_h5["exposure_time"].attrs["units"] = "s"
             except Exception:
                 print("exposure_time could not be converted from xrm to hdf5")
 
             try:
                 self.metadata['machine_current'] = \
                     xrm_file.get_machine_currents()[0]
-                self.h5_handler.create_dataset(
+                self.metadata_h5.create_dataset(
                     "machine_current",
                     data=self.metadata['machine_current'])
-                self.h5_handler["machine_current"].attrs["units"] = "mA"
+                self.metadata_h5["machine_current"].attrs["units"] = "mA"
             except Exception:
-                print("machine_current could not be converted from xrm to hdf5")
+                print("machine_current could not be "
+                      "converted from xrm to hdf5")
 
             try:
                 self.metadata['pixel_size'] = xrm_file.pixel_size
-                self.h5_handler.create_dataset(
+                self.metadata_h5.create_dataset(
                     "pixel_size",
                     data=self.metadata['pixel_size'])
-                self.h5_handler["pixel_size"].attrs["units"] = "um"
+                self.metadata_h5["pixel_size"].attrs["units"] = "um"
             except Exception:
                 print("pixel_size could not be converted from xrm to hdf5")
 
             try:
                 self.metadata['magnification'] = \
                     xrm_file.get_xray_magnification()
-                self.h5_handler.create_dataset(
+                self.metadata_h5.create_dataset(
                     "magnification",
                     data=self.metadata['magnification'])
             except Exception:
@@ -99,52 +101,52 @@ class Xrm2H5Converter(object):
 
             try:
                 self.metadata['image_width'] = xrm_file.get_image_width()
-                self.h5_handler.create_dataset(
+                self.metadata_h5.create_dataset(
                     "image_width",
                     data=self.metadata['image_width'])
-                self.h5_handler["image_width"].attrs["units"] = "pixels"
+                self.metadata_h5["image_width"].attrs["units"] = "pixels"
             except Exception:
                 print("image_width could not be converted from xrm to hdf5")
 
             try:
                 self.metadata['image_height'] = xrm_file.get_image_height()
-                self.h5_handler.create_dataset(
+                self.metadata_h5.create_dataset(
                     "image_height",
                     data=self.metadata['image_height'])
-                self.h5_handler["image_height"].attrs["units"] = "pixels"
+                self.metadata_h5["image_height"].attrs["units"] = "pixels"
             except Exception:
                 print("image_height could not be converted from xrm to hdf5")
 
             try:
                 self.metadata['x_position'] = xrm_file.get_x_positions()[0]
-                self.h5_handler.create_dataset(
+                self.metadata_h5.create_dataset(
                     "x_position",
                     data=self.metadata['x_position'])
-                self.h5_handler["x_position"].attrs["units"] = "um"
+                self.metadata_h5["x_position"].attrs["units"] = "um"
             except Exception:
                 print("x_position could not be converted from xrm to hdf5")
 
             try:
                 self.metadata['y_position'] = xrm_file.get_y_positions()[0]
-                self.h5_handler.create_dataset(
+                self.metadata_h5.create_dataset(
                     "y_position",
                     data=self.metadata['y_position'])
-                self.h5_handler["y_position"].attrs["units"] = "um"
+                self.metadata_h5["y_position"].attrs["units"] = "um"
             except Exception:
                 print("y_position could not be converted from xrm to hdf5")
 
             try:
                 self.metadata['z_position'] = xrm_file.get_z_positions()[0]
-                self.h5_handler.create_dataset(
+                self.metadata_h5.create_dataset(
                     "z_position",
                     data=self.metadata['z_position'])
-                self.h5_handler["z_position"].attrs["units"] = "um"
+                self.metadata_h5["z_position"].attrs["units"] = "um"
             except Exception:
                 print("z_position could not be converted from xrm to hdf5")
 
             try:
                 self.metadata['data_type'] = xrm_file.data_type
-                self.h5_handler.create_dataset(
+                self.metadata_h5.create_dataset(
                     "data_type",
                     data=self.metadata['data_type'])
             except Exception:
@@ -152,7 +154,7 @@ class Xrm2H5Converter(object):
 
             try:
                 self.metadata['sample_name'] = self.xrm_filename.split('_')[1]
-                self.h5_handler.create_dataset(
+                self.metadata_h5.create_dataset(
                     "sample_name",
                     data=self.metadata['sample_name'])
             except Exception:
@@ -162,11 +164,11 @@ class Xrm2H5Converter(object):
                 if ('_FF' in self.xrm_filename or
                         '_ff_' in self.xrm_filename):
                     self.metadata['FF'] = True
-                    self.h5_handler.create_dataset("FF",
+                    self.metadata_h5.create_dataset("FF",
                                                    data=self.metadata['FF'])
                 else:
                     self.metadata['FF'] = False
-                    self.h5_handler.create_dataset("FF",
+                    self.metadata_h5.create_dataset("FF",
                                                    data=self.metadata['FF'])
             except Exception:
                 print("FF information could not be retrieved")
@@ -174,42 +176,42 @@ class Xrm2H5Converter(object):
             # Get acquisition time
             try:
                 self.metadata['date_time'] = xrm_file.get_single_date()
-                self.h5_handler.create_dataset("date_time_acquisition",
-                                               data=self.metadata['date_time'])
+                self.metadata_h5.create_dataset(
+                    "date_time_acquisition", data=self.metadata['date_time'])
             except Exception:
                 print("acquisition date and time could not be converted "
                       "from xrm to hdf5")
 
             # Instrument and Source
             self.metadata['instrument'] = "BL09 @ ALBA"
-            self.h5_handler.create_dataset("instrument",
+            self.metadata_h5.create_dataset("instrument",
                                            data=self.metadata['instrument'])
             self.metadata['source'] = "ALBA"
-            self.h5_handler.create_dataset("source",
+            self.metadata_h5.create_dataset("source",
                                            data=self.metadata['source'])
             self.metadata['source_probe'] = "X-Ray"
-            self.h5_handler.create_dataset("source_probe",
+            self.metadata_h5.create_dataset("source_probe",
                                            data=self.metadata['source_probe'])
             self.metadata['source_type'] = "Sychrotron X-Ray Source"
 
             # Applied program and command to convert the data
-            self.h5_handler.create_dataset("source_type",
+            self.metadata_h5.create_dataset("source_type",
                                            data=self.metadata['source_type'])
             self.metadata['program_name'] = "xrm2h5"
-            self.h5_handler.create_dataset("program_name",
+            self.metadata_h5.create_dataset("program_name",
                                            data=self.metadata['program_name'])
             command = (self.metadata['program_name'] + ' ' +
                        ' '.join(sys.argv[1:]))
             self.metadata['command'] = command
-            self.h5_handler.create_dataset("command",
+            self.metadata_h5.create_dataset("command",
                                            data=self.metadata['command'])
 
             # Input and output files
             self.metadata['input_file'] = os.path.basename(self.xrm_filename)
-            self.h5_handler.create_dataset("input_file",
+            self.metadata_h5.create_dataset("input_file",
                                            data=self.metadata['input_file'])
             self.metadata['output_file'] = os.path.basename(self.h5_filename)
-            self.h5_handler.create_dataset("output_file",
+            self.metadata_h5.create_dataset("output_file",
                                            data=self.metadata['output_file'])
         return self.metadata
 
