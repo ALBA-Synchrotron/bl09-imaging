@@ -371,6 +371,37 @@ image_operate commands are:
                                            result_image,
                                            description=description)
 
+    def normalize(self):
+        """Divide an image by a constant"""
+
+        # TODO: Allow as inputs, things
+
+        parser = argparse.ArgumentParser(description='normalize BL09 image')
+        parser.add_argument('image', metavar='image',
+                            type=str, help='hdf5 file with image to be '
+                                           'normalized')
+        parser.add_argument('ff_images',
+                            metavar='FF_hdf5_files_list',
+                            type=str,
+                            nargs='+', default=None,
+                            help='hdf5 files containing the FF image')
+        parser.add_argument('-o', '--output',
+                            default='default',
+                            metavar='output',
+                            type=str, help='output hdf5 filename')
+        args = parser.parse_args(sys.argv[2:])
+
+        normalized_img, description = normalize_bl09_image_by_avg_FF(
+            args.image, args.ff_images)
+        print("\n" + description + "\n")
+        if args.output == "default":
+            store_single_image_in_existing_hdf5(args.image,
+                                                normalized_img,
+                                                description=description)
+        else:
+            store_single_image_in_new_hdf5(args.output,
+                                           normalized_img,
+                                           description=description)
 
 def main():
     ImageOperate()

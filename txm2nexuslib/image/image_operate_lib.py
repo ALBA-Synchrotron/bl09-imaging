@@ -123,6 +123,57 @@ def divide_image_by_constant(image, cte):
     result_image = np.divide(image, cte)
     return result_image
 
+def normalize_bl09_image_by_avg_FF(image_file, FF_img_files):
+    """
+    Normalize BL09 hdf5 image: Normalize image by current, exposure times,
+    and FF average image, which at its turn have been normalized also by
+    current and exposure time.
+    :param arg: first images shall be the image to be normalized.
+                Subsequent images shall be the hdf5 FF image files.
+    :return: normalized image
+    """
+
+    description = "Normalize image:\n"
+    image_FF_file = FF_img_files[0]
+    f_handler = h5py.File(image_file, "r")
+    f_FF_handler = h5py.File(image_FF_file, "r")
+    img_1, _ = extract_single_image_from_hdf5(f_handler)
+    img_FF_1, _ = extract_single_image_from_hdf5(f_FF_handler)
+    shape_img = np.shape(img_1)
+    shape_FF_img = np.shape(img_1)
+    if shape_img != shape_FF_img:
+        raise("Error: image shape is not equal to FF shape\n"
+              "Normalization cannot be done")
+    result_image_FF = np.zeros(shape_FF_img)
+    f_handler.close()
+    f_FF_handler.close()
+
+    num_FFs = len(FF_img_files)
+    for FF_img_hdf5_file in FF_img_files:
+        FF_h5_handler = h5py.File(FF_img_hdf5_file, "r")
+        img_FF, dataset = extract_single_image_from_hdf5(FF_h5_handler)
+        exp_time_FF = FF_h5_handler["metadata"]["exposure_time"].value
+        current_FF = FF_h5_handler["metadata"]["machine_current"].value
+        extime_by_current = exp_time_FF * current_FF
+        norm_FF_img = divide_image_by_constant(img_FF, extime_by_current)
+        result_image_FF = add_images(result_image_FF, norm_FF_img)
+        FF_h5_handler.close()
+    average_norm_FF_img = divide_image_by_constant(result_image_FF, num_FFs)
+
+    h5_handler = h5py.File(image_file, "r")
+    img, dataset = extract_single_image_from_hdf5(h5_handler)
+    description += dataset + "@" + str(image_file)
+    description += "\nhas been normalized by average FF, machine currents" \
+                   " and exposure times"
+    exp_time = h5_handler["metadata"]["exposure_time"].value
+    current = h5_handler["metadata"]["machine_current"].value
+    extime_by_current = exp_time * current
+    norm_by_exttime_current = divide_image_by_constant(img, extime_by_current)
+    normalized_image = divide_images(norm_by_exttime_current,
+                                     average_norm_FF_img)
+    return normalized_image, description
+
+
 def main():
     ars = np.array([[2, 3], [4, 5]])
     brs = np.array([[5, 1], [2, 1]])
