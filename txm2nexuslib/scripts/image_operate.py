@@ -71,10 +71,13 @@ image_operate commands are:
                             default='default',
                             metavar='output',
                             type=str, help='output hdf5 filename')
+        parser.add_argument('-s', '--suffix',
+                            default='_proc',
+                            type=str, help='suffix for new file name')
         args = parser.parse_args(sys.argv[2:])
         if args.output == "default":
             base_fn = os.path.splitext(args.input)[0]
-            output_fn = base_fn + "_proc.hdf5"
+            output_fn = base_fn + args.suffix + ".hdf5"
         print ('\nimage_operate copy: from %s to %s\n' % (args.input,
                                                           output_fn))
         copy_hdf5(args.input, output_fn)
@@ -82,26 +85,24 @@ image_operate commands are:
     def add(self):
         parser = argparse.ArgumentParser(
             description='Addition of many images')
-        parser.add_argument('-o', '--output',
-                            default='default',
-                            metavar='output',
-                            type=str, help='output hdf5 filename')
         parser.add_argument('addends',
                             metavar='addends_hdf5_files_list',
                             type=str,
                             nargs='+', default=None,
                             help='input the addends single image '
                                  'hdf5 files')
+        parser.add_argument('-o', '--output',
+                            default='default',
+                            metavar='output',
+                            type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
-        print '\nimage_operate add:'
-        print(str(args.addends) + "\n")
         image_list = args.addends
         f_handler = h5py.File(image_list[0], "r")
         img1, _ = extract_single_image_from_hdf5(f_handler)
         shape1 = np.shape(img1)
         result_image = np.zeros(shape1)
         f_handler.close()
-        description = "image addition:\n"
+        description = "image_operate add (image addition):\n"
         for single_img_hdf5_file in args.addends:
             f_handler = h5py.File(single_img_hdf5_file, "r")
             img, dataset = extract_single_image_from_hdf5(f_handler)
@@ -110,6 +111,7 @@ image_operate commands are:
             description += dataset + "@" + str(single_img_hdf5_file)
             if single_img_hdf5_file is not args.addends[-1]:
                 description += " + \n"
+        print("\n" + description + "\n")
         if args.output == "default":
             for single_img_hdf5_file in args.addends:
                 store_single_image_in_existing_hdf5(single_img_hdf5_file,
@@ -134,9 +136,6 @@ image_operate commands are:
                             metavar='output',
                             type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
-        print ('\nimage_operate subtract: %s - %s\n' %
-               (args.minuend, args.subtrahend))
-
         f_minuend = h5py.File(args.minuend, "r")
         minuend_img, dset_minuend = \
             extract_single_image_from_hdf5(f_minuend)
@@ -146,14 +145,95 @@ image_operate commands are:
         result_image = subtract_images(minuend_img, subtrahend_img)
         f_minuend.close()
         f_subtrahend.close()
-        description = "image subtraction:\n"
+        description = "image_operate subtract (image subtraction):\n"
         description += (dset_minuend + "@" + str(args.minuend) + " -\n" +
                         dset_subtrahend + "@" + str(args.subtrahend))
+        print("\n" + description + "\n")
         if args.output == "default":
             store_single_image_in_existing_hdf5(args.minuend,
                                                 result_image,
                                                 description=description)
             store_single_image_in_existing_hdf5(args.subtrahend,
+                                                result_image,
+                                                description=description)
+        else:
+            store_single_image_in_new_hdf5(args.output,
+                                           result_image,
+                                           description=description)
+
+    def multiply(self):
+        """Multiply two images element-wise"""
+        parser = argparse.ArgumentParser(description='Multiply many images, '
+                                                     'element-wise')
+        parser.add_argument('factors',
+                            metavar='factors_hdf5_files_list',
+                            type=str,
+                            nargs='+', default=None,
+                            help='input single images '
+                                 'hdf5 files that will be multiplied')
+        parser.add_argument('-o', '--output',
+                    default='default',
+                    metavar='output',
+                    type=str, help='output hdf5 filename')
+        args = parser.parse_args(sys.argv[2:])
+        image_list = args.factors
+        f_handler = h5py.File(image_list[0], "r")
+        img1, _ = extract_single_image_from_hdf5(f_handler)
+        shape1 = np.shape(img1)
+        result_image = np.ones(shape1)
+        f_handler.close()
+        description = "image multiplication:\n"
+        for single_img_hdf5_file in args.factors:
+            f_handler = h5py.File(single_img_hdf5_file, "r")
+            img, dataset = extract_single_image_from_hdf5(f_handler)
+            result_image = multiply_images(result_image, img)
+            f_handler.close()
+            description += dataset + "@" + str(single_img_hdf5_file)
+            if single_img_hdf5_file is not args.factors[-1]:
+                description += " * \n"
+        print("\n" + description + "\n")
+        if args.output == "default":
+            for single_img_hdf5_file in args.factors:
+                store_single_image_in_existing_hdf5(single_img_hdf5_file,
+                                                    result_image,
+                                                    description=description)
+        else:
+                store_single_image_in_new_hdf5(args.output,
+                                               result_image,
+                                               description=description)
+
+    def divide(self):
+        """Divide two images element-wise"""
+        parser = argparse.ArgumentParser(description='Divide element-wise '
+                                                     'a numerator image by '
+                                                     'a denominator image ')
+        parser.add_argument('numerator', metavar='image1', type=str,
+                            help='numerator single image hdf5 file')
+        parser.add_argument('denominator', metavar='image2', type=str,
+                            help='denominator single image hdf5 file')
+        parser.add_argument('-o', '--output',
+                    default='default',
+                    metavar='output',
+                    type=str, help='output hdf5 filename')
+        args = parser.parse_args(sys.argv[2:])
+        f_numerator = h5py.File(args.numerator, "r")
+        numerator_img, dset_numerator = \
+            extract_single_image_from_hdf5(f_numerator)
+        f_denominator = h5py.File(args.denominator, "r")
+        denominator_img, dset_denominator = \
+            extract_single_image_from_hdf5(f_denominator)
+        result_image = divide_images(numerator_img, denominator_img)
+        f_numerator.close()
+        f_denominator.close()
+        description = "image_operate divide (image division):\n"
+        description += (dset_numerator + "@" + str(args.numerator) + " /\n" +
+                        dset_denominator + "@" + str(args.denominator))
+        print("\n" + description + "\n")
+        if args.output == "default":
+            store_single_image_in_existing_hdf5(args.numerator,
+                                                result_image,
+                                                description=description)
+            store_single_image_in_existing_hdf5(args.denominator,
                                                 result_image,
                                                 description=description)
         else:
@@ -181,7 +261,7 @@ image_operate commands are:
         description = 'image_operate add_constant:\n'
         description += (dset + "@" + str(args.image) + " + " +
                         str(args.constant))
-        print(description)
+        print("\n" + description + "\n")
         result_image = add_cte_to_image(image, cte)
         h5_input_handler.close()
         if args.output == "default":
@@ -193,23 +273,6 @@ image_operate commands are:
                                            result_image,
                                            description=description)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     def subtract_image_to_constant(self):
         """Subtract image to constant"""
         parser = argparse.ArgumentParser(description='Subtract an image to '
@@ -220,16 +283,27 @@ image_operate commands are:
         parser.add_argument('image', metavar='image',
                             type=str, help='subtrahend image hdf5 file')
         parser.add_argument('-o', '--output',
-                    default='out.hdf5',
+                    default='default',
                     metavar='output',
                     type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
         cte = args.constant
-        print('\nimage_operate subtract_image_to_constant: '
-              '%s - %s\n' % (cte, args.image))
-        image = extract_single_image_from_hdf5(args.image)
+        h5_input_handler = h5py.File(args.image, "r")
+        image, dset = extract_single_image_from_hdf5(h5_input_handler)
+        description = 'image_operate subtract_image_to_constant:\n'
+        description += (str(args.constant) + " - " +
+                        dset + "@" + str(args.image))
+        print("\n" + description + "\n")
         result_image = subtract_image_to_cte(cte, image)
-        store_single_image_in_hdf5(args.output, result_image)
+        h5_input_handler.close()
+        if args.output == "default":
+            store_single_image_in_existing_hdf5(args.image,
+                                                result_image,
+                                                description=description)
+        else:
+            store_single_image_in_new_hdf5(args.output,
+                                           result_image,
+                                           description=description)
 
     def multiply_by_constant(self):
         """Multiply an image by a constant"""
@@ -241,16 +315,27 @@ image_operate commands are:
                             type=str, help='constant by which the image '
                                            'will be multiplied')
         parser.add_argument('-o', '--output',
-                    default='out.hdf5',
-                    metavar='output',
-                    type=str, help='output hdf5 filename')
+                            default='default',
+                            metavar='output',
+                            type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
         cte = float(args.constant)
-        print ('\nimage_operate multiply_by_constant: %s * %s\n' %
-               (args.image, cte))
-        image = extract_single_image_from_hdf5(args.image)
+        h5_input_handler = h5py.File(args.image, "r")
+        image, dset = extract_single_image_from_hdf5(h5_input_handler)
         result_image = multiply_image_by_constant(image, cte)
-        store_single_image_in_hdf5(args.output, result_image)
+        description = 'image_operate multiply_by_constant:\n'
+        description += (dset + "@" + str(args.image) + " * " +
+                        str(args.constant))
+        print("\n" + description + "\n")
+        h5_input_handler.close()
+        if args.output == "default":
+            store_single_image_in_existing_hdf5(args.image,
+                                                result_image,
+                                                description=description)
+        else:
+            store_single_image_in_new_hdf5(args.output,
+                                           result_image,
+                                           description=description)
 
     def divide_by_constant(self):
         """Divide an image by a constant"""
@@ -262,71 +347,27 @@ image_operate commands are:
                     type=str, help='constant by which the image will be '
                                    'divided')
         parser.add_argument('-o', '--output',
-                    default='out.hdf5',
+                    default='default',
                     metavar='output',
                     type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
         cte = float(args.constant)
-        print ('\nimage_operate divide_by_constant: %s / %s\n' %
-               (args.image, cte))
-        image = extract_single_image_from_hdf5(args.image)
+        h5_input_handler = h5py.File(args.image, "r")
+        image, dset = extract_single_image_from_hdf5(h5_input_handler)
         result_image = divide_image_by_constant(image, cte)
-        store_single_image_in_hdf5(args.output, result_image)
-
-
-
-
-
-
-
-
-    def multiply_element_wise(self):
-        """Multiply two images element-wise"""
-        parser = argparse.ArgumentParser(description='Multiply an image by '
-                                                     'another image')
-        parser.add_argument('image1', metavar='image1', type=str,
-                            help='single first image hdf5 file')
-        parser.add_argument('image2', metavar='image2', type=str,
-                            help='single second image hdf5 file')
-        parser.add_argument('-o', '--output',
-                    default='out.hdf5',
-                    metavar='output',
-                    type=str, help='output hdf5 filename')
-        args = parser.parse_args(sys.argv[2:])
-        print ('\nimage_operate multiply_element_wise: %s * %s\n' %
-               (args.image1, args.image2))
-        image1 = extract_single_image_from_hdf5(args.image1)
-        image2 = extract_single_image_from_hdf5(args.image2)
-        result_image = multiply_images_element_wise(image1, image2)
-        store_single_image_in_hdf5(args.output, result_image)
-
-    def divide_element_wise(self):
-        """Divide two images element-wise"""
-        parser = argparse.ArgumentParser(description='Divide a numerator '
-                                                     'image by a denominator '
-                                                     'image')
-        parser.add_argument('numerator', metavar='image1', type=str,
-                            help='numerator single image hdf5 file')
-        parser.add_argument('denominator', metavar='image2', type=str,
-                            help='denominator single image hdf5 file')
-        parser.add_argument('-o', '--output',
-                    default='out.hdf5',
-                    metavar='output',
-                    type=str, help='output hdf5 filename')
-        args = parser.parse_args(sys.argv[2:])
-        print ('\nimage_operate divide_element_wise: %s / %s\n' %
-               (args.numerator, args.denominator))
-        numerator = extract_single_image_from_hdf5(args.numerator)
-        denominator = extract_single_image_from_hdf5(args.denominator)
-        result_image = divide_images_element_wise(numerator, denominator)
-        store_single_image_in_hdf5(args.output, result_image)
-
-
-
-
-
-
-
+        description = 'image_operate divide_by_constant:\n'
+        description += (dset + "@" + str(args.image) + " / " +
+                        str(args.constant))
+        print("\n" + description + "\n")
+        h5_input_handler.close()
+        if args.output == "default":
+            store_single_image_in_existing_hdf5(args.image,
+                                                result_image,
+                                                description=description)
+        else:
+            store_single_image_in_new_hdf5(args.output,
+                                           result_image,
+                                           description=description)
 
 
 def main():

@@ -90,6 +90,16 @@ def subtract_images(minuend_image, subtrahend_image):
     result_image = minuend_image - subtrahend_image
     return result_image
 
+def multiply_images(image1, image2):
+    result_image = np.multiply(image1, image2)
+    return result_image
+
+def divide_images(numerator, denominator):
+    numerator = np.array(numerator, dtype=float)
+    denominator = np.array(denominator, dtype=float)
+    result_image = np.divide(numerator, denominator)
+    return result_image
+
 def add_cte_to_image(image, cte):
     image = np.array(image)
     result_image = image + float(cte)
@@ -111,16 +121,6 @@ def divide_image_by_constant(image, cte):
     cte = float(cte)
     image = np.array(image)
     result_image = np.divide(image, cte)
-    return result_image
-
-def multiply_images_element_wise(image1, image2):
-    result_image = np.multiply(image1, image2)
-    return result_image
-
-def divide_images_element_wise(numerator, denominator):
-    numerator = np.array(numerator, dtype=float)
-    denominator = np.array(denominator, dtype=float)
-    result_image = np.divide(numerator, denominator)
     return result_image
 
 def main():
