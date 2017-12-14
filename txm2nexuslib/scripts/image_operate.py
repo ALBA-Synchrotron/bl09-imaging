@@ -40,6 +40,11 @@ image_operate commands are:
    add           Addition of many images
    subtract      From a reference image (minuend),
                  subtract another image (subtrahend)
+   multiply
+                 Multiply many images element-wise
+   divide
+                 Divide an image by another image, element-wise
+                 numerator image divided by denominator image
    add_constant  Add a constant to an image (the constant can be
                  positive or negative)
    subtract_image_to_constant
@@ -48,10 +53,7 @@ image_operate commands are:
                  Multiply an image by a constant
    divide_by_constant
                  Divide an image by a constant
-   multiply_element_wise
-                 Multiply two images element-wise
-   divide_element_wise
-                 Divide an image by another image, element-wise
+
 """)
         parser.add_argument('command', help='Subcommand to run')
         args = parser.parse_args(sys.argv[1:2])
