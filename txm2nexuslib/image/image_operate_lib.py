@@ -26,6 +26,56 @@ import h5py
 import numpy as np
 
 
+def copy_hdf5(input, output):
+    shutil.copy(input, output)
+
+def extract_single_image_from_hdf5_function(f_h5_handler, data_set="data"):
+    self.image = f_h5_handler[data_set].value
+    try:
+        self.dataset_attr = f_handler[data_set].attrs["dataset"]
+    except:
+        self.dataset_attr = "unknown_dataset"
+    return self.image, self.dataset_attrs
+
+def store_single_image_in_new_hdf5_function(hdf5_filename, image,
+                                   description="default",
+                                   data_set="data"):
+    """Store a single image in an hdf5 file"""
+    f = h5py.File(hdf5_filename, "w")
+    f.create_dataset(data_set, data=image)
+    f[data_set].attrs["dataset"] = data_set
+    f[data_set].attrs["description"] = description
+    f.flush()
+    f.close()
+
+def store_single_image_in_existing_hdf5_function(hdf5_filename, image,
+                                        description="default",
+                                        dataset="default"):
+    """Store a single image in an hdf5 file"""
+    f = h5py.File(hdf5_filename, "r+")
+    precedent_step = int(f["data"].attrs["step"])
+    workflow_step = precedent_step + 1
+    if dataset == "default":
+        data_set = "data_" + str(workflow_step)
+    else:
+        data_set = dataset
+    f.create_dataset(data_set, data=image)
+    f[data_set].attrs["step"] = workflow_step
+    f[data_set].attrs["dataset"] = data_set
+    f[data_set].attrs["description"] = description
+    try:
+        f["data"] = h5py.SoftLink(data_set)
+    except:
+        del f["data"]
+        f["data"] = h5py.SoftLink(data_set)
+    f.flush()
+    f.close()
+    return workflow_step
+
+
+
+
+
 class Image(object):
 
     def __init__(self,
@@ -75,94 +125,74 @@ class Image(object):
         except:
             del self.f_h5_handler["data"]
             self.f_h5_handler["data"] = h5py.SoftLink(dataset)
-        self._close_h5(self.f_h5_handler)
 
     def _close_h5(self, f_h5_handler):
         f_h5_handler.flush()
         f_h5_handler.close()
 
     def __add__(self, other):
+        is_number = True
+        shape1 = np.shape(self.image)
+        try:
+            float(other)
+        except Exception:
+            is_number = False
+
+        if is_number:
+            result_image = self.image + other
+        else:
+            shape2 = np.shape(other.image)
+            if shape1 != shape2:
+                raise "Images with different dimensions cannot be added"
+            result_image = self.image + other.image
+        return result_image
+
+    def __sub__(self, other):
         shape1 = np.shape(self.image)
         shape2 = np.shape(other.image)
         if shape1 != shape2:
-            raise "Images with different dimensions cannot be added"
-        return self.image + other.image
+            raise "Images with different dimensions cannot be subtracted"
+        return self.image - other.image
 
-def try_add(fname1, fname2):
+    def __mul__(self, other):
+        shape1 = np.shape(self.image)
+        shape2 = np.shape(other.image)
+        if shape1 != shape2:
+            raise "Images with different dimensions cannot be multiplied, " \
+                  "element-wise"
+        return np.multiply(self.image, other.image)
+
+    def __div__(self, other):
+        shape1 = np.shape(self.image)
+        shape2 = np.shape(other.image)
+        if shape1 != shape2:
+            raise "Images with different dimensions cannot be divided, " \
+                  "element-wise"
+        self.image = np.array(self.image, dtype=float)
+        return np.divide(self.image, other.image)
+
+
+def try_add():
+
+    fname1 = "20161203_F33_tomo02_-8.0_-11351.9_proc.hdf5"
+    fname2 = "20161203_F33_tomo02_0.0_-11351.9_proc.hdf5"
+
     ars = Image(hdf5_image_filename=fname1)
     brs = Image(hdf5_image_filename=fname2)
-    crs = ars + brs
-    ars.store_single_image_in_existing_hdf5(crs, description="new image tres")
-    brs.store_single_image_in_existing_hdf5(crs, description="new image tres")
+    crs_img = ars + brs
+    ars.store_single_image_in_existing_hdf5(crs_img,
+                                            description="new image tres")
+    drs_img = ars + 3
+    ars.store_single_image_in_existing_hdf5(drs_img,
+                                            description="new image tres")
 
 
 
 
-def copy_hdf5(input, output):
-    shutil.copy(input, output)
 
-def extract_single_image_from_hdf5(f_h5_handler, data_set="data"):
-    self.image = f_h5_handler[data_set].value
-    try:
-        self.dataset_attr = f_handler[data_set].attrs["dataset"]
-    except:
-        self.dataset_attr = "unknown_dataset"
-    return self.image, self.dataset_attrs
 
-def store_single_image_in_new_hdf5(hdf5_filename, image,
-                                   description="default",
-                                   data_set="data"):
-    """Store a single image in an hdf5 file"""
-    f = h5py.File(hdf5_filename, "w")
-    f.create_dataset(data_set, data=image)
-    f[data_set].attrs["dataset"] = data_set
-    f[data_set].attrs["description"] = description
-    f.flush()
-    f.close()
 
-def store_single_image_in_existing_hdf5(hdf5_filename, image,
-                                        description="default",
-                                        dataset="default"):
-    """Store a single image in an hdf5 file"""
-    f = h5py.File(hdf5_filename, "r+")
-    precedent_step = int(f["data"].attrs["step"])
-    workflow_step = precedent_step + 1
-    if dataset == "default":
-        data_set = "data_" + str(workflow_step)
-    else:
-        data_set = dataset
-    f.create_dataset(data_set, data=image)
-    f[data_set].attrs["step"] = workflow_step
-    f[data_set].attrs["dataset"] = data_set
-    f[data_set].attrs["description"] = description
-    try:
-        f["data"] = h5py.SoftLink(data_set)
-    except:
-        del f["data"]
-        f["data"] = h5py.SoftLink(data_set)
-    f.flush()
-    f.close()
-    return workflow_step
 
-def subtract_images(minuend_image, subtrahend_image):
-    minuend_image = np.array(minuend_image)
-    subtrahend_image = np.array(subtrahend_image)
-    shape1 = np.shape(minuend_image)
-    shape2 = np.shape(subtrahend_image)
-    if shape1 != shape2:
-        raise "Images with different dimensions cannot be subtracted"
-    result_image = minuend_image - subtrahend_image
-    return result_image
-
-def multiply_images(image1, image2):
-    result_image = np.multiply(image1, image2)
-    return result_image
-
-def divide_images(numerator, denominator):
-    numerator = np.array(numerator, dtype=float)
-    denominator = np.array(denominator, dtype=float)
-    result_image = np.divide(numerator, denominator)
-    return result_image
 
 def add_cte_to_image(image, cte):
     image = np.array(image)
