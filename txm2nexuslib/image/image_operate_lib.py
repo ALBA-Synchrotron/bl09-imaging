@@ -80,14 +80,18 @@ class Image(object):
 
     def __init__(self,
                  hdf5_image_filename="default.hdf5",
+                 scalar_for_img=None,
                  extract_data_set="data",
                  mode="r+"):
-        self.hdf5_image_filename = hdf5_image_filename
-        self.f_h5_handler = h5py.File(hdf5_image_filename, mode)
-        self.image = 0
-        self.dataset_attr = ""
-        self.extract_single_image_from_hdf5(extract_data_set)
-        self.workflow_step = 1
+        if scalar_for_img is None:
+            self.hdf5_image_filename = hdf5_image_filename
+            self.f_h5_handler = h5py.File(hdf5_image_filename, mode)
+            self.image = 0
+            self.dataset_attr = ""
+            self.extract_single_image_from_hdf5(extract_data_set)
+            self.workflow_step = 1
+        else:
+            self.image = scalar_for_img
 
     def extract_single_image_from_hdf5(self, data_set="data"):
         image = self.f_h5_handler[data_set].value
@@ -131,6 +135,10 @@ class Image(object):
         f_h5_handler.close()
 
     def __add__(self, other):
+        """Adds two or more images between them.
+        Also can add a constant to an image: the constant is added to all
+        elements of the image: images + constant"""
+
         is_number = True
         shape1 = np.shape(self.image)
         try:
@@ -142,6 +150,10 @@ class Image(object):
             result_image = self.image + other
         else:
             shape2 = np.shape(other.image)
+            if not shape1:
+                self.image = self.image * np.ones(shape2,
+                                                  dtype=type(self.image))
+                shape1 = np.shape(self.image)
             if shape1 != shape2:
                 raise "Images with different dimensions cannot be added"
             result_image = self.image + other.image
@@ -174,19 +186,38 @@ class Image(object):
 
 def try_add():
 
-    fname1 = "20161203_F33_tomo02_-8.0_-11351.9_proc.hdf5"
-    fname2 = "20161203_F33_tomo02_0.0_-11351.9_proc.hdf5"
+    fname1 = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
+             "image_operate_xrm_test_add/" \
+             "20161203_F33_tomo02_-8.0_-11351.9_proc.hdf5"
+    fname2 = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
+             "image_operate_xrm_test_add/" \
+             "20161203_F33_tomo02_0.0_-11351.9_proc.hdf5"
+    fname3 = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
+             "image_operate_xrm_test_add/" \
+             "20161203_F33_tomo02_10.0_-11351.9_proc.hdf5"
 
     ars = Image(hdf5_image_filename=fname1)
     brs = Image(hdf5_image_filename=fname2)
-    crs_img = ars + brs
+    crs = Image(hdf5_image_filename=fname3)
+
+    print(type(ars))
+    print(type(brs))
+    print(type(crs))
+    other_img = ars + brs + crs# + zrs
+    ars.store_single_image_in_existing_hdf5(other_img,
+                                            description="new image tres")
+
+    """crs_img = ars + brs
     ars.store_single_image_in_existing_hdf5(crs_img,
                                             description="new image tres")
     drs_img = ars + 3
     ars.store_single_image_in_existing_hdf5(drs_img,
                                             description="new image tres")
 
-
+    hhimg = Image(scalar_for_img=4)
+    hrs_img = hhimg + ars
+    ars.store_single_image_in_existing_hdf5(hrs_img,
+                                            description="new image tres")"""
 
 
 
@@ -284,6 +315,10 @@ def normalize_bl09_image_by_avg_FF(image_file, FF_img_files):
 
 
 def main():
+
+    try_add()
+
+    """
     ars = np.array([[2, 3], [4, 5]])
     brs = np.array([[5, 1], [2, 1]])
 
@@ -292,7 +327,7 @@ def main():
 
     print(add_resulting_image)
     print(subtract_resulting_image)
-
+    """
 
 if __name__ == "__main__":
     main()
