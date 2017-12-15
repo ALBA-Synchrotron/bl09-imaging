@@ -26,16 +26,88 @@ import h5py
 import numpy as np
 
 
+class Image(object):
+
+    def __init__(self,
+                 hdf5_image_filename="default.hdf5",
+                 extract_data_set="data",
+                 mode="r+"):
+        self.hdf5_image_filename = hdf5_image_filename
+        self.f_h5_handler = h5py.File(hdf5_image_filename, mode)
+        self.image = 0
+        self.dataset_attr = ""
+        self.extract_single_image_from_hdf5(extract_data_set)
+        self.workflow_step = 1
+
+    def extract_single_image_from_hdf5(self, data_set="data"):
+        image = self.f_h5_handler[data_set].value
+        data_type = type(image[0][0])
+        self.image = np.array(image, dtype=data_type)
+        try:
+            self.dataset_attr = f_handler[data_set].attrs["dataset"]
+        except:
+            self.dataset_attr = "unknown_dataset"
+
+    def store_single_image_in_new_hdf5(self, new_hdf5_filename, image,
+                                       data_set="data", description="default"):
+        """Store a single image in an hdf5 file"""
+        f = h5py.File(new_hdf5_filename, "w")
+        f.create_dataset(data_set, data=image)
+        f[data_set].attrs["dataset"] = data_set
+        f[data_set].attrs["description"] = description
+        self._close_h5(f)
+
+    def store_single_image_in_existing_hdf5(self,
+                                            image,
+                                            dataset="default",
+                                            description="default"):
+        """Store a single image in an hdf5 file"""
+        precedent_step = int(self.f_h5_handler["data"].attrs["step"])
+        self.workflow_step = precedent_step + 1
+        if dataset == "default":
+            dataset = "data_" + str(self.workflow_step)
+        self.f_h5_handler.create_dataset(dataset, data=image)
+        self.f_h5_handler[dataset].attrs["step"] = self.workflow_step
+        self.f_h5_handler[dataset].attrs["dataset"] = dataset
+        self.f_h5_handler[dataset].attrs["description"] = description
+        try:
+            self.f_h5_handler["data"] = h5py.SoftLink(dataset)
+        except:
+            del self.f_h5_handler["data"]
+            self.f_h5_handler["data"] = h5py.SoftLink(dataset)
+        self._close_h5(self.f_h5_handler)
+
+    def _close_h5(self, f_h5_handler):
+        f_h5_handler.flush()
+        f_h5_handler.close()
+
+    def __add__(self, other):
+        shape1 = np.shape(self.image)
+        shape2 = np.shape(other.image)
+        if shape1 != shape2:
+            raise "Images with different dimensions cannot be added"
+        return self.image + other.image
+
+def try_add(fname1, fname2):
+    ars = Image(hdf5_image_filename=fname1)
+    brs = Image(hdf5_image_filename=fname2)
+    crs = ars + brs
+    ars.store_single_image_in_existing_hdf5(crs, description="new image tres")
+    brs.store_single_image_in_existing_hdf5(crs, description="new image tres")
+
+
+
+
 def copy_hdf5(input, output):
     shutil.copy(input, output)
 
-def extract_single_image_from_hdf5(f_handler, data_set="data"):
-    image = f_handler[data_set].value
+def extract_single_image_from_hdf5(f_h5_handler, data_set="data"):
+    self.image = f_h5_handler[data_set].value
     try:
-        dataset_attr = f_handler[data_set].attrs["dataset"]
+        self.dataset_attr = f_handler[data_set].attrs["dataset"]
     except:
-        dataset_attr = "unknown_dataset"
-    return image, dataset_attr
+        self.dataset_attr = "unknown_dataset"
+    return self.image, self.dataset_attrs
 
 def store_single_image_in_new_hdf5(hdf5_filename, image,
                                    description="default",
@@ -71,14 +143,6 @@ def store_single_image_in_existing_hdf5(hdf5_filename, image,
     f.flush()
     f.close()
     return workflow_step
-
-def add_images(image1, image2):
-    shape1 = np.shape(image1)
-    shape2 = np.shape(image2)
-    if shape1 != shape2:
-        raise "Images with different dimensions cannot be added"
-    result_image = image1 + image2
-    return result_image
 
 def subtract_images(minuend_image, subtrahend_image):
     minuend_image = np.array(minuend_image)
