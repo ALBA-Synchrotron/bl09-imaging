@@ -87,7 +87,7 @@ img commands are:
             output_fn = base_fn + args.suffix + ".hdf5"
         print ('\nimage_operate copy: from %s to %s\n' % (args.input,
                                                           output_fn))
-        copy_hdf5(args.input, output_fn)
+        copy_h5(args.input, output_fn)
 
     def add(self):
         parser = argparse.ArgumentParser(
