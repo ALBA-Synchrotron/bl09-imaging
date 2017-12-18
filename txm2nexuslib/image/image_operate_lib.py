@@ -81,7 +81,9 @@ class Image(object):
             del self.f_h5_handler["data"]
             self.f_h5_handler["data"] = h5py.SoftLink(dataset)
 
-    def normalize_by_scalar(self, scalar=None):
+    def normalize_by_scalar(self, scalar=None,
+                            store_normalized_by_scalar=False,
+                            description="Image normalized by a scalar"):
         """By default, the scalar will be equal to the exposure time
         multiplied by the machine current; otherwise, if the scalar is
         indicated, the image is normalized by the indicated value"""
@@ -91,50 +93,15 @@ class Image(object):
                 "machine_current"].value
             scalar = exp_time * machine_current
         # If the scalar is indicated, the image is divided by it
-        norm_img_by_scalar = self.image / scalar
-        return norm_img_by_scalar
+        img_norm_by_scalar = self.image / scalar
+        if store_normalized_by_scalar:
+            self.store_image_in_h5(img_norm_by_scalar,
+                                   description=description)
+        return img_norm_by_scalar
 
     def close_h5(self):
         self.f_h5_handler.flush()
         self.f_h5_handler.close()
-
-
-def normalize_by_single_ff(image_filename, image_ff_filename,
-                           store_normalized=True):
-    """Normalize image by FlatField (FF), machine_current and exposure time.
-    The FF image was, beforehand, been normalized by its corresponding
-    machine_current and exposure time.
-    :param image_filename: the hdf5 image filename to be normalized
-    :param image_ff_filename: the hdf5 FF image filename
-    :param store_normalized: (Bool) Indicate if the image has to be stored
-    :return: normalized image
-    """
-
-    image_obj = Image(h5_image_filename=image_filename)
-    ff_img_obj = Image(h5_image_filename=image_ff_filename)
-    if np.shape(image_obj) != np.shape(ff_img_obj):
-        raise "Image dimensions does not correspond which ff image dimensions"
-
-    # Normalize main image by exposure_time and machine_current
-    img_norm_by_scalar = image_obj.normalize_by_scalar()
-    # Normalize FF image by exposure_time and machine_current
-    ff_img_norm_by_scalar = ff_img_obj.normalize_by_scalar()
-
-    # Compute normalized image by dividing the precedent images
-    normalized_image = img_norm_by_scalar / ff_img_norm_by_scalar
-
-    # Store the resulting image in the main image h5 file
-    if store_normalized:
-        dataset = image_obj.image_dataset
-        description = dataset + "@" + path.basename(image_filename)
-        description += (" has been normalized by single FF, "
-                        "using its corresponding exposure times and "
-                        "machine currents")
-        image_obj.store_image_in_h5(normalized_image,
-                                    description=description)
-    image_obj.close_h5()
-    ff_img_obj.close_h5()
-    return normalized_image
 
 
 def average_h5_images(image_filenames, scalar=None,
@@ -153,14 +120,8 @@ def average_h5_images(image_filenames, scalar=None,
     num_imgs = len(image_filenames)
     for image_fn in image_filenames:
         image_obj = Image(h5_image_filename=image_fn)
-        image_norm_by_scalar = image_obj.normalize_by_scalar(scalar)
-        if store_normalized_by_scalar:
-            description = ("Addend image normalized by a scalar. If the "
-                           "scalar is not indicated, its default value is "
-                           "the multiplication of the exposure time by the "
-                           "machine current")
-            image_obj.store_image_in_h5(image_norm_by_scalar,
-                                        description=description)
+        image_norm_by_scalar = image_obj.normalize_by_scalar(
+            scalar, store_normalized_by_scalar)
         average_image += image_norm_by_scalar
         image_obj.close_h5()
     # Average of images that have been beforehand normalized by a scalar
@@ -179,45 +140,67 @@ def average_h5_images(image_filenames, scalar=None,
     return average_image
 
 
-def normalize_image_by_avg_ff(image_filename, ff_img_filenames,
-                              store_normalized=True):
+def normalize_image(image_filename, ff_img_filenames, store_normalized=True):
     """
     Normalize BL09 hdf5 image: Normalize image by current, exposure time,
-    and FlatField (FF) average image. Each FF image are, beforehand,
-    normalized by its corresponding current and exposure time.
+    and FlatField (FF) image (in case ff_img_filenames is a single file), or
+     by average FF images (in case ff_img_filenames is a list of FF filenames).
+     Each FF image is, beforehand, normalized by its corresponding
+     current and exposure time.
     :param image_filename: the hdf5 image filename to be normalized
-    :param ff_img_filenames: List with the hdf5 FF image filenames
-    :param store_average_ff: (Bool) True if average FF image has to be stored
+    :param ff_img_filenames: hdf5 FF image filename(s)
     :param store_normalized: (Bool) True if normalized image has to be stored
     :return: normalized image
     """
 
     image_obj = Image(h5_image_filename=image_filename)
-    ff_img_0_obj = Image(h5_image_filename=ff_img_filenames[0])
-    if np.shape(image_obj) != np.shape(ff_img_0_obj):
+
+    if isinstance(ff_img_filenames, list):
+        ff_img_obj = Image(h5_image_filename=ff_img_filenames[0])
+        print("list ff")
+    else:
+        ff_img_obj = Image(h5_image_filename=ff_img_filenames)
+        print("no list ff")
+
+    if np.shape(image_obj) != np.shape(ff_img_obj):
         raise "Image dimensions does not correspond which ff image dimensions"
-    ff_img_0_obj.close_h5()
 
     # Normalize main image by exposure_time and machine_current
     img_norm_by_scalar = image_obj.normalize_by_scalar()
-    # Average of FF images that have been beforehand normalized by its
-    # acquisition exposure times and machine currents
-    average_ff_image = average_h5_images(ff_img_filenames,
-                                         store_normalized_by_scalar=True,
-                                         store_average=True)
+
+    if isinstance(ff_img_filenames, list) and len(ff_img_filenames) > 1:
+        ff_img_obj.close_h5()
+        # Average of FF images that are beforehand normalized by its
+        # corresponding exposure times and machine currents
+        ff_norm_image = average_h5_images(ff_img_filenames,
+                                          store_normalized_by_scalar=True,
+                                          store_average=True)
+        print("multiple ff")
+    else:
+        # Normalize FF image by exposure_time and machine_current
+        ff_norm_image = ff_img_obj.normalize_by_scalar()
+        print("simple ff")
 
     # Normalized image by average FF, taking into account exposure times and
     # machine currents
-    normalized_image = img_norm_by_scalar / average_ff_image
+    normalized_image = img_norm_by_scalar / ff_norm_image
 
     # Store the resulting normalized image in the main image h5 file
     if store_normalized:
         dataset = image_obj.image_dataset
         description = dataset + "@" + path.basename(image_filename)
-        description += (" normalized by average FF, using exposure time "
-                        "and machine current. To calculate the average FF, "
-                        "each FF image has been, beforehand, normalized by "
-                        "its exposure time and machine current")
+        if isinstance(ff_img_filenames, list) and len(ff_img_filenames) > 1:
+            description += (" normalized by average FF, using exposure time "
+                            "and machine current. To calculate the average "
+                            "FF, each FF image has been, beforehand, "
+                            "normalized by its exposure time and "
+                            "machine current")
+            print("multiple ff")
+        else:
+            description += (" has been normalized by single FF, "
+                            "using its corresponding exposure times and "
+                            "machine currents")
+            print("simple ff")
         image_obj.store_image_in_h5(normalized_image,
                                     description=description)
     image_obj.close_h5()
@@ -227,16 +210,17 @@ def normalize_image_by_avg_ff(image_filename, ff_img_filenames,
 def main():
 
     fn_image = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
-             "20161203_F33_tomo02_-8.0_-11351.9_proc.hdf5"
+               "image_operate_xrm_test_add/" \
+               "20161203_F33_tomo02_-8.0_-11351.9_proc.hdf5"
     fn_image_FF_1 = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
-             "20161203_F33_tomo02_0.0_-11351.9_proc.hdf5"
+                    "image_operate_xrm_test_add/" \
+                    "20161203_F33_tomo02_0.0_-11351.9_proc.hdf5"
     fn_image_FF_2 = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
+                    "image_operate_xrm_test_add/" \
                     "20161203_F33_tomo02_10.0_-11351.9_proc.hdf5"
     ff_filenames = [fn_image_FF_1, fn_image_FF_2]
 
-    #normalize_by_single_ff(fn_image, fn_image_FF)
-    normalize_image_by_avg_ff(fn_image, ff_filenames,
-                              store_normalized=True)
+    normalize_image(fn_image, ff_filenames, store_normalized=True)
 
 
 if __name__ == "__main__":
