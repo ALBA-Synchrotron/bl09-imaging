@@ -26,22 +26,6 @@ import h5py
 import numpy as np
 
 
-def copy_h5(input, output):
-    shutil.copy(input, output)
-
-
-def store_single_image_in_new_h5_function(h5_filename, image,
-                                          description="default",
-                                          data_set="data"):
-    """Store a single image in an hdf5 file"""
-    f = h5py.File(h5_filename, "w")
-    f.create_dataset(data_set, data=image)
-    f[data_set].attrs["dataset"] = data_set
-    f[data_set].attrs["description"] = description
-    f.flush()
-    f.close()
-
-
 class Image(object):
 
     def __init__(self,
@@ -104,6 +88,21 @@ class Image(object):
         self.f_h5_handler.close()
 
 
+def copy_h5(input, output):
+    shutil.copy(input, output)
+
+
+def store_single_image_in_new_h5_function(
+        h5_filename, image, description="default", data_set="data"):
+    """Store a single image in an hdf5 file"""
+    f = h5py.File(h5_filename, "w")
+    f.create_dataset(data_set, data=image)
+    f[data_set].attrs["dataset"] = data_set
+    f[data_set].attrs["description"] = description
+    f.flush()
+    f.close()
+
+
 def average_h5_images(image_filenames, scalar=None,
                       store_normalized_by_scalar=False,
                       store_average=False):
@@ -140,7 +139,8 @@ def average_h5_images(image_filenames, scalar=None,
     return average_image
 
 
-def normalize_image(image_filename, ff_img_filenames, store_normalized=True):
+def normalize_image(image_filename, ff_img_filenames, store_normalized=True,
+                    output_h5_fn="default"):
     """
     Normalize BL09 hdf5 image: Normalize image by current, exposure time,
     and FlatField (FF) image (in case ff_img_filenames is a single file), or
@@ -157,10 +157,8 @@ def normalize_image(image_filename, ff_img_filenames, store_normalized=True):
 
     if isinstance(ff_img_filenames, list):
         ff_img_obj = Image(h5_image_filename=ff_img_filenames[0])
-        print("list ff")
     else:
         ff_img_obj = Image(h5_image_filename=ff_img_filenames)
-        print("no list ff")
 
     if np.shape(image_obj) != np.shape(ff_img_obj):
         raise "Image dimensions does not correspond which ff image dimensions"
@@ -175,11 +173,9 @@ def normalize_image(image_filename, ff_img_filenames, store_normalized=True):
         ff_norm_image = average_h5_images(ff_img_filenames,
                                           store_normalized_by_scalar=True,
                                           store_average=True)
-        print("multiple ff")
     else:
         # Normalize FF image by exposure_time and machine_current
         ff_norm_image = ff_img_obj.normalize_by_scalar()
-        print("simple ff")
 
     # Normalized image by average FF, taking into account exposure times and
     # machine currents
@@ -190,19 +186,24 @@ def normalize_image(image_filename, ff_img_filenames, store_normalized=True):
         dataset = image_obj.image_dataset
         description = dataset + "@" + path.basename(image_filename)
         if isinstance(ff_img_filenames, list) and len(ff_img_filenames) > 1:
-            description += (" normalized by average FF, using exposure time "
+            description = (" normalized by average FF, using exposure time "
                             "and machine current. To calculate the average "
                             "FF, each FF image has been, beforehand, "
                             "normalized by its exposure time and "
                             "machine current")
-            print("multiple ff")
         else:
             description += (" has been normalized by single FF, "
                             "using its corresponding exposure times and "
                             "machine currents")
-            print("simple ff")
-        image_obj.store_image_in_h5(normalized_image,
-                                    description=description)
+
+        if output_h5_fn == "default":
+            image_obj.store_image_in_h5(normalized_image,
+                                        description=description)
+        else:
+            store_single_image_in_new_h5_function(
+                output_h5_fn, normalized_image, description=description,
+                data_set=dataset)
+
     image_obj.close_h5()
     return normalized_image
 

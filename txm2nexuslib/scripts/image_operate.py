@@ -23,9 +23,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import os
 import sys
 import argparse
-import numpy as np
+from argparse import RawTextHelpFormatter
 
 from txm2nexuslib.image.image_operate_lib import *
+
+def str2bool(v):
+    return v.lower() in ("yes", "true", "t", "1")
+
 
 class ImageOperate(object):
 
@@ -36,24 +40,26 @@ class ImageOperate(object):
             usage="""image_operate <command> [<args>]
 
 image_operate commands are:
-   copy          Copy hdf5 file to a new hdf5 file for processing
-   add           Addition of many images
-   subtract      From a reference image (minuend),
-                 subtract another image (subtrahend)
+   copy          - Copy hdf5 file to a new hdf5 file for processing
+   add           - Addition of many images
+                 - Add scalar to image
+   subtract      - From a reference image (minuend),
+                   subtract another image (subtrahend)
+                 - Subtract scalar to image
+                 - Subtract image to scalar
    multiply
-                 Multiply many images element-wise
+                 - Multiply many images element-wise
+                 - Multiply an image by a scalar
    divide
-                 Divide an image by another image, element-wise
-                 numerator image divided by denominator image
-   add_constant  Add a constant to an image (the constant can be
-                 positive or negative)
-   subtract_image_to_constant
-                 Subtract an image to a constant
-   multiply_by_constant
-                 Multiply an image by a constant
-   divide_by_constant
-                 Divide an image by a constant
-
+                 - Divide an image by another image, element-wise
+                   numerator image divided by denominator image
+                 - Divide an image by a scalar
+                 - Divide a scalar by an image
+   normalize
+                 - Normalize image by single FF, exposure times and
+                   machine currents
+                 - Normalize image by average FF, exposure times and
+                   machine currents
 """)
         parser.add_argument('command', help='Subcommand to run')
         args = parser.parse_args(sys.argv[1:2])
@@ -98,31 +104,16 @@ image_operate commands are:
                             metavar='output',
                             type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
-        image_list = args.addends
-        f_handler = h5py.File(image_list[0], "r")
-        img1, _ = extract_single_image_from_hdf5(f_handler)
-        shape1 = np.shape(img1)
-        result_image = np.zeros(shape1)
-        f_handler.close()
+
+        # TODO: implement add application
+
         description = "image_operate add (image addition):\n"
         for single_img_hdf5_file in args.addends:
-            f_handler = h5py.File(single_img_hdf5_file, "r")
-            img, dataset = extract_single_image_from_hdf5(f_handler)
-            result_image = add_images(result_image, img)
-            f_handler.close()
+            dataset = "data"
             description += dataset + "@" + str(single_img_hdf5_file)
             if single_img_hdf5_file is not args.addends[-1]:
                 description += " + \n"
         print("\n" + description + "\n")
-        if args.output == "default":
-            for single_img_hdf5_file in args.addends:
-                store_single_image_in_existing_hdf5(single_img_hdf5_file,
-                                                    result_image,
-                                                    description=description)
-        else:
-                store_single_image_in_new_hdf5(args.output,
-                                               result_image,
-                                               description=description)
 
     def subtract(self):
         parser = argparse.ArgumentParser(
@@ -138,30 +129,16 @@ image_operate commands are:
                             metavar='output',
                             type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
-        f_minuend = h5py.File(args.minuend, "r")
-        minuend_img, dset_minuend = \
-            extract_single_image_from_hdf5(f_minuend)
-        f_subtrahend = h5py.File(args.subtrahend, "r")
-        subtrahend_img, dset_subtrahend = \
-            extract_single_image_from_hdf5(f_subtrahend)
-        result_image = subtract_images(minuend_img, subtrahend_img)
-        f_minuend.close()
-        f_subtrahend.close()
+
         description = "image_operate subtract (image subtraction):\n"
+
+        # TODO: implement subtract application
+
+        dset_minuend = "data"
+        dset_subtrahend = "data"
         description += (dset_minuend + "@" + str(args.minuend) + " -\n" +
                         dset_subtrahend + "@" + str(args.subtrahend))
         print("\n" + description + "\n")
-        if args.output == "default":
-            store_single_image_in_existing_hdf5(args.minuend,
-                                                result_image,
-                                                description=description)
-            store_single_image_in_existing_hdf5(args.subtrahend,
-                                                result_image,
-                                                description=description)
-        else:
-            store_single_image_in_new_hdf5(args.output,
-                                           result_image,
-                                           description=description)
 
     def multiply(self):
         """Multiply two images element-wise"""
@@ -178,31 +155,16 @@ image_operate commands are:
                     metavar='output',
                     type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
-        image_list = args.factors
-        f_handler = h5py.File(image_list[0], "r")
-        img1, _ = extract_single_image_from_hdf5(f_handler)
-        shape1 = np.shape(img1)
-        result_image = np.ones(shape1)
-        f_handler.close()
+
+        # TODO: implement multiply application
+
         description = "image multiplication:\n"
         for single_img_hdf5_file in args.factors:
-            f_handler = h5py.File(single_img_hdf5_file, "r")
-            img, dataset = extract_single_image_from_hdf5(f_handler)
-            result_image = multiply_images(result_image, img)
-            f_handler.close()
+            dataset = "data"
             description += dataset + "@" + str(single_img_hdf5_file)
             if single_img_hdf5_file is not args.factors[-1]:
                 description += " * \n"
         print("\n" + description + "\n")
-        if args.output == "default":
-            for single_img_hdf5_file in args.factors:
-                store_single_image_in_existing_hdf5(single_img_hdf5_file,
-                                                    result_image,
-                                                    description=description)
-        else:
-                store_single_image_in_new_hdf5(args.output,
-                                               result_image,
-                                               description=description)
 
     def divide(self):
         """Divide two images element-wise"""
@@ -218,248 +180,73 @@ image_operate commands are:
                     metavar='output',
                     type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
-        f_numerator = h5py.File(args.numerator, "r")
-        numerator_img, dset_numerator = \
-            extract_single_image_from_hdf5(f_numerator)
-        f_denominator = h5py.File(args.denominator, "r")
-        denominator_img, dset_denominator = \
-            extract_single_image_from_hdf5(f_denominator)
-        result_image = divide_images(numerator_img, denominator_img)
-        f_numerator.close()
-        f_denominator.close()
+
+        # TODO: implement divide application
+
         description = "image_operate divide (image division):\n"
         description += (dset_numerator + "@" + str(args.numerator) + " /\n" +
                         dset_denominator + "@" + str(args.denominator))
         print("\n" + description + "\n")
-        if args.output == "default":
-            store_single_image_in_existing_hdf5(args.numerator,
-                                                result_image,
-                                                description=description)
-            store_single_image_in_existing_hdf5(args.denominator,
-                                                result_image,
-                                                description=description)
-        else:
-            store_single_image_in_new_hdf5(args.output,
-                                           result_image,
-                                           description=description)
 
-    def add_constant(self):
-        """Add a constant to an image. The constant can be positive or
-        negative"""
-        parser = argparse.ArgumentParser(description='Add a constant to '
-                                                     'an image')
-        parser.add_argument('image', metavar='image',
-                            type=str, help='reference single image hdf5 file')
-        parser.add_argument('constant', metavar='constant',
-                            type=str, help='constant to be added to the image')
-        parser.add_argument('-o', '--output',
-                    default='default',
-                    metavar='output',
-                    type=str, help='output hdf5 filename')
-        args = parser.parse_args(sys.argv[2:])
-        cte = args.constant
-        h5_input_handler = h5py.File(args.image, "r")
-        image, dset = extract_single_image_from_hdf5(h5_input_handler)
-        description = 'image_operate add_constant:\n'
-        description += (dset + "@" + str(args.image) + " + " +
-                        str(args.constant))
-        print("\n" + description + "\n")
-        result_image = add_cte_to_image(image, cte)
-        h5_input_handler.close()
-        if args.output == "default":
-            store_single_image_in_existing_hdf5(args.image,
-                                                result_image,
-                                                description=description)
-        else:
-            store_single_image_in_new_hdf5(args.output,
-                                           result_image,
-                                           description=description)
-
-    def subtract_image_to_constant(self):
-        """Subtract image to constant"""
-        parser = argparse.ArgumentParser(description='Subtract an image to '
-                                                     'a constant value image')
-        parser.add_argument('constant', metavar='constant',
-                            type=str, help='minuend constant to which an '
-                                           'image will be subtracted')
-        parser.add_argument('image', metavar='image',
-                            type=str, help='subtrahend image hdf5 file')
-        parser.add_argument('-o', '--output',
-                    default='default',
-                    metavar='output',
-                    type=str, help='output hdf5 filename')
-        args = parser.parse_args(sys.argv[2:])
-        cte = args.constant
-        h5_input_handler = h5py.File(args.image, "r")
-        image, dset = extract_single_image_from_hdf5(h5_input_handler)
-        description = 'image_operate subtract_image_to_constant:\n'
-        description += (str(args.constant) + " - " +
-                        dset + "@" + str(args.image))
-        print("\n" + description + "\n")
-        result_image = subtract_image_to_cte(cte, image)
-        h5_input_handler.close()
-        if args.output == "default":
-            store_single_image_in_existing_hdf5(args.image,
-                                                result_image,
-                                                description=description)
-        else:
-            store_single_image_in_new_hdf5(args.output,
-                                           result_image,
-                                           description=description)
-
-    def multiply_by_constant(self):
-        """Multiply an image by a constant"""
-        parser = argparse.ArgumentParser(description='Multiply an image by a '
-                                                     'constant')
-        parser.add_argument('image', metavar='image',
-                            type=str, help='single image hdf5 file')
-        parser.add_argument('constant', metavar='constant',
-                            type=str, help='constant by which the image '
-                                           'will be multiplied')
-        parser.add_argument('-o', '--output',
-                            default='default',
-                            metavar='output',
-                            type=str, help='output hdf5 filename')
-        args = parser.parse_args(sys.argv[2:])
-        cte = float(args.constant)
-        h5_input_handler = h5py.File(args.image, "r")
-        image, dset = extract_single_image_from_hdf5(h5_input_handler)
-        result_image = multiply_image_by_constant(image, cte)
-        description = 'image_operate multiply_by_constant:\n'
-        description += (dset + "@" + str(args.image) + " * " +
-                        str(args.constant))
-        print("\n" + description + "\n")
-        h5_input_handler.close()
-        if args.output == "default":
-            store_single_image_in_existing_hdf5(args.image,
-                                                result_image,
-                                                description=description)
-        else:
-            store_single_image_in_new_hdf5(args.output,
-                                           result_image,
-                                           description=description)
-
-    def divide_by_constant(self):
-        """Divide an image by a constant"""
-        parser = argparse.ArgumentParser(description='Divide an image by a '
-                                                     'constant')
-        parser.add_argument('image', metavar='image',
-                            type=str, help='single image hdf5 file')
-        parser.add_argument('constant', metavar='constant',
-                    type=str, help='constant by which the image will be '
-                                   'divided')
-        parser.add_argument('-o', '--output',
-                    default='default',
-                    metavar='output',
-                    type=str, help='output hdf5 filename')
-        args = parser.parse_args(sys.argv[2:])
-        cte = float(args.constant)
-        h5_input_handler = h5py.File(args.image, "r")
-        image, dset = extract_single_image_from_hdf5(h5_input_handler)
-        result_image = divide_image_by_constant(image, cte)
-        description = 'image_operate divide_by_constant:\n'
-        description += (dset + "@" + str(args.image) + " / " +
-                        str(args.constant))
-        print("\n" + description + "\n")
-        h5_input_handler.close()
-        if args.output == "default":
-            store_single_image_in_existing_hdf5(args.image,
-                                                result_image,
-                                                description=description)
-        else:
-            store_single_image_in_new_hdf5(args.output,
-                                           result_image,
-                                           description=description)
-
-    def normalize_1(self):
+    def normalize(self):
         """
         Normalize BL09 hdf5 image: Normalize image by current, exposure time,
         and FF average image, which at its turn have been normalized also by
         current and exposure time.
         """
-        parser = argparse.ArgumentParser(description='normalize BL09 image')
-        parser.add_argument('image', metavar='image',
-                            type=str, help='hdf5 file containing the image '
-                                           'to be normalized')
-        parser.add_argument('image_ff', metavar='image',
-                            type=str, help='hdf5 file  containing the FF '
-                                           'image')
-        parser.add_argument('-o', '--output',
-                            default='default',
-                            metavar='output',
-                            type=str, help='output hdf5 filename')
-        args = parser.parse_args(sys.argv[2:])
+        parser = argparse.ArgumentParser(
+            description='normalize BL09 image. Use '
+                        'exposure times and machine currents'
+                        'Inputs:'
+                        'image_filename: h5 filename with image to normalize'
+                        'ff_filenames: ff h5 filename(s)'
+                        'output: (optional) Output filename. If indicated'
+                        'the image is stored in a new h5 file',
+            formatter_class=RawTextHelpFormatter)
+        parser.register('type', 'bool', str2bool)
 
-        f_handler = h5py.File(args.image, "r")
-        f_FF_handler = h5py.File(args.image_ff, "r")
-        img, dset = extract_single_image_from_hdf5(f_handler)
-        img_FF, dset_FF = extract_single_image_from_hdf5(f_FF_handler)
-        shape_img = np.shape(img)
-        shape_FF_img = np.shape(img_FF)
-        if shape_img != shape_FF_img:
-            raise("Error: image shape is not equal to FF shape\n"
-                  "Normalization cannot be done")
-        exposure_time = f_handler["metadata"]["exposure_time"].value
-        machine_current = f_handler["metadata"]["machine_current"].value
-        exposure_time_FF = f_FF_handler["metadata"]["exposure_time"].value
-        machine_current_FF = f_FF_handler["metadata"]["machine_current"].value
-        description = 'image_operate normalize_1 (normalize image by' \
-                      ' single FF image):\n'
-        description += (dset + "@" + str(args.image) + " * " +
-                        str(exposure_time) + " * " + str(machine_current) +
-                        "\n / \n" +
-                        dset_FF + "@" + str(args.image_ff) + " * " +
-                        str(exposure_time_FF) + " * " +
-                        str(machine_current_FF))
-        f_handler.close()
-        f_FF_handler.close()
-        print("\n" + description + "\n")
-        normalized_image = normalize_by_single_FF(img, exposure_time,
-                                                  machine_current,
-                                                  img_FF, exposure_time_FF,
-                                                  machine_current_FF)
-        if args.output == "default":
-            store_single_image_in_existing_hdf5(args.image,
-                                                normalized_image,
-                                                description=description)
-        else:
-            store_single_image_in_new_hdf5(args.output,
-                                           normalized_image,
-                                           description=description)
-
-    def normalize_2(self):
-        """
-        Normalize BL09 hdf5 image by average FF:
-        Normalize image by current, exposure time, and average FF image,
-        Average FF image was calculated by normalizing beforehand each of
-        the FF images by its own machine current and exposure time.
-        """
-        parser = argparse.ArgumentParser(description='normalize BL09 image')
-        parser.add_argument('image', metavar='image',
-                            type=str, help='hdf5 file with image to be '
-                                           'normalized')
-        parser.add_argument('ff_images',
-                            metavar='FF_hdf5_files_list',
-                            type=str,
+        parser.add_argument('image_filename', metavar='image_filename',
+                            type=str, help='hdf5 filename containing the '
+                                           'image to normalize')
+        parser.add_argument('ff_filenames', metavar='ff_filenames', type=str,
                             nargs='+', default=None,
-                            help='hdf5 files containing the FF image')
+                            help='FF single images hdf5 filenames')
         parser.add_argument('-o', '--output',
                             default='default',
                             metavar='output',
                             type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
 
-        normalized_image, description = normalize_bl09_image_by_avg_FF(
-            args.image, args.ff_images)
-        print("\n" + description + "\n")
-        if args.output == "default":
-            store_single_image_in_existing_hdf5(args.image,
-                                                normalized_image,
-                                                description=description)
-        else:
-            store_single_image_in_new_hdf5(args.output,
-                                           normalized_image,
-                                           description=description)
+        normalize_image(args.image_filename, args.ff_filenames,
+                        store_normalized=True, output_h5_fn=args.output)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 def main():
     ImageOperate()
