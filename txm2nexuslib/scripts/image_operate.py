@@ -35,11 +35,10 @@ class ImageOperate(object):
 
     def __init__(self):
         parser = argparse.ArgumentParser(
-            description='image_operate allows performing operations '
-                        'with images',
-            usage="""image_operate <command> [<args>]
+            description='img allows performing operations with images',
+            usage="""img <command> [<args>]
 
-image_operate commands are:
+img commands are:
    copy          - Copy hdf5 file to a new hdf5 file for processing
    add           - Addition of many images
                  - Add scalar to image
@@ -219,33 +218,6 @@ image_operate commands are:
 
         normalize_image(args.image_filename, args.ff_filenames,
                         store_normalized=True, output_h5_fn=args.output)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 def main():
