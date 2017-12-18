@@ -20,7 +20,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-
+from os import path
 import shutil
 import h5py
 import numpy as np
@@ -126,7 +126,7 @@ def normalize_by_single_ff(image_filename, image_ff_filename,
     # Store the resulting image in the main image h5 file
     if store_normalized:
         dataset = image_obj.image_dataset
-        description = dataset + "@" + image_filename
+        description = dataset + "@" + path.basename(image_filename)
         description += (" has been normalized by single FF, "
                         "using its corresponding exposure times and "
                         "machine currents")
@@ -213,7 +213,7 @@ def normalize_image_by_avg_ff(image_filename, ff_img_filenames,
     # Store the resulting normalized image in the main image h5 file
     if store_normalized:
         dataset = image_obj.image_dataset
-        description = dataset + "@" + image_filename
+        description = dataset + "@" + path.basename(image_filename)
         description += (" normalized by average FF, using exposure time "
                         "and machine current. To calculate the average FF, "
                         "each FF image has been, beforehand, normalized by "
