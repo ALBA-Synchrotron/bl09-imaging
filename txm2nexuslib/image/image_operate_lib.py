@@ -30,13 +30,14 @@ class Image(object):
 
     def __init__(self,
                  h5_image_filename="default.hdf5",
-                 extract_data_set="data",
+                 image_data_set="data",
                  mode="r+"):
         self.h5_image_filename = h5_image_filename
         self.f_h5_handler = h5py.File(h5_image_filename, mode)
         self.image = 0
         self.image_dataset = ""
-        self.extract_single_image_from_h5(extract_data_set)
+        self.image_dataset_name = image_data_set
+        self.extract_single_image_from_h5(image_data_set)
         self.workflow_step = 1
 
     def extract_single_image_from_h5(self, data_set="data"):
@@ -90,6 +91,39 @@ class Image(object):
 
 def copy_h5(input, output):
     shutil.copy(input, output)
+
+
+def add(image_filenames, store=False, output_h5_fn="default"):
+    description = "Add images: \n"
+    image_obj = Image(h5_image_filename=image_filenames[0])
+    result_image = image_obj.image
+    dataset = image_obj.image_dataset_name
+    description += (dataset + "@" + str(image_obj.h5_image_filename) + " + \n")
+    image_obj.close_h5()
+
+    for image_fn in image_filenames[1:]:
+        image_obj = Image(h5_image_filename=image_fn)
+        dataset = image_obj.image_dataset_name
+        if image_fn != image_filenames[-1]:
+            description += (dataset + "@" + str(image_obj.h5_image_filename)
+                            + " + \n")
+        else:
+            description += dataset + "@" + str(image_obj.h5_image_filename)
+        result_image += image_obj.image
+        image_obj.close_h5()
+
+    if store:
+        if output_h5_fn == "default":
+            for image_fn in image_filenames:
+                image_obj = Image(h5_image_filename=image_fn)
+                image_obj.store_image_in_h5(result_image,
+                                            description=description)
+                image_obj.close_h5()
+        else:
+            store_single_image_in_new_h5_function(
+                output_h5_fn, result_image, description=description,
+                data_set=dataset)
+    return result_image
 
 
 def store_single_image_in_new_h5_function(
@@ -160,7 +194,7 @@ def normalize_image(image_filename, ff_img_filenames, store_normalized=True,
     else:
         ff_img_obj = Image(h5_image_filename=ff_img_filenames)
 
-    if np.shape(image_obj) != np.shape(ff_img_obj):
+    if np.shape(image_obj.image) != np.shape(ff_img_obj.image):
         raise "Image dimensions does not correspond which ff image dimensions"
 
     # Normalize main image by exposure_time and machine_current

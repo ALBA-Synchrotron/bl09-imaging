@@ -104,15 +104,7 @@ img commands are:
                             type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
 
-        # TODO: implement add application
-
-        description = "image_operate add (image addition):\n"
-        for single_img_hdf5_file in args.addends:
-            dataset = "data"
-            description += dataset + "@" + str(single_img_hdf5_file)
-            if single_img_hdf5_file is not args.addends[-1]:
-                description += " + \n"
-        print("\n" + description + "\n")
+        add(args.addends, store=True, output_h5_fn=args.output)
 
     def subtract(self):
         parser = argparse.ArgumentParser(
