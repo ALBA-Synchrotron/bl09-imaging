@@ -93,7 +93,7 @@ def copy_h5(input, output):
     shutil.copy(input, output)
 
 
-def add(image_filenames, store=False, output_h5_fn="default"):
+def add(image_filenames, scalar=0, store=False, output_h5_fn="default"):
     description = "Add images: \n"
     image_obj = Image(h5_image_filename=image_filenames[0])
     result_image = image_obj.image
@@ -111,6 +111,13 @@ def add(image_filenames, store=False, output_h5_fn="default"):
             description += dataset + "@" + str(image_obj.h5_image_filename)
         result_image += image_obj.image
         image_obj.close_h5()
+
+    if scalar != 0:
+        if (scalar % 1 == 0 and
+                np.issubdtype(result_image[0][0], int)):
+            scalar = int(scalar)
+        result_image = result_image + scalar
+        description += " + " + str(scalar)
 
     if store:
         if output_h5_fn == "default":

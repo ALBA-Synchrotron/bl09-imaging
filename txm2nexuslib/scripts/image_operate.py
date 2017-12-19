@@ -98,13 +98,18 @@ img commands are:
                             nargs='+', default=None,
                             help='input the addends single image '
                                  'hdf5 files')
+        parser.add_argument('-s', '--scalar',
+                            type=float,
+                            default=0,
+                            help='scalar for addition operation')
         parser.add_argument('-o', '--output',
                             default='default',
                             metavar='output',
                             type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
 
-        add(args.addends, store=True, output_h5_fn=args.output)
+        add(args.addends, scalar=args.scalar,
+            store=True, output_h5_fn=args.output)
 
     def subtract(self):
         parser = argparse.ArgumentParser(
