@@ -137,30 +137,26 @@ img commands are:
         print("\n" + description + "\n")
 
     def multiply(self):
-        """Multiply two images element-wise"""
-        parser = argparse.ArgumentParser(description='Multiply many images, '
-                                                     'element-wise')
+        parser = argparse.ArgumentParser(
+            description='Multiplication of many images')
         parser.add_argument('factors',
                             metavar='factors_hdf5_files_list',
                             type=str,
                             nargs='+', default=None,
-                            help='input single images '
-                                 'hdf5 files that will be multiplied')
+                            help='input the factors single image '
+                                 'hdf5 files')
+        parser.add_argument('-s', '--scalar',
+                            type=float,
+                            default=1,
+                            help='scalar for multiplication operation')
         parser.add_argument('-o', '--output',
-                    default='default',
-                    metavar='output',
-                    type=str, help='output hdf5 filename')
+                            default='default',
+                            metavar='output',
+                            type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
 
-        # TODO: implement multiply application
-
-        description = "image multiplication:\n"
-        for single_img_hdf5_file in args.factors:
-            dataset = "data"
-            description += dataset + "@" + str(single_img_hdf5_file)
-            if single_img_hdf5_file is not args.factors[-1]:
-                description += " * \n"
-        print("\n" + description + "\n")
+        multiply(args.factors, scalar=args.scalar,
+                 store=True, output_h5_fn=args.output)
 
     def divide(self):
         """Divide two images element-wise"""

@@ -34,6 +34,7 @@ class Image(object):
                  mode="r+"):
         self.h5_image_filename = h5_image_filename
         self.f_h5_handler = h5py.File(h5_image_filename, mode)
+        self.data_type = np.int32
         self.image = 0
         self.image_dataset = ""
         self.image_dataset_name = image_data_set
@@ -43,7 +44,11 @@ class Image(object):
     def extract_single_image_from_h5(self, data_set="data"):
         image = self.f_h5_handler[data_set].value
         data_type = type(image[0][0])
-        self.image = np.array(image, dtype=data_type)
+        if data_type == np.int16:
+            self.data_type = np.int32
+        else:
+            self.data_type = data_type
+        self.image = np.array(image, dtype=self.data_type)
         try:
             self.image_dataset = self.f_h5_handler[data_set].attrs["dataset"]
         except:
@@ -94,21 +99,18 @@ def copy_h5(input, output):
 
 
 def add(image_filenames, scalar=0, store=False, output_h5_fn="default"):
-    description = "Add images: \n"
+    description = "Add images and/or add a scalar element-wise: \n"
     image_obj = Image(h5_image_filename=image_filenames[0])
     result_image = image_obj.image
     dataset = image_obj.image_dataset_name
-    description += (dataset + "@" + str(image_obj.h5_image_filename) + " + \n")
+    description += dataset + "@" + str(image_obj.h5_image_filename)
     image_obj.close_h5()
 
     for image_fn in image_filenames[1:]:
         image_obj = Image(h5_image_filename=image_fn)
         dataset = image_obj.image_dataset_name
-        if image_fn != image_filenames[-1]:
-            description += (dataset + "@" + str(image_obj.h5_image_filename)
-                            + " + \n")
-        else:
-            description += dataset + "@" + str(image_obj.h5_image_filename)
+        description += (" + \n" + dataset + "@" +
+                        str(image_obj.h5_image_filename))
         result_image += image_obj.image
         image_obj.close_h5()
 
@@ -118,6 +120,44 @@ def add(image_filenames, scalar=0, store=False, output_h5_fn="default"):
             scalar = int(scalar)
         result_image = result_image + scalar
         description += " + " + str(scalar)
+
+    if store:
+        if output_h5_fn == "default":
+            for image_fn in image_filenames:
+                image_obj = Image(h5_image_filename=image_fn)
+                image_obj.store_image_in_h5(result_image,
+                                            description=description)
+                image_obj.close_h5()
+        else:
+            store_single_image_in_new_h5_function(
+                output_h5_fn, result_image, description=description,
+                data_set=dataset)
+    return result_image
+
+
+def multiply(image_filenames, scalar=1, store=False, output_h5_fn="default"):
+    description = ("Multiply images and/or multiply "
+                   "element-wise by a scalar: \n")
+    image_obj = Image(h5_image_filename=image_filenames[0])
+    result_image = image_obj.image
+    dataset = image_obj.image_dataset_name
+    description += dataset + "@" + str(image_obj.h5_image_filename)
+    image_obj.close_h5()
+
+    for image_fn in image_filenames[1:]:
+        image_obj = Image(h5_image_filename=image_fn)
+        dataset = image_obj.image_dataset_name
+        description += (" * \n" + dataset + "@" +
+                            str(image_obj.h5_image_filename))
+        result_image = np.multiply(result_image, image_obj.image, casting='same_kind')
+        image_obj.close_h5()
+
+    if scalar != 1:
+        if (scalar % 1 == 0 and
+                np.issubdtype(result_image[0][0], int)):
+            scalar = int(scalar)
+        result_image = result_image * scalar
+        description += " * " + str(scalar)
 
     if store:
         if output_h5_fn == "default":
