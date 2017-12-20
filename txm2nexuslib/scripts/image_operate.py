@@ -164,30 +164,25 @@ img commands are:
 
     def divide(self):
         """Divide two images element-wise"""
-        parser = argparse.ArgumentParser(description='Divide element-wise '
-                                                     'a numerator image by '
-                                                     'a denominator image ',
-                                         formatter_class=RawTextHelpFormatter)
+        parser = argparse.ArgumentParser(
+            description='Divide an hdf5 image or a constant (numerator), '
+                        'by other hdf5 images or constants (denominators)\n'
+                        'At least one term must be an hdf5 image',
+            formatter_class=RawTextHelpFormatter)
         parser.add_argument('numerator', metavar='image1', type=str,
                             help='numerator single image hdf5 file')
-        parser.add_argument('denominator', metavar='image2', type=str,
-                            help='denominator single image hdf5 file')
-        parser.add_argument('-c', '--constant',
-                            type=float,
-                            default=1,
-                            help='constant dividing the resulting image')
+        parser.add_argument('denominators', metavar='denominators',
+                            type=str, nargs='+',
+                            help='denominator single image hdf5 file(s) '
+                                 'and/or constants')
         parser.add_argument('-o', '--output',
                     default='default',
                     metavar='output',
                     type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
 
-        # TODO: implement divide application
-
-        description = "image_operate divide (image division):\n"
-        description += (dset_numerator + "@" + str(args.numerator) + " /\n" +
-                        dset_denominator + "@" + str(args.denominator))
-        print("\n" + description + "\n")
+        divide(args.numerator, args.denominators,
+               store=True, output_h5_fn=args.output)
 
     def normalize(self):
         """

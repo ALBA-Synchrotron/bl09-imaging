@@ -112,8 +112,7 @@ def add(image_filenames, constant=0, store=False, output_h5_fn="default"):
         image_obj.close_h5()
 
     if constant != 0:
-        if (constant % 1 == 0 and
-                np.issubdtype(result_image[0][0], int)):
+        if constant % 1 == 0 and np.issubdtype(result_image[0][0], int):
             constant = int(constant)
         result_image = result_image + constant
         description += " + " + str(constant)
@@ -130,6 +129,7 @@ def add(image_filenames, constant=0, store=False, output_h5_fn="default"):
                 output_h5_fn, result_image, description=description,
                 data_set=dataset)
     return result_image
+
 
 def subtract(image_filenames, constant=0, store=False,
              output_h5_fn="default"):
@@ -155,8 +155,7 @@ def subtract(image_filenames, constant=0, store=False,
         image_obj.close_h5()
 
     if constant != 0:
-        if (constant % 1 == 0 and
-                np.issubdtype(result_image[0][0], int)):
+        if constant % 1 == 0 and np.issubdtype(result_image[0][0], int):
             constant = int(constant)
         result_image = result_image - constant
         description += " - " + str(constant)
@@ -172,6 +171,7 @@ def subtract(image_filenames, constant=0, store=False,
                 output_h5_fn, result_image, description=description,
                 data_set=dataset)
     return result_image
+
 
 def multiply(image_filenames, constant=1, store=False, output_h5_fn="default"):
     description = ("Multiply images and/or multiply "
@@ -191,8 +191,7 @@ def multiply(image_filenames, constant=1, store=False, output_h5_fn="default"):
         image_obj.close_h5()
 
     if constant != 1:
-        if (constant % 1 == 0 and
-                np.issubdtype(result_image[0][0], int)):
+        if constant % 1 == 0 and np.issubdtype(result_image[0][0], int):
             constant = int(constant)
         result_image = result_image * constant
         description += " * " + str(constant)
@@ -204,6 +203,59 @@ def multiply(image_filenames, constant=1, store=False, output_h5_fn="default"):
                 image_obj.store_image_in_h5(result_image,
                                             description=description)
                 image_obj.close_h5()
+        else:
+            store_single_image_in_new_h5_function(
+                output_h5_fn, result_image, description=description,
+                data_set=dataset)
+    return result_image
+
+
+def divide(numerator, denominators, store=False, output_h5_fn="default"):
+    """
+    Divide a reference image (numerator) stored in a hdf5 file, by one or
+    more denominators, which can be images stored in hdf5 files or constants.
+    """
+    description = "Divide a numerator image by other images " \
+                  "and/or constants: \n"
+    store_filename = "none"
+    try:
+        result_image = float(numerator)
+        description += str(result_image) + " / ("
+    except:
+        store_filename = numerator
+        image_obj = Image(h5_image_filename=numerator)
+        result_image = np.array(image_obj.image, dtype=np.int32)
+        dataset = image_obj.image_dataset_name
+        description += dataset + "@" + numerator + " / ("
+        image_obj.close_h5()
+
+    for i, denominator in enumerate(denominators):
+        try:
+            constant = float(denominator)
+            result_image = result_image / constant
+            if i == 0:
+                description += str(constant)
+            else:
+                description += " * " + str(constant)
+        except ValueError:
+            image_obj = Image(h5_image_filename=denominator)
+            dataset = image_obj.image_dataset_name
+            if i == 0:
+                description += dataset + "@" + denominator
+                if store_filename == "none":
+                    store_filename = denominator
+            else:
+                description += " * " + dataset + "@" + denominator
+            result_image = result_image / image_obj.image
+            image_obj.close_h5()
+    description += " )"
+
+    if store:
+        if output_h5_fn == "default":
+            image_obj = Image(h5_image_filename=store_filename)
+            image_obj.store_image_in_h5(result_image,
+                                        description=description)
+            image_obj.close_h5()
         else:
             store_single_image_in_new_h5_function(
                 output_h5_fn, result_image, description=description,
