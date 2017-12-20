@@ -41,19 +41,19 @@ class ImageOperate(object):
 img commands are:
    copy          - Copy hdf5 file to a new hdf5 file for processing
    add           - Addition of many images
-                 - Add scalar to image
+                 - Add constant to image
    subtract      - From a reference image (minuend),
                    subtract another image (subtrahend)
-                 - Subtract scalar to image
-                 - Subtract image to scalar
+                 - Subtract constant to image
+                 - Subtract image to constant
    multiply
                  - Multiply many images element-wise
-                 - Multiply an image by a scalar
+                 - Multiply an image by a constant
    divide
                  - Divide an image by another image, element-wise
                    numerator image divided by denominator image
-                 - Divide an image by a scalar
-                 - Divide a scalar by an image
+                 - Divide an image by a constant
+                 - Divide a constant by an image
    normalize
                  - Normalize image by single FF, exposure times and
                    machine currents
@@ -71,7 +71,8 @@ img commands are:
 
     def copy(self):
         parser = argparse.ArgumentParser(
-            description='Copy a whole hdf5 file to a new file')
+            description='Copy a whole hdf5 file to a new file',
+            formatter_class=RawTextHelpFormatter)
         parser.add_argument('input', metavar='input_hdf5_filename',
                             type=str, help='input hdf5 filename')
         parser.add_argument('-o', '--output',
@@ -91,82 +92,90 @@ img commands are:
 
     def add(self):
         parser = argparse.ArgumentParser(
-            description='Addition of many images')
+            description='Addition of images\n'
+                        'Addition of a constant factor',
+            formatter_class=RawTextHelpFormatter)
         parser.add_argument('addends',
-                            metavar='addends_hdf5_files_list',
+                            metavar='addends_hdf5_filenames',
                             type=str,
                             nargs='+', default=None,
                             help='input the addends single image '
                                  'hdf5 files')
-        parser.add_argument('-s', '--scalar',
+        parser.add_argument('-c', '--constant',
                             type=float,
                             default=0,
-                            help='scalar for addition operation')
+                            help='constant to be added')
         parser.add_argument('-o', '--output',
                             default='default',
                             metavar='output',
                             type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
 
-        add(args.addends, scalar=args.scalar,
+        add(args.addends, constant=args.constant,
             store=True, output_h5_fn=args.output)
 
     def subtract(self):
         parser = argparse.ArgumentParser(
-            description='From a reference image (minuend), '
-                        'subtract another image (subtrahend)')
-        parser.add_argument('minuend', metavar='minuend_hdf5_file',
-                            type=str, help='reference single image hdf5 file')
-        parser.add_argument('subtrahend', metavar='subtrahend_hdf5_file',
-                            type=str, help='single image hdf5 file to subtract'
-                                           'to the reference image')
+            description='- From a reference image (minuend), '
+                        'subtract one or more images (subtrahends)\n'
+                        '- Subtract a constant',
+            formatter_class=RawTextHelpFormatter)
+        parser.add_argument('minuend_subtrahends',
+                            metavar='minuend_subtrahends_hdf5_files',
+                            type=str, nargs='+',
+                            help='minuend image hdf5 filename followed by '
+                                 'the subtrahend image hdf5 filename(s)')
+        parser.add_argument('-c', '--constant',
+                            type=float,
+                            default=0,
+                            help='constant to be subtracted')
         parser.add_argument('-o', '--output',
                             default='default',
                             metavar='output',
                             type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
 
-        description = "image_operate subtract (image subtraction):\n"
-
-        # TODO: implement subtract application
-
-        dset_minuend = "data"
-        dset_subtrahend = "data"
-        description += (dset_minuend + "@" + str(args.minuend) + " -\n" +
-                        dset_subtrahend + "@" + str(args.subtrahend))
-        print("\n" + description + "\n")
+        subtract(args.minuend_subtrahends, constant=args.constant,
+                 store=True, output_h5_fn=args.output)
 
     def multiply(self):
         parser = argparse.ArgumentParser(
-            description='Multiplication of many images')
+            description='Multiplication of images'
+                        'Multiplication by a constant factor',
+            formatter_class=RawTextHelpFormatter)
         parser.add_argument('factors',
-                            metavar='factors_hdf5_files_list',
+                            metavar='factors_hdf5_filenames',
                             type=str,
                             nargs='+', default=None,
                             help='input the factors single image '
                                  'hdf5 files')
-        parser.add_argument('-s', '--scalar',
+        parser.add_argument('-c', '--constant',
                             type=float,
                             default=1,
-                            help='scalar for multiplication operation')
+                            help='constant multiplying the resulting image')
         parser.add_argument('-o', '--output',
                             default='default',
                             metavar='output',
                             type=str, help='output hdf5 filename')
         args = parser.parse_args(sys.argv[2:])
 
-        multiply(args.factors, scalar=args.scalar,
+        multiply(args.factors, constant=args.constant,
                  store=True, output_h5_fn=args.output)
 
     def divide(self):
         """Divide two images element-wise"""
         parser = argparse.ArgumentParser(description='Divide element-wise '
                                                      'a numerator image by '
-                                                     'a denominator image ')
+                                                     'a denominator image ',
+                                         formatter_class=RawTextHelpFormatter)
         parser.add_argument('numerator', metavar='image1', type=str,
                             help='numerator single image hdf5 file')
         parser.add_argument('denominator', metavar='image2', type=str,
                             help='denominator single image hdf5 file')
+        parser.add_argument('-c', '--constant',
+                            type=float,
+                            default=1,
+                            help='constant dividing the resulting image')
         parser.add_argument('-o', '--output',
                     default='default',
                     metavar='output',

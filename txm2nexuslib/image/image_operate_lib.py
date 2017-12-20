@@ -44,10 +44,7 @@ class Image(object):
     def extract_single_image_from_h5(self, data_set="data"):
         image = self.f_h5_handler[data_set].value
         data_type = type(image[0][0])
-        if data_type == np.int16:
-            self.data_type = np.int32
-        else:
-            self.data_type = data_type
+        self.data_type = data_type
         self.image = np.array(image, dtype=self.data_type)
         try:
             self.image_dataset = self.f_h5_handler[data_set].attrs["dataset"]
@@ -71,23 +68,23 @@ class Image(object):
             del self.f_h5_handler["data"]
             self.f_h5_handler["data"] = h5py.SoftLink(dataset)
 
-    def normalize_by_scalar(self, scalar=None,
-                            store_normalized_by_scalar=False,
-                            description="Image normalized by a scalar"):
-        """By default, the scalar will be equal to the exposure time
-        multiplied by the machine current; otherwise, if the scalar is
+    def normalize_by_constant(self, constant=None,
+                            store_normalized_by_constant=False,
+                            description="Image normalized by a constant"):
+        """By default, the constant will be equal to the exposure time
+        multiplied by the machine current; otherwise, if the constant is
         indicated, the image is normalized by the indicated value"""
-        if not scalar:
+        if not constant:
             exp_time = self.f_h5_handler["metadata"]["exposure_time"].value
             machine_current = self.f_h5_handler["metadata"][
                 "machine_current"].value
-            scalar = exp_time * machine_current
-        # If the scalar is indicated, the image is divided by it
-        img_norm_by_scalar = self.image / scalar
-        if store_normalized_by_scalar:
-            self.store_image_in_h5(img_norm_by_scalar,
+            constant = exp_time * machine_current
+        # If the constant is indicated, the image is divided by it
+        img_norm_by_constant = self.image / constant
+        if store_normalized_by_constant:
+            self.store_image_in_h5(img_norm_by_constant,
                                    description=description)
-        return img_norm_by_scalar
+        return img_norm_by_constant
 
     def close_h5(self):
         self.f_h5_handler.flush()
@@ -98,10 +95,10 @@ def copy_h5(input, output):
     shutil.copy(input, output)
 
 
-def add(image_filenames, scalar=0, store=False, output_h5_fn="default"):
-    description = "Add images and/or add a scalar element-wise: \n"
+def add(image_filenames, constant=0, store=False, output_h5_fn="default"):
+    description = "Add images and/or add a constant element-wise: \n"
     image_obj = Image(h5_image_filename=image_filenames[0])
-    result_image = image_obj.image
+    result_image = np.array(image_obj.image, dtype=np.int32)
     dataset = image_obj.image_dataset_name
     description += dataset + "@" + str(image_obj.h5_image_filename)
     image_obj.close_h5()
@@ -114,12 +111,12 @@ def add(image_filenames, scalar=0, store=False, output_h5_fn="default"):
         result_image += image_obj.image
         image_obj.close_h5()
 
-    if scalar != 0:
-        if (scalar % 1 == 0 and
+    if constant != 0:
+        if (constant % 1 == 0 and
                 np.issubdtype(result_image[0][0], int)):
-            scalar = int(scalar)
-        result_image = result_image + scalar
-        description += " + " + str(scalar)
+            constant = int(constant)
+        result_image = result_image + constant
+        description += " + " + str(constant)
 
     if store:
         if output_h5_fn == "default":
@@ -134,12 +131,53 @@ def add(image_filenames, scalar=0, store=False, output_h5_fn="default"):
                 data_set=dataset)
     return result_image
 
-
-def multiply(image_filenames, scalar=1, store=False, output_h5_fn="default"):
-    description = ("Multiply images and/or multiply "
-                   "element-wise by a scalar: \n")
+def subtract(image_filenames, constant=0, store=False,
+             output_h5_fn="default"):
+    """
+    From a reference image (minuend),
+    subtract one or more images (subtrahends)
+    A constant can also be subtracted to the minuend
+    """
+    description = "Subtract images and/or subtract a constant " \
+                  "to the minuend image (element-wise): \n"
     image_obj = Image(h5_image_filename=image_filenames[0])
-    result_image = image_obj.image
+    result_image = np.array(image_obj.image, dtype=np.int32)
+    dataset = image_obj.image_dataset_name
+    description += dataset + "@" + str(image_obj.h5_image_filename)
+    image_obj.close_h5()
+
+    for image_fn in image_filenames[1:]:
+        image_obj = Image(h5_image_filename=image_fn)
+        dataset = image_obj.image_dataset_name
+        description += (" - \n" + dataset + "@" +
+                        str(image_obj.h5_image_filename))
+        result_image -= image_obj.image
+        image_obj.close_h5()
+
+    if constant != 0:
+        if (constant % 1 == 0 and
+                np.issubdtype(result_image[0][0], int)):
+            constant = int(constant)
+        result_image = result_image - constant
+        description += " - " + str(constant)
+
+    if store:
+        if output_h5_fn == "default":
+            image_obj = Image(h5_image_filename=image_filenames[0])
+            image_obj.store_image_in_h5(result_image,
+                                        description=description)
+            image_obj.close_h5()
+        else:
+            store_single_image_in_new_h5_function(
+                output_h5_fn, result_image, description=description,
+                data_set=dataset)
+    return result_image
+
+def multiply(image_filenames, constant=1, store=False, output_h5_fn="default"):
+    description = ("Multiply images and/or multiply "
+                   "element-wise by a constant: \n")
+    image_obj = Image(h5_image_filename=image_filenames[0])
+    result_image = np.array(image_obj.image, dtype=np.int32)
     dataset = image_obj.image_dataset_name
     description += dataset + "@" + str(image_obj.h5_image_filename)
     image_obj.close_h5()
@@ -152,12 +190,12 @@ def multiply(image_filenames, scalar=1, store=False, output_h5_fn="default"):
         result_image = np.multiply(result_image, image_obj.image, casting='same_kind')
         image_obj.close_h5()
 
-    if scalar != 1:
-        if (scalar % 1 == 0 and
+    if constant != 1:
+        if (constant % 1 == 0 and
                 np.issubdtype(result_image[0][0], int)):
-            scalar = int(scalar)
-        result_image = result_image * scalar
-        description += " * " + str(scalar)
+            constant = int(constant)
+        result_image = result_image * constant
+        description += " * " + str(constant)
 
     if store:
         if output_h5_fn == "default":
@@ -184,34 +222,34 @@ def store_single_image_in_new_h5_function(
     f.close()
 
 
-def average_h5_images(image_filenames, scalar=None,
-                      store_normalized_by_scalar=False,
+def average_h5_images(image_filenames, constant=None,
+                      store_normalized_by_constant=False,
                       store_average=False):
-    """Normalize each of the image in the list by a scalar and average all
+    """Normalize each of the image in the list by a constant and average all
     the normalized images.
-    If the scalar is not indicated, as default, the scalar is
+    If the constant is not indicated, as default, the constant is
     the exposure time multiplied by the machine current. If the images shall
-    not be normalized, set the scalar to 1."""
+    not be normalized, set the constant to 1."""
     image_obj = Image(h5_image_filename=image_filenames[0])
-    image_norm_by_scalar = image_obj.normalize_by_scalar(scalar)
+    image_norm_by_constant = image_obj.normalize_by_constant(constant)
     average_image = np.zeros(np.shape(image_obj.image),
-                             dtype=type(image_norm_by_scalar[0][0]))
+                             dtype=type(image_norm_by_constant[0][0]))
     image_obj.close_h5()
     num_imgs = len(image_filenames)
     for image_fn in image_filenames:
         image_obj = Image(h5_image_filename=image_fn)
-        image_norm_by_scalar = image_obj.normalize_by_scalar(
-            scalar, store_normalized_by_scalar)
-        average_image += image_norm_by_scalar
+        image_norm_by_constant = image_obj.normalize_by_constant(
+            constant, store_normalized_by_constant)
+        average_image += image_norm_by_constant
         image_obj.close_h5()
-    # Average of images that have been beforehand normalized by a scalar
+    # Average of images that have been beforehand normalized by a constant
     average_image /= num_imgs
     # Store the average image in the first of the input h5 image file
     if store_average:
         image_obj = Image(h5_image_filename=image_filenames[0])
         description = ("Average image calculated after normalizing each "
-                       "of the input images by a scalar. If the scalar is "
-                       "not indicated, its default value is the "
+                       "of the input images by a constant. If the constant "
+                       "is not indicated, its default value is the "
                        "multiplication of the exposure time by the "
                        "machine current")
         image_obj.store_image_in_h5(average_image,
@@ -245,22 +283,22 @@ def normalize_image(image_filename, ff_img_filenames, store_normalized=True,
         raise "Image dimensions does not correspond which ff image dimensions"
 
     # Normalize main image by exposure_time and machine_current
-    img_norm_by_scalar = image_obj.normalize_by_scalar()
+    img_norm_by_constant = image_obj.normalize_by_constant()
 
     if isinstance(ff_img_filenames, list) and len(ff_img_filenames) > 1:
         ff_img_obj.close_h5()
         # Average of FF images that are beforehand normalized by its
         # corresponding exposure times and machine currents
         ff_norm_image = average_h5_images(ff_img_filenames,
-                                          store_normalized_by_scalar=True,
+                                          store_normalized_by_constant=True,
                                           store_average=True)
     else:
         # Normalize FF image by exposure_time and machine_current
-        ff_norm_image = ff_img_obj.normalize_by_scalar()
+        ff_norm_image = ff_img_obj.normalize_by_constant()
 
     # Normalized image by average FF, taking into account exposure times and
     # machine currents
-    normalized_image = img_norm_by_scalar / ff_norm_image
+    normalized_image = img_norm_by_constant / ff_norm_image
 
     # Store the resulting normalized image in the main image h5 file
     if store_normalized:
