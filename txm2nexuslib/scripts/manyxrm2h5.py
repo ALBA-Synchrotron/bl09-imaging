@@ -29,7 +29,7 @@ import argparse
 from argparse import RawTextHelpFormatter
 from txm2nexuslib.image.xrm2hdf5 import Xrm2H5Converter
 
-from tinydb import Query
+from tinydb import TinyDB, Query
 from operator import itemgetter
 from txm2nexuslib.parser import get_db, get_file_paths
 
@@ -56,7 +56,7 @@ def main():
                         type=str, help='TXM txt script used to create the '
                                        'xrm files')
 
-    parser.add_argument('-s', '--subfolders', type=bool,
+    parser.add_argument('-s', '--subfolders', type='bool',
                         default='False',
                         help='- If True: Use subfolders for indexing\n'
                              '- If False: Use general folder for indexing\n'
@@ -67,27 +67,38 @@ def main():
                         help='Number of cores used for the format conversion\n'
                              '(default: 2)')
 
+    parser.add_argument('-u', '--update_db', type='bool',
+                       default='True',
+                       help='Update DB with hdf5 records')
+
     args = parser.parse_args()
 
     prettyprinter = pprint.PrettyPrinter(indent=4)
 
     db = get_db(args.txm_txt_script)
-    root_path = os.path.dirname(os.path.abspath(args.txm_txt_script))
     all_file_records = db.all()
 
     #prettyprinter.pprint(all_file_records[3])
-
+    root_path = os.path.dirname(os.path.abspath(args.txm_txt_script))
     files = get_file_paths(all_file_records, root_path,
                            use_subfolders=args.subfolders)
 
     #prettyprinter.pprint(files)
 
-    # The backend parameter can be either "threading" or "multiprocessing".
-
     start_time = time.time()
+    # The backend parameter can be either "threading" or "multiprocessing".
     Parallel(n_jobs=args.cores, backend="multiprocessing")(
         delayed(convert_xrm2h5)(xrm_file) for xrm_file in files)
     print("--- %s seconds ---" % (time.time() - start_time))
+
+    if args.update_db:
+        for record in all_file_records:
+            rec_h5 = dict(record)
+            filename_hdf5 = os.path.splitext(rec_h5['filename'])[0] + ".hdf5"
+            rec_h5.update({'filename': filename_hdf5})
+            rec_h5.update({'extension': '.hdf5'})
+            db.insert(rec_h5)
+
 
 if __name__ == "__main__":
     main()
