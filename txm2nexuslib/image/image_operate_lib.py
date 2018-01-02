@@ -69,8 +69,8 @@ class Image(object):
             self.f_h5_handler["data"] = h5py.SoftLink(dataset)
 
     def normalize_by_constant(self, constant=None,
-                            store_normalized_by_constant=False,
-                            description="Image normalized by a constant"):
+                              store_normalized_by_constant=False,
+                              description="Image normalized by a constant"):
         """By default, the constant will be equal to the exposure time
         multiplied by the machine current; otherwise, if the constant is
         indicated, the image is normalized by the indicated value"""
@@ -92,10 +92,26 @@ class Image(object):
 
 
 def copy_h5(input, output):
+    """Copy file to a new file"""
     shutil.copy(input, output)
 
 
+def store_single_image_in_new_h5(
+        h5_filename, image, description="default", data_set="data"):
+    """Store a single image in a new hdf5 file"""
+    f = h5py.File(h5_filename, "w")
+    f.create_dataset(data_set, data=image)
+    f[data_set].attrs["dataset"] = data_set
+    f[data_set].attrs["description"] = description
+    f.flush()
+    f.close()
+
+
 def add(image_filenames, constant=0, store=False, output_h5_fn="default"):
+    """
+    Add images (addends),
+    A constant can also be added to an image
+    """
     description = "Add images and/or add a constant element-wise: \n"
     image_obj = Image(h5_image_filename=image_filenames[0])
     result_image = np.array(image_obj.image, dtype=np.int32)
@@ -125,7 +141,7 @@ def add(image_filenames, constant=0, store=False, output_h5_fn="default"):
                                             description=description)
                 image_obj.close_h5()
         else:
-            store_single_image_in_new_h5_function(
+            store_single_image_in_new_h5(
                 output_h5_fn, result_image, description=description,
                 data_set=dataset)
     return result_image
@@ -167,13 +183,17 @@ def subtract(image_filenames, constant=0, store=False,
                                         description=description)
             image_obj.close_h5()
         else:
-            store_single_image_in_new_h5_function(
+            store_single_image_in_new_h5(
                 output_h5_fn, result_image, description=description,
                 data_set=dataset)
     return result_image
 
 
 def multiply(image_filenames, constant=1, store=False, output_h5_fn="default"):
+    """
+    Multiply images stored in hdf5 files (factors) between them.
+    Multiply the resulting image by a constant.
+    """
     description = ("Multiply images and/or multiply "
                    "element-wise by a constant: \n")
     image_obj = Image(h5_image_filename=image_filenames[0])
@@ -187,7 +207,8 @@ def multiply(image_filenames, constant=1, store=False, output_h5_fn="default"):
         dataset = image_obj.image_dataset_name
         description += (" * \n" + dataset + "@" +
                             str(image_obj.h5_image_filename))
-        result_image = np.multiply(result_image, image_obj.image, casting='same_kind')
+        result_image = np.multiply(result_image, image_obj.image,
+                                   casting='same_kind')
         image_obj.close_h5()
 
     if constant != 1:
@@ -204,7 +225,7 @@ def multiply(image_filenames, constant=1, store=False, output_h5_fn="default"):
                                             description=description)
                 image_obj.close_h5()
         else:
-            store_single_image_in_new_h5_function(
+            store_single_image_in_new_h5(
                 output_h5_fn, result_image, description=description,
                 data_set=dataset)
     return result_image
@@ -215,7 +236,7 @@ def divide(numerator, denominators, store=False, output_h5_fn="default"):
     Divide a reference image (numerator) stored in a hdf5 file, by one or
     more denominators, which can be images stored in hdf5 files or constants.
     """
-    description = "Divide a numerator image by other images " \
+    description = "Divide a numerator (image or constant) by other images " \
                   "and/or constants: \n"
     store_filename = "none"
     try:
@@ -257,21 +278,10 @@ def divide(numerator, denominators, store=False, output_h5_fn="default"):
                                         description=description)
             image_obj.close_h5()
         else:
-            store_single_image_in_new_h5_function(
+            store_single_image_in_new_h5(
                 output_h5_fn, result_image, description=description,
                 data_set=dataset)
     return result_image
-
-
-def store_single_image_in_new_h5_function(
-        h5_filename, image, description="default", data_set="data"):
-    """Store a single image in an hdf5 file"""
-    f = h5py.File(h5_filename, "w")
-    f.create_dataset(data_set, data=image)
-    f[data_set].attrs["dataset"] = data_set
-    f[data_set].attrs["description"] = description
-    f.flush()
-    f.close()
 
 
 def average_h5_images(image_filenames, constant=None,
@@ -371,7 +381,7 @@ def normalize_image(image_filename, ff_img_filenames, store_normalized=True,
             image_obj.store_image_in_h5(normalized_image,
                                         description=description)
         else:
-            store_single_image_in_new_h5_function(
+            store_single_image_in_new_h5(
                 output_h5_fn, normalized_image, description=description,
                 data_set=dataset)
 
