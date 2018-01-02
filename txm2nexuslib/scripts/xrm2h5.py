@@ -33,9 +33,9 @@ def main():
     parser = argparse.ArgumentParser(description=description,
                                      formatter_class=RawTextHelpFormatter)
 
-    parser.add_argument('input_xrm', metavar='input TXM txt file',
-                        type=str, help='TXM txt script used as index for the '
-                                       'xrm image files')
+    parser.add_argument('xrm_filename', metavar='xrm_filename',
+                        type=str, help='xrm filename to be converted '
+                                       'to hdf5 format')
 
     parser.add_argument('-o', '--output-hdf5', type=str, default=None,
                         help='Filename of the output hdf5 file. If not '
@@ -44,7 +44,7 @@ def main():
 
     args = parser.parse_args()
 
-    xrm2h5_converter = Xrm2H5Converter(args.input_xrm)
+    xrm2h5_converter = Xrm2H5Converter(args.xrm_filename)
     xrm2h5_converter.convert_xrm_to_h5_file()
 
 
