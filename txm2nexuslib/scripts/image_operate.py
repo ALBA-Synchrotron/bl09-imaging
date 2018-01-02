@@ -187,8 +187,8 @@ img commands are:
     def normalize(self):
         """
         Normalize BL09 hdf5 image: Normalize image by current, exposure time,
-        and FF average image, which at its turn have been normalized also by
-        current and exposure time.
+        and FF image (or FF average image), which at its turn have been
+        normalized also by current and exposure time.
         """
         parser = argparse.ArgumentParser(
             description='normalize BL09 image. Use '
