@@ -86,8 +86,6 @@ img commands are:
         if args.output == "default":
             base_fn = os.path.splitext(args.input)[0]
             output_fn = base_fn + args.suffix + ".hdf5"
-        print ('\nimage_operate copy: from %s to %s\n' % (args.input,
-                                                          output_fn))
         copy_h5(args.input, output_fn)
 
     def add(self):
