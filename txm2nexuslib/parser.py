@@ -127,6 +127,7 @@ class ParserTXMScript(object):
         self.previous_angle = self.angle
         self.previous_zpz = self.zpz
         self.previous_FF = self.FF
+        self.parameters['processed'] = False
 
         store_parameters = copy.deepcopy(self.parameters)
         self.collected_files.append(store_parameters)
