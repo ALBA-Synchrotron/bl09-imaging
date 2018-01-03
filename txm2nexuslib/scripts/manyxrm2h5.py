@@ -69,7 +69,8 @@ def main():
 
     parser.add_argument('-u', '--update_db', type='bool',
                        default='True',
-                       help='Update DB with hdf5 records')
+                       help='Update DB with hdf5 records\n'
+                            '(default: True)')
 
     args = parser.parse_args()
 
