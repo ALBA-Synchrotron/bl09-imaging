@@ -23,9 +23,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
 import time
-import subprocess
-#import multiprocessing
-#from joblib import Parallel, delayed
+import multiprocessing
+from shutil import copy
+from joblib import Parallel, delayed
 
 import argparse
 from argparse import RawTextHelpFormatter
@@ -34,6 +34,12 @@ from tinydb import TinyDB, Query
 from txm2nexuslib.parser import get_file_paths
 
 import pprint
+
+
+def copy_2_proc(filename, suffix, extension):
+    base = os.path.splitext(filename)[0]
+    filename_processed = base + suffix + extension
+    copy(filename, filename_processed)
 
 
 def main():
@@ -58,7 +64,7 @@ def main():
     parser.add_argument('-c', '--cores', type=int,
                         default=-1,
                         help='Number of cores used for the format conversion\n'
-                             '(default: 2)')
+                             '(default is max of available CPUs: -1)')
 
     parser.add_argument('-u', '--update_db', type='bool',
                        default='True',
@@ -67,30 +73,38 @@ def main():
 
     args = parser.parse_args()
 
-    prettyprinter = pprint.PrettyPrinter(indent=4)
+    # printer = pprint.PrettyPrinter(indent=4)
 
     db = TinyDB(args.file_index_db)
     files_query = Query()
     hdf5_records = db.search(files_query.extension == ".hdf5")
 
-    #prettyprinter.pprint(all_file_records[3])
+    # printer.pprint(all_file_records[3])
 
     root_path = os.path.dirname(os.path.abspath(args.file_index_db))
     files = get_file_paths(hdf5_records, root_path,
                            use_subfolders=args.subfolders)
 
     start_time = time.time()
-    for file in files:
-        print file
-        subprocess.Popen(['img', 'copy', file])
-        if args.update_db:
-            hdf5_file_record = db.search(files_query.filename == file)
-            rec_h5_proc = dict(hdf5_file_record)
-            rec_h5_proc.update({'filename': file})
-            db.insert(rec_h5_proc)
-    print("--- %s seconds ---" % (time.time() - start_time))
+    # The backend parameter can be either "threading" or "multiprocessing".
+    suffix = "_proc"
+    ext = ".hdf5"
+    Parallel(n_jobs=args.cores, backend="multiprocessing")(
+        delayed(copy_2_proc)(h5_file, suffix, ext) for h5_file in files)
 
-    #prettyprinter.pprint(files)
+    if args.update_db:
+        for hdf5_record in hdf5_records:
+            rec_h5_processed = dict(hdf5_record)
+            base = os.path.splitext(rec_h5_processed['filename'])[0]
+            fn_h5_processed = base + suffix + ext
+            rec_h5_processed.update({'filename': fn_h5_processed})
+            rec_h5_processed.update({'processed': True})
+            db.insert(rec_h5_processed)
+
+    print("--- Copy to processed files took %s seconds ---" %
+          (time.time() - start_time))
+
+    # printer.pprint(files)
 
 
 if __name__ == "__main__":
