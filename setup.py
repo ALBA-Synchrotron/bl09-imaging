@@ -73,7 +73,8 @@ setup(
             'automosaic2nexus = txm2nexuslib.scripts.automosaic2nexus:main',
             'autonormalize = txm2nexuslib.scripts.autonormalize:main',
             'manyxrm2h5 = txm2nexuslib.scripts.manyxrm2h5:main',
-            'img = txm2nexuslib.scripts.image_operate:main']
+            'img = txm2nexuslib.scripts.image_operate:main',
+            'copy2proc = txm2nexuslib.scripts.copy2proc:main']
     },
     author='Marc Rosanes, Carlos Falcon, Zbigniew Reszela, Carlos Pascual',
     author_email='mrosanes@cells.es, cfalcon@cells.es, zreszela@cells.es, '

@@ -20,25 +20,20 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+
 import os
 import time
-import multiprocessing
-from joblib import Parallel, delayed
+import subprocess
+#import multiprocessing
+#from joblib import Parallel, delayed
 
 import argparse
 from argparse import RawTextHelpFormatter
-from txm2nexuslib.image.xrm2hdf5 import Xrm2H5Converter
 
 from tinydb import TinyDB, Query
-from operator import itemgetter
-from txm2nexuslib.parser import get_db, get_file_paths
+from txm2nexuslib.parser import get_file_paths
 
 import pprint
-
-
-def convert_xrm2h5(xrm_file):
-    xrm2h5_converter = Xrm2H5Converter(xrm_file)
-    xrm2h5_converter.convert_xrm_to_h5_file()
 
 
 def main():
@@ -46,15 +41,13 @@ def main():
     def str2bool(v):
         return v.lower() in ("yes", "true", "t", "1")
 
-    description = 'Convert single image xrm files into single image hdf5 ' \
-                  'files'
+    description = 'Copy raw data files into files for processing'
     parser = argparse.ArgumentParser(description=description,
                                      formatter_class=RawTextHelpFormatter)
     parser.register('type', 'bool', str2bool)
 
-    parser.add_argument('txm_txt_script', metavar='txm_txt_script',
-                        type=str, help='TXM txt script used to create the '
-                                       'xrm files')
+    parser.add_argument('file_index_db', metavar='file_index_db',
+                        type=str, help='index of xrm and hdf5 data files')
 
     parser.add_argument('-s', '--subfolders', type='bool',
                         default='False',
@@ -65,7 +58,7 @@ def main():
     parser.add_argument('-c', '--cores', type=int,
                         default=-1,
                         help='Number of cores used for the format conversion\n'
-                             '(default is max of available CPUs: -1)')
+                             '(default: 2)')
 
     parser.add_argument('-u', '--update_db', type='bool',
                        default='True',
@@ -76,29 +69,28 @@ def main():
 
     prettyprinter = pprint.PrettyPrinter(indent=4)
 
-    db = get_db(args.txm_txt_script)
-    all_file_records = db.all()
+    db = TinyDB(args.file_index_db)
+    files_query = Query()
+    hdf5_records = db.search(files_query.extension == ".hdf5")
 
     #prettyprinter.pprint(all_file_records[3])
-    root_path = os.path.dirname(os.path.abspath(args.txm_txt_script))
-    files = get_file_paths(all_file_records, root_path,
+
+    root_path = os.path.dirname(os.path.abspath(args.file_index_db))
+    files = get_file_paths(hdf5_records, root_path,
                            use_subfolders=args.subfolders)
 
-    #prettyprinter.pprint(files)
-
     start_time = time.time()
-    # The backend parameter can be either "threading" or "multiprocessing".
-    Parallel(n_jobs=args.cores, backend="multiprocessing")(
-        delayed(convert_xrm2h5)(xrm_file) for xrm_file in files)
+    for file in files:
+        print file
+        subprocess.Popen(['img', 'copy', file])
+        if args.update_db:
+            hdf5_file_record = db.search(files_query.filename == file)
+            rec_h5_proc = dict(hdf5_file_record)
+            rec_h5_proc.update({'filename': file})
+            db.insert(rec_h5_proc)
     print("--- %s seconds ---" % (time.time() - start_time))
 
-    if args.update_db:
-        for record in all_file_records:
-            rec_h5 = dict(record)
-            filename_hdf5 = os.path.splitext(rec_h5['filename'])[0] + ".hdf5"
-            rec_h5.update({'filename': filename_hdf5})
-            rec_h5.update({'extension': '.hdf5'})
-            db.insert(rec_h5)
+    #prettyprinter.pprint(files)
 
 
 if __name__ == "__main__":
