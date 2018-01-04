@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 """
-(C) Copyright 2014-2017 ALBA-CELLS
+(C) Copyright 2017-2018 ALBA-CELLS
 Author: Marc Rosanes Siscart
 The program is distributed under the terms of the
 GNU General Public License (or the Lesser GPL).
