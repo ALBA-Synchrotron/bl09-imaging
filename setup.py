@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 
 # The version is updated automatically with bumpversion
 # Do not update manually
-__version = '10.8.0-alpha'
+__version = '10.8.0'
 
 long_description = """ xrm2h5 is a file format converter application which
 allows to convert single image xrm files into its corresponding single image
