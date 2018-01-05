@@ -320,7 +320,9 @@ def average_h5_images(image_filenames, constant=None,
     return average_image
 
 
-def normalize_image(image_filename, ff_img_filenames, store_normalized=True,
+def normalize_image(image_filename, ff_img_filenames=[],
+                    average_normalized_ff_img=None,
+                    store_normalized=True,
                     output_h5_fn="default"):
     """
     Normalize BL09 hdf5 image: Normalize image by current, exposure time,
@@ -330,33 +332,39 @@ def normalize_image(image_filename, ff_img_filenames, store_normalized=True,
      current and exposure time.
     :param image_filename: the hdf5 image filename to be normalized
     :param ff_img_filenames: hdf5 FF image filename(s)
+    :param average_normalized_ff_img: average normalized FF image. If defined,
+    the FF filenames are not used.
     :param store_normalized: (Bool) True if normalized image has to be stored
     :return: normalized image
     """
 
     image_obj = Image(h5_image_filename=image_filename)
 
-    if isinstance(ff_img_filenames, list):
-        ff_img_obj = Image(h5_image_filename=ff_img_filenames[0])
+    if average_normalized_ff_img is not None:
+        ff_norm_image = average_normalized_ff_img
     else:
-        ff_img_obj = Image(h5_image_filename=ff_img_filenames)
+        if isinstance(ff_img_filenames, list):
+            ff_img_obj = Image(h5_image_filename=ff_img_filenames[0])
+        else:
+            ff_img_obj = Image(h5_image_filename=ff_img_filenames)
 
-    if np.shape(image_obj.image) != np.shape(ff_img_obj.image):
-        raise "Image dimensions does not correspond which ff image dimensions"
+        if np.shape(image_obj.image) != np.shape(ff_img_obj.image):
+            raise ("Image dimensions does not correspond which "
+                   "ff image dimensions")
+
+        if isinstance(ff_img_filenames, list) and len(ff_img_filenames) > 1:
+            ff_img_obj.close_h5()
+            # Average of FF images that are beforehand normalized by its
+            # corresponding exposure times and machine currents
+            ff_norm_image = average_h5_images(
+                ff_img_filenames, store_normalized_by_constant=True,
+                store_average=True)
+        else:
+            # Normalize FF image by exposure_time and machine_current
+            ff_norm_image = ff_img_obj.normalize_by_constant()
 
     # Normalize main image by exposure_time and machine_current
     img_norm_by_constant = image_obj.normalize_by_constant()
-
-    if isinstance(ff_img_filenames, list) and len(ff_img_filenames) > 1:
-        ff_img_obj.close_h5()
-        # Average of FF images that are beforehand normalized by its
-        # corresponding exposure times and machine currents
-        ff_norm_image = average_h5_images(ff_img_filenames,
-                                          store_normalized_by_constant=True,
-                                          store_average=True)
-    else:
-        # Normalize FF image by exposure_time and machine_current
-        ff_norm_image = ff_img_obj.normalize_by_constant()
 
     # Normalized image by average FF, taking into account exposure times and
     # machine currents
@@ -386,7 +394,13 @@ def normalize_image(image_filename, ff_img_filenames, store_normalized=True,
                 data_set=dataset)
 
     image_obj.close_h5()
-    return normalized_image
+
+    if isinstance(ff_img_filenames, list) and len(ff_img_filenames) > 1:
+        # The FF returned is the FF average of the FF list of images
+        # (each one normalized by a scalar)
+        return normalized_image, ff_norm_image
+    else:
+        return normalized_image
 
 
 def main():
