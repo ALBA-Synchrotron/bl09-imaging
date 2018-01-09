@@ -99,6 +99,7 @@ def main():
             rec_h5.update({'extension': '.hdf5'})
             db.insert(rec_h5)
 
+    db.close()
 
 if __name__ == "__main__":
     main()

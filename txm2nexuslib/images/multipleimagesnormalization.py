@@ -101,6 +101,7 @@ def normalize_images(file_index_fn, date=None, sample=None, energy=None,
         h5_ff_records = file_index_db.search(query_cmd_ff)
         files = get_file_paths(h5_records, root_path)
         files_ff = get_file_paths(h5_ff_records, root_path)
+        file_index_db.close()
 
         if not files_ff:
             msg = "FlatFields are not present, images cannot be normalized"
@@ -128,13 +129,18 @@ def normalize_images(file_index_fn, date=None, sample=None, energy=None,
             # TODO
             pass
 
+
 def main():
-    # file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
-    #              "PARALLEL_IMAGING/image_operate_xrm_test_add/" \
-    #              "tests4/xrm/index.json"
 
     file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
-                 "PARALLEL_IMAGING/PARALLEL_XRM2H5/tomo05/index.json"
+                 "PARALLEL_IMAGING/image_operate_xrm_test_add/" \
+                 "tests5/xrm/index.json"
+
+    print(file_index)
+
+    #file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
+    #             "PARALLEL_IMAGING/PARALLEL_XRM2H5/tomo05/index.json"
+
     normalize_images(file_index, create_subindex=True, cores=-1)
     # sample="ols", energy=640, date=20161203)
 
