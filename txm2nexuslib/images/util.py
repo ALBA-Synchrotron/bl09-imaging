@@ -20,8 +20,11 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+
 import os
 from tinydb import TinyDB, Query
+from tinydb.storages import JSONStorage
+from tinydb.middlewares import CachingMiddleware
 
 
 def create_subset_db(file_index_fn, subset_file_index_fn,
@@ -37,8 +40,10 @@ def create_subset_db(file_index_fn, subset_file_index_fn,
     directory = os.path.dirname(file_index_fn) + "/"
     subset_file_index_fn = directory + subset_file_index_fn
 
-    file_index_db = TinyDB(file_index_fn)
-    subset_file_index_db = TinyDB(subset_file_index_fn)
+    file_index_db = TinyDB(file_index_fn,
+                           storage=CachingMiddleware(JSONStorage))
+    subset_file_index_db = TinyDB(subset_file_index_fn,
+                                  storage=CachingMiddleware(JSONStorage))
     subset_file_index_db.purge()
     files = Query()
 
@@ -49,6 +54,7 @@ def create_subset_db(file_index_fn, subset_file_index_fn,
         query_cmd = (files.extension == extension)
     records = file_index_db.search(query_cmd)
     subset_file_index_db.insert_multiple(records)
+    file_index_db.close()
     return subset_file_index_db
 
 

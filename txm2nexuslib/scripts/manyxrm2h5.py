@@ -29,7 +29,6 @@ import argparse
 from argparse import RawTextHelpFormatter
 from txm2nexuslib.image.xrm2hdf5 import Xrm2H5Converter
 
-from tinydb import TinyDB, Query
 from operator import itemgetter
 from txm2nexuslib.parser import get_db, get_file_paths
 

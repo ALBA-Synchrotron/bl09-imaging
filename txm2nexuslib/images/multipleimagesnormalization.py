@@ -24,6 +24,8 @@ import os
 import time
 from joblib import Parallel, delayed
 from tinydb import TinyDB, Query
+from tinydb.storages import JSONStorage
+from tinydb.middlewares import CachingMiddleware
 from tinydb.storages import MemoryStorage
 
 from util import create_subset_db
@@ -44,7 +46,8 @@ def normalize_images(file_index_fn, date=None, sample=None, energy=None,
         file_index_db = create_subset_db(file_index_fn, subset_file_index_fn,
                                          processed=True)
     else:
-        file_index_db = TinyDB(file_index_fn)
+        file_index_db = TinyDB(file_index_fn,
+                               storage=CachingMiddleware(JSONStorage))
 
     files_query = Query()
     if date or sample or energy:
@@ -126,9 +129,9 @@ def normalize_images(file_index_fn, date=None, sample=None, energy=None,
             pass
 
 def main():
-    #file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
-    #             "PARALLEL_IMAGING/image_operate_xrm_test_add/" \
-    #             "tests4/xrm/index.json"
+    # file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
+    #              "PARALLEL_IMAGING/image_operate_xrm_test_add/" \
+    #              "tests4/xrm/index.json"
 
     file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
                  "PARALLEL_IMAGING/PARALLEL_XRM2H5/tomo05/index.json"

@@ -31,6 +31,8 @@ import argparse
 from argparse import RawTextHelpFormatter
 
 from tinydb import TinyDB, Query
+from tinydb.storages import JSONStorage
+from tinydb.middlewares import CachingMiddleware
 from txm2nexuslib.parser import get_file_paths
 
 import pprint
@@ -67,15 +69,14 @@ def main():
                              '(default is max of available CPUs: -1)')
 
     parser.add_argument('-u', '--update_db', type='bool',
-                       default='True',
-                       help='Update DB with hdf5 records\n'
-                            '(default: True)')
+                        default='True',
+                        help='Update DB with hdf5 records\n'
+                             '(default: True)')
 
     args = parser.parse_args()
 
     # printer = pprint.PrettyPrinter(indent=4)
-
-    db = TinyDB(args.file_index_db)
+    db = TinyDB(args.file_index_db, storage=CachingMiddleware(JSONStorage))
     files_query = Query()
     hdf5_records = db.search(files_query.extension == ".hdf5")
 
@@ -101,6 +102,7 @@ def main():
             rec_h5_processed.update({'processed': True})
             db.insert(rec_h5_processed)
 
+    db.close()
     print("--- Copy to processed files took %s seconds ---" %
           (time.time() - start_time))
 

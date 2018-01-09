@@ -27,6 +27,8 @@ import pprint
 from shutil import copy2
 from glob import glob
 from tinydb import TinyDB
+from tinydb.storages import JSONStorage
+from tinydb.middlewares import CachingMiddleware
 
 
 class ParserTXMScript(object):
@@ -163,10 +165,10 @@ def get_db(txm_txt_script, use_existing_db=False):
     db_full_path = os.path.join(root_path, db_name)
     if os.path.isfile(db_full_path) and use_existing_db:
         print("\nUsing existing files DataBase\n")
-        db = TinyDB(db_full_path)
+        db = TinyDB(db_full_path, storage=CachingMiddleware(JSONStorage))
     else:
         print("\nCreating files DataBase\n")
-        db = TinyDB(db_full_path)
+        db = TinyDB(db_full_path, storage=CachingMiddleware(JSONStorage))
         db.purge()
         parser = ParserTXMScript()
         collected_images = parser.parse_script(txm_txt_script)
@@ -228,6 +230,7 @@ def search_and_get_file_paths(txm_txt_script, query_impl,
     files = get_file_paths(query_output, root_path, 
                            use_subfolders=use_subfolders,
                            only_existing_files=only_existing_files)
+    db.close()
     return files
 
 
