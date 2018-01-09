@@ -22,15 +22,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
 import time
-import multiprocessing
 from joblib import Parallel, delayed
 
 import argparse
 from argparse import RawTextHelpFormatter
-from txm2nexuslib.image.xrm2hdf5 import Xrm2H5Converter
 
-from operator import itemgetter
 from txm2nexuslib.parser import get_db, get_file_paths
+from txm2nexuslib.image.xrm2hdf5 import Xrm2H5Converter
+from txm2nexuslib.images import util
 
 import pprint
 
@@ -92,12 +91,7 @@ def main():
     print("--- %s seconds ---" % (time.time() - start_time))
 
     if args.update_db:
-        for record in all_file_records:
-            rec_h5 = dict(record)
-            filename_hdf5 = os.path.splitext(rec_h5['filename'])[0] + ".hdf5"
-            rec_h5.update({'filename': filename_hdf5})
-            rec_h5.update({'extension': '.hdf5'})
-            db.insert(rec_h5)
+        util.update_db_func(db, "hdf5_raw", all_file_records)
 
     db.close()
 

@@ -33,7 +33,8 @@ from txm2nexuslib.parser import get_file_paths
 from txm2nexuslib.image.image_operate_lib import normalize_image
 
 
-def normalize_images(file_index_fn, date=None, sample=None, energy=None,
+def normalize_images(file_index_fn, table_name="default",
+                     date=None, sample=None, energy=None,
                      create_subindex=False, cores=-1, average_ff=True):
     """Normalize images of one experiment.
     If date, sample and/or energy are indicated, only the corresponding
@@ -48,6 +49,9 @@ def normalize_images(file_index_fn, date=None, sample=None, energy=None,
     else:
         file_index_db = TinyDB(file_index_fn,
                                storage=CachingMiddleware(JSONStorage))
+        if table_name != "default":
+            keep_db = file_index_db
+            file_index_db = file_index_db.table(table_name)
 
     files_query = Query()
     if date or sample or energy:
@@ -101,7 +105,6 @@ def normalize_images(file_index_fn, date=None, sample=None, energy=None,
         h5_ff_records = file_index_db.search(query_cmd_ff)
         files = get_file_paths(h5_records, root_path)
         files_ff = get_file_paths(h5_ff_records, root_path)
-        file_index_db.close()
 
         if not files_ff:
             msg = "FlatFields are not present, images cannot be normalized"
@@ -129,6 +132,11 @@ def normalize_images(file_index_fn, date=None, sample=None, energy=None,
             # TODO
             pass
 
+        if create_subindex:
+            file_index_db.close()
+        else:
+            keep_db.close()
+
 
 def main():
 
@@ -141,7 +149,7 @@ def main():
     #file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
     #             "PARALLEL_IMAGING/PARALLEL_XRM2H5/tomo05/index.json"
 
-    normalize_images(file_index, create_subindex=True, cores=-1)
+    normalize_images(file_index, table_name="hdf5_proc", cores=-1)
     # sample="ols", energy=640, date=20161203)
 
 
