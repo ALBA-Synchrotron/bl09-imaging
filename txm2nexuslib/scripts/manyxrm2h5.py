@@ -20,23 +20,12 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import os
-import time
-from joblib import Parallel, delayed
 
+import time
 import argparse
 from argparse import RawTextHelpFormatter
 
-from txm2nexuslib.parser import get_db, get_file_paths
-from txm2nexuslib.image.xrm2hdf5 import Xrm2H5Converter
-from txm2nexuslib.images import util
-
-import pprint
-
-
-def convert_xrm2h5(xrm_file):
-    xrm2h5_converter = Xrm2H5Converter(xrm_file)
-    xrm2h5_converter.convert_xrm_to_h5_file()
+from txm2nexuslib.images import multiplexrm2h5
 
 
 def main():
@@ -71,29 +60,13 @@ def main():
                             '(default: True)')
 
     args = parser.parse_args()
-
-    prettyprinter = pprint.PrettyPrinter(indent=4)
-
-    db = get_db(args.txm_txt_script)
-    all_file_records = db.all()
-
-    #prettyprinter.pprint(all_file_records[3])
-    root_path = os.path.dirname(os.path.abspath(args.txm_txt_script))
-    files = get_file_paths(all_file_records, root_path,
-                           use_subfolders=args.subfolders)
-
-    #prettyprinter.pprint(files)
-
     start_time = time.time()
-    # The backend parameter can be either "threading" or "multiprocessing".
-    Parallel(n_jobs=args.cores, backend="multiprocessing")(
-        delayed(convert_xrm2h5)(xrm_file) for xrm_file in files)
+    multiplexrm2h5.multiple_xrm_2_hdf5(args.txm_txt_script,
+                                       subfolders=args.subfolders,
+                                       cores=args.cores,
+                                       update_db=args.update_db)
     print("--- %s seconds ---" % (time.time() - start_time))
 
-    if args.update_db:
-        util.update_db_func(db, "hdf5_raw", all_file_records)
-
-    db.close()
 
 if __name__ == "__main__":
     main()
