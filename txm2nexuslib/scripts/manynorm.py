@@ -61,10 +61,10 @@ def main():
                              '(default: None)')
 
     parser.add_argument('-t', '--table_h5', type=str,
-                        default=None,
+                        default="hdf5_proc",
                         help='DB table of hdf5 to be normalized\n'
                              'If None, default tinyDB table is used\n'
-                             '(default: None)')
+                             '(default: hdf5_proc)')
 
     parser.add_argument('-a', '--average_ff', type='bool',
                         default=True,
