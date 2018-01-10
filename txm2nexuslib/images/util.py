@@ -22,6 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 import os
+import h5py
 from shutil import copy
 
 from tinydb import TinyDB, Query
@@ -121,3 +122,58 @@ def copy2proc_multiple(file_index_db, table_in_name="hdf5_raw",
     db.close()
 
 
+def dict2hdf5(indict, outfilename='default.hdf5'):
+    """
+    Create hdf5 file from a python dictionary. Convert a python dictionary
+    to a hdf5 organization. This method accepts four levels of dictionaries
+    inside the main dictionary.
+    outfilename: indicate the ouput hdf5 filename.
+    indict: input dictionary to be converted.
+    """
+
+    def create_dataset(group, key_name, value):
+        try:
+            group.create_dataset(key_name, data=value)
+        except Exception:
+            print("data in key '" + key_name + "' could not be extracted")
+
+    if len(indict) == 1:
+        key0 = indict.keys()[0]
+        val0 = indict[key0]
+        outfilename = key0 + ".hdf5"
+        f = h5py.File(outfilename, "w")
+        for k1, v1 in val0.items():
+            if type(v1) is not dict:
+                create_dataset(f, k1, v1)
+            else:
+                grp2 = f.create_group(k1)
+                for k2, v2 in v1.items():
+                    if type(v2) is not dict:
+                        create_dataset(grp2, k2, v2)
+                    else:
+                        grp3 = grp2.create_group(k2)
+                        for k3, v3 in v2.items():
+                            if type(v3) is not dict:
+                                create_dataset(grp3, k3, v3)
+
+    elif len(indict) > 1:
+        f = h5py.File(outfilename, "w")
+        for key0, val0 in indict.items():
+            if type(val0) is not dict:
+                create_dataset(f, key0, val0)
+            else:
+                grp1 = f.create_group(key0)
+                for k1, v1 in val0.items():
+                    if type(v1) is not dict:
+                        create_dataset(grp1, k1, v1)
+                    else:
+                        grp2 = grp1.create_group(k1)
+                        for k2, v2 in v1.items():
+                            if type(v2) is not dict:
+                                create_dataset(grp2, k2, v2)
+                            else:
+                                grp3 = grp2.create_group(k2)
+                                for k3, v3 in v2.items():
+                                    if type(v3) is not dict:
+                                        create_dataset(grp3, k3, v3)
+    f.close()
