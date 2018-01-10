@@ -33,25 +33,21 @@ from txm2nexuslib.parser import get_file_paths
 from txm2nexuslib.image.image_operate_lib import normalize_image
 
 
-def normalize_images(file_index_fn, table_name="default",
+def normalize_images(file_index_fn, table_name=None,
                      date=None, sample=None, energy=None,
-                     create_subindex=False, cores=-1, average_ff=True):
+                     average_ff=True, cores=-1):
     """Normalize images of one experiment.
     If date, sample and/or energy are indicated, only the corresponding
     images for the given date, sample and/or energy are normalized.
-    The normalization of single images will be done in parallel.
+    The normalization of different images will be done in parallel. Each
+    file, contains a single image to be normalized.
     """
-
-    if create_subindex:
-        subset_file_index_fn = "index_proc.json"
-        file_index_db = create_subset_db(file_index_fn, subset_file_index_fn,
-                                         processed=True)
-    else:
-        file_index_db = TinyDB(file_index_fn,
-                               storage=CachingMiddleware(JSONStorage))
-        if table_name != "default":
-            keep_db = file_index_db
-            file_index_db = file_index_db.table(table_name)
+    start_time = time.time()
+    file_index_db = TinyDB(file_index_fn,
+                           storage=CachingMiddleware(JSONStorage))
+    db = file_index_db
+    if table_name is not None:
+        file_index_db = file_index_db.table(table_name)
 
     files_query = Query()
     if date or sample or energy:
@@ -104,6 +100,7 @@ def normalize_images(file_index_fn, table_name="default",
                         (files_query.FF == True))
         h5_ff_records = file_index_db.search(query_cmd_ff)
         files = get_file_paths(h5_records, root_path)
+        n_files = len(files)
         files_ff = get_file_paths(h5_ff_records, root_path)
 
         if not files_ff:
@@ -117,14 +114,11 @@ def normalize_images(file_index_fn, table_name="default",
             _, ff_norm_image = normalize_image(files[0],
                                                ff_img_filenames=files_ff)
             files.pop(0)
-            start_time = time.time()
             if len(files):
                 Parallel(n_jobs=cores, backend="multiprocessing")(
                     delayed(normalize_image)(
                         h5_file, average_normalized_ff_img=ff_norm_image
                     ) for h5_file in files)
-            print("--- Normalize %d files took %s seconds ---" %
-                  (len(files)+1, (time.time() - start_time)))
         else:
             # Same number of FF as sample data files
             # Normalize each single sample data image for a single FF image
@@ -132,22 +126,20 @@ def normalize_images(file_index_fn, table_name="default",
             # TODO
             pass
 
-        if create_subindex:
-            file_index_db.close()
-        else:
-            keep_db.close()
+    print("--- Normalize %d files took %s seconds ---" %
+          (n_files, (time.time() - start_time)))
+
+    db.close()
 
 
 def main():
 
-    file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
-                 "PARALLEL_IMAGING/image_operate_xrm_test_add/" \
-                 "tests5/xrm/index.json"
-
-    print(file_index)
-
     #file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
-    #             "PARALLEL_IMAGING/PARALLEL_XRM2H5/tomo05/index.json"
+    #             "PARALLEL_IMAGING/image_operate_xrm_test_add/" \
+    #             "tests5/xrm/index.json"
+
+    file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
+                 "PARALLEL_IMAGING/PARALLEL_XRM2H5/tomo05/index.json"
 
     normalize_images(file_index, table_name="hdf5_proc", cores=-1)
     # sample="ols", energy=640, date=20161203)

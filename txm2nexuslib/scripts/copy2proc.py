@@ -65,12 +65,12 @@ def main():
     parser.add_argument('-ti', '--table_h5_in', type=str,
                         default='hdf5_raw',
                         help='DB input table of raw hdf5 file records\n'
-                             '(default: True)')
+                             '(default: hdf5_raw)')
 
     parser.add_argument('-to', '--table_h5_out', type=str,
                         default='hdf5_proc',
                         help='DB output table of raw hdf5 file records\n'
-                             '(default: True)')
+                             '(default: hdf5_proc)')
 
     args = parser.parse_args()
 

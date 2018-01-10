@@ -72,9 +72,10 @@ setup(
             'autotxrm2nexus = txm2nexuslib.scripts.autotxrm2nexus:main',
             'automosaic2nexus = txm2nexuslib.scripts.automosaic2nexus:main',
             'autonormalize = txm2nexuslib.scripts.autonormalize:main',
-            'manyxrm2h5 = txm2nexuslib.scripts.manyxrm2h5:main',
             'img = txm2nexuslib.scripts.image_operate:main',
-            'copy2proc = txm2nexuslib.scripts.copy2proc:main']
+            'copy2proc = txm2nexuslib.scripts.copy2proc:main',
+            'manyxrm2h5 = txm2nexuslib.scripts.manyxrm2h5:main',
+            'manynorm = txm2nexuslib.scripts.manynorm:main']
     },
     author='Marc Rosanes, Carlos Falcon, Zbigniew Reszela, Carlos Pascual',
     author_email='mrosanes@cells.es, cfalcon@cells.es, zreszela@cells.es, '
@@ -84,7 +85,7 @@ setup(
     url='https://git.cells.es/controls/txrm2nexus',
     keywords='APP',
     license='GPLv3',
-    description='Conversion from xrm and txrm to hdf5',
+    description='HDF5 images pre-processing (formats: hdf5, xrm, txrm)',
     long_description=long_description,
     requires=['setuptools (>=1.1)'],
     install_requires=['numpy', 'h5py', 'tinydb'],

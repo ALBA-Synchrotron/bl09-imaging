@@ -70,8 +70,11 @@ def copy_2_proc(filename, suffix):
 
 
 def update_db_func(files_db, table_name, files_records, suffix=None):
-    """Create new DB table with records of hdf5 raw data, or with
-    records of processed files"""
+    """Create new DB table with records of hdf5 raw data (changing the
+    extension to hdf5), or with records of processed files (adding a suffix).
+    If suffix is not given (suffix None), the new DB will contain the same
+    file names as the original DB but with .hdf5 extension; otherwise,
+    a suffix is added to the already hdf5 filenames."""
     table = files_db.table(table_name)
     table.purge()
     records = []
