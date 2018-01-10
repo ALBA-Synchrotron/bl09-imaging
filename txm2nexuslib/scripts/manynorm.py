@@ -57,7 +57,7 @@ def main():
     parser.add_argument('-e', '--energy', type=float,
                         default=None,
                         help='Energy of files to be normalized\n'
-                            'If None, no filter is applied\n'
+                             'If None, no filter is applied\n'
                              '(default: None)')
 
     parser.add_argument('-t', '--table_h5', type=str,
