@@ -138,14 +138,27 @@ def many_to_stack(file_index_fn, table_name="hdf5_proc", hdf5_structure=None,
             print(os.path.basename(file))
         print("---------end for loop------------")
 
-        indict = {"datasi": {"datano": None},
-                  "dataars": {"olisi": {"olinoano": None}, "oo": None}
+        # Construct the structure of each hdf5 file
+        indict = {"TomoNormalized": {
+                      "AverageFF": -1,
+                       "Avg_FF_ExtTime": -1,
+                       "CurrentsFF": -1,
+                       "CurrentsTomo": -1,
+                       "ExpTimesTomo": -1,
+                       "FFNormalizedWithCurrent": -1,
+                       "TomoNormalized": -1,
+                       "energy": -1,
+                       "rotation_angle": -1,
+                       "x_pixel_size": -1,
+                       "y_pixel_size": -1}
                   }
         h5_out_fn = (str(date) + "_" + str(sample) + "_" +
                      str(energy) + "_" + str(zpz) + "_stack.hdf5")
-        print(root_path)
         h5_out = root_path + "/" + h5_out_fn
+        print(h5_out)
         dict2hdf5(indict, h5_out)
+        ####
+
 
     # TODO: store stack records in a new table in the DB
 
