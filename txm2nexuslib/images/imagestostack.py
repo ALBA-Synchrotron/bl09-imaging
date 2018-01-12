@@ -54,13 +54,74 @@ def images_to_stack(h5_filenames, dataset="data"):
     pass
     """
 
-def create_h5_structure(hdf5_structure_dict=None):
-    pass
+
+def create_structure_dict(type_struct="normalized"):
+    # Construct the structure of each hdf5 file
+    if type_struct == "normalized":
+        hdf5_structure_dict = {"TomoNormalized": {
+            "AverageFF": [],
+            "Avg_FF_ExtTime": [],
+            "CurrentsFF": [],
+            "CurrentsTomo": [],
+            "ExpTimesTomo": [],
+            "FFNormalizedWithCurrent": [],
+            "TomoNormalized": [],
+            "energy": [],
+            "rotation_angle": [],
+            "x_pixel_size": [],
+            "y_pixel_size": []}
+        }
+    elif type_struct == "aligned":
+        pass
+    else:
+        pass
+    return hdf5_structure_dict
 
 
-def many_to_stack(file_index_fn, table_name="hdf5_proc", hdf5_structure=None,
+def data_2_stack_dict(h5_stack_handler, hdf5_structure_dict,
+                      data_filenames, ff_filenames=None,
+                      main_group = None,
+                      type_struct="normalized"):
+    """ Transfer data from many hdf5 individual image files
+    into a single hdf5 stack file"""
+
+    num_keys = len(hdf5_structure_dict)
+    if num_keys == 1:
+        k, hdf5_structure_dict = hdf5_structure_dict.items()[0]
+
+    c = 0
+    for file in data_filenames:
+        f = h5py.File(file, "r")
+
+        # Process metadata
+        metadata_original = f["metadata"]
+        print(metadata_original)
+        for dataset_name in hdf5_structure_dict:
+            if dataset_name in metadata_original:
+                print(metadata_original[dataset_name].value)
+                hdf5_structure_dict[dataset_name].append(
+                    metadata_original[dataset_name].value)
+
+        if type_struct == "normalized":
+            if c == 0:
+                hdf5_structure_dict["x_pixel_size"].append(
+                    metadata_original["pixel_size"].value)
+                hdf5_structure_dict["y_pixel_size"].append(
+                    metadata_original["pixel_size"].value)
+            hdf5_structure_dict["rotation_angle"].append(
+                        metadata_original["angle"].value)
+            hdf5_structure_dict["CurrentsTomo"].append(
+                        metadata_original["machine_current"].value)
+        c += 1
+    if num_keys == 1:
+        hdf5_structure_dict = {k: hdf5_structure_dict}
+    return hdf5_structure_dict
+
+
+def many_to_stack(file_index_fn, table_name="hdf5_proc",
+                  hdf5_structure_dict=None,
                   date=None, sample=None, energy=None, zpz=None,
-                  dataset="data"):
+                  datasets=None):
 
     print("--- Start: From individual hdf5 files to hdf5 image stacks ---")
     start_time = time.time()
@@ -133,35 +194,29 @@ def many_to_stack(file_index_fn, table_name="hdf5_proc", hdf5_structure=None,
                      (files_query.zpz == zpz) &
                      (files_query.FF == False))
         h5_records = file_index_db.search(query_cmd)
-        files = get_file_paths(h5_records, root_path)
-        for file in files:
+        data_files = get_file_paths(h5_records, root_path)
+        for file in data_files:
             print(os.path.basename(file))
-        print("---------end for loop------------")
 
-        # Construct the structure of each hdf5 file
-        indict = {"TomoNormalized": {
-                      "AverageFF": -1,
-                       "Avg_FF_ExtTime": -1,
-                       "CurrentsFF": -1,
-                       "CurrentsTomo": -1,
-                       "ExpTimesTomo": -1,
-                       "FFNormalizedWithCurrent": -1,
-                       "TomoNormalized": -1,
-                       "energy": -1,
-                       "rotation_angle": -1,
-                       "x_pixel_size": -1,
-                       "y_pixel_size": -1}
-                  }
+        # Creation of hdf5 stack
+        h5_struct_dict = create_structure_dict(type_struct="normalized")
         h5_out_fn = (str(date) + "_" + str(sample) + "_" +
                      str(energy) + "_" + str(zpz) + "_stack.hdf5")
-        h5_out = root_path + "/" + h5_out_fn
-        print(h5_out)
-        dict2hdf5(indict, h5_out)
-        ####
+        h5_out_fn = root_path + "/" + h5_out_fn
+        print(h5_out_fn)
+        h5_stack_file_handler = h5py.File(h5_out_fn, "w")
 
+        ff_filenames = None
+        data_dict = data_2_stack_dict(h5_stack_file_handler, h5_struct_dict,
+                                      data_files, ff_filenames=None,
+                                      main_group="TomoNormalized",
+                                      type_struct="normalized")
+        dict2hdf5(h5_stack_file_handler, data_dict)
+
+        h5_stack_file_handler.flush()
+        h5_stack_file_handler.close()
 
     # TODO: store stack records in a new table in the DB
-
 
     db.close()
     print("--- End: Individual images to stack took %s seconds ---" %
@@ -172,17 +227,17 @@ def many_to_stack(file_index_fn, table_name="hdf5_proc", hdf5_structure=None,
 
 def main():
 
-    #file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
-    #             "PARALLEL_IMAGING/image_operate_xrm_test_add/" \
-    #             "tests6/xrm/index.json"
-
     file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
-                 "PARALLEL_IMAGING/PARALLEL_XRM2H5/tomo05/index.json"
+                 "PARALLEL_IMAGING/image_operate_xrm_test_add/" \
+                 "tests6/xrm/index.json"
 
-    many_to_stack(file_index, table_name="hdf5_proc", hdf5_structure=None,
-                  date=20171122, sample="tomo05", energy=520.0, zpz=None)
+    #file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
+    #             "PARALLEL_IMAGING/PARALLEL_XRM2H5/tomo05/index.json"
 
-    #20171122_tomo05_520.0
+    many_to_stack(file_index, table_name="hdf5_proc",
+                  hdf5_structure_dict=None)
+    #              date=20171122, sample="tomo05", energy=520.0, zpz=None)
+
 
 
 

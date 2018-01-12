@@ -122,7 +122,7 @@ def copy2proc_multiple(file_index_db, table_in_name="hdf5_raw",
     db.close()
 
 
-def dict2hdf5(indict, outfilename='default.hdf5'):
+def dict2hdf5(h5_file_handler, indict):
     """
     Create hdf5 file from a python dictionary. Convert a python dictionary
     to a hdf5 organization. This method accepts four levels of dictionaries
@@ -137,12 +137,11 @@ def dict2hdf5(indict, outfilename='default.hdf5'):
         except Exception:
             print("data in key '" + key_name + "' could not be extracted")
 
-    f = h5py.File(outfilename, "w")
     for key0, val0 in indict.items():
         if type(val0) is not dict:
-            create_dataset(f, key0, val0)
+            create_dataset(h5_file_handler, key0, val0)
         else:
-            grp1 = f.create_group(key0)
+            grp1 = h5_file_handler.create_group(key0)
             for k1, v1 in val0.items():
                 if type(v1) is not dict:
                     create_dataset(grp1, k1, v1)
@@ -156,4 +155,4 @@ def dict2hdf5(indict, outfilename='default.hdf5'):
                             for k3, v3 in v2.items():
                                 if type(v3) is not dict:
                                     create_dataset(grp3, k3, v3)
-    f.close()
+
