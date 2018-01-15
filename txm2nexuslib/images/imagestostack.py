@@ -125,17 +125,41 @@ def data_2_hdf5(h5_stack_file_handler,
         main_grp = "TomoNormalized"
         main_dataset = "TomoNormalized"
         ff_dataset = "FFNormalizedWithCurrent"
-
-    for file in data_filenames:
+    elif type_struct == "aligned":
+        pass
+    else:
         pass
 
+    num_img = 0
+    for file in data_filenames:
+        # Images normalized
+        f = h5py.File(file, "r")
+        if num_img == 0:
+            metadata_original = f["metadata"]
+            n_frames = len(data_filenames)
+            num_rows = metadata_original["image_height"].value
+            num_columns = metadata_original["image_width"].value
+            h5_stack_file_handler[main_grp].create_dataset(
+                main_dataset,
+                shape=(n_frames, num_rows, num_columns),
+                chunks=(1, num_rows, num_columns),
+                dtype='float32')
+            h5_stack_file_handler[main_grp][main_dataset].attrs[
+                'Number of Frames'] = n_frames
+            # FF images normalized by machine_current and exp time
+        h5_stack_file_handler[main_grp][main_dataset][
+            num_img] = f["data_2"].value
+        f.close()
+        num_img += 1
+
     if ff_filenames:
+        # FF images normalized by machine_current and exp time
         num_img_ff = 0
         for ff_file in ff_filenames:
             f = h5py.File(ff_file, "r")
             if num_img_ff == 0:
-                n_ff_frames = len(ff_filenames)
                 metadata_original = f["metadata"]
+                n_ff_frames = len(ff_filenames)
                 num_rows = metadata_original["image_height"].value
                 num_columns = metadata_original["image_width"].value
                 h5_stack_file_handler[main_grp].create_dataset(
@@ -145,7 +169,6 @@ def data_2_hdf5(h5_stack_file_handler,
                     dtype='float32')
                 h5_stack_file_handler[main_grp][ff_dataset].attrs[
                     'Number of Frames'] = n_ff_frames
-                # FF images normalized by machine_current and exp time
             h5_stack_file_handler[main_grp][ff_dataset][
                 num_img_ff] = f["data_2"].value
             f.close()
@@ -155,6 +178,8 @@ def data_2_hdf5(h5_stack_file_handler,
 def many_to_stack(file_index_fn, table_name="hdf5_proc",
                   type_struct="normalized",
                   date=None, sample=None, energy=None, zpz=None):
+
+    # TODO: spectroscopy normalized not implemented (no Avg FF, etc)
 
     print("--- Start: From individual hdf5 files to hdf5 image stacks ---")
     start_time = time.time()
@@ -210,7 +235,6 @@ def many_to_stack(file_index_fn, table_name="hdf5_proc",
                                             record["zpz"]))
     dates_samples_energies_zpzs = list(set(dates_samples_energies_zpzs))
     for date_sample_energy_zpz in dates_samples_energies_zpzs:
-        print("---------for loop------------")
         print(date_sample_energy_zpz)
         date = date_sample_energy_zpz[0]
         sample = date_sample_energy_zpz[1]
@@ -270,12 +294,12 @@ def many_to_stack(file_index_fn, table_name="hdf5_proc",
 
 def main():
 
-    file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
-                 "PARALLEL_IMAGING/image_operate_xrm_test_add/" \
-                 "tests6/xrm/index.json"
-
     #file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
-    #             "PARALLEL_IMAGING/PARALLEL_XRM2H5/tomo05/index.json"
+    #             "PARALLEL_IMAGING/image_operate_xrm_test_add/" \
+    #             "tests6/xrm/index.json"
+
+    file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
+                 "PARALLEL_IMAGING/PARALLEL_XRM2H5/tomo05/index.json"
 
     many_to_stack(file_index, table_name="hdf5_proc",
                   type_struct="normalized")
