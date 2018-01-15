@@ -29,23 +29,20 @@ from tinydb.storages import JSONStorage
 from tinydb.middlewares import CachingMiddleware
 from tinydb.storages import MemoryStorage
 
-from util import create_subset_db
 from txm2nexuslib.parser import get_file_paths
-from txm2nexuslib.image.image_operate_lib import normalize_image
 from txm2nexuslib.images.util import dict2hdf5
 
 
 def create_structure_dict(type_struct="normalized"):
-    # Construct the structure of each hdf5 file
+    # Construct a dictionary with the metadata structure representing
+    # the future hdf5 structure
     if type_struct == "normalized":
-        hdf5_structure_dict = {"TomoNormalized": {
+        hdf5_metadata_structure_dict = {"TomoNormalized": {
             "AverageFF": [],
             "Avg_FF_ExpTime": [],
             "CurrentsFF": [],
             "CurrentsTomo": [],
             "ExpTimesTomo": [],
-            #"FFNormalizedWithCurrent": [],
-            #"TomoNormalized": [],
             "energy": [],
             "rotation_angle": [],
             "x_pixel_size": [],
@@ -55,14 +52,15 @@ def create_structure_dict(type_struct="normalized"):
         pass
     else:
         pass
-    return hdf5_structure_dict
+    return hdf5_metadata_structure_dict
 
 
 def metadata_2_stack_dict(hdf5_structure_dict,
                           data_filenames, ff_filenames=None,
                           type_struct="normalized"):
     """ Transfer data from many hdf5 individual image files
-    into a single hdf5 stack file"""
+    into a single hdf5 stack file.
+    This method is quite specific for normalized BL09 images"""
 
     num_keys = len(hdf5_structure_dict)
     if num_keys == 1:
@@ -120,6 +118,8 @@ def metadata_2_stack_dict(hdf5_structure_dict,
 def data_2_hdf5(h5_stack_file_handler,
                 data_filenames, ff_filenames=None,
                 type_struct="normalized"):
+    """Generic method to create an hdf5 stack of images from individual
+    images"""
 
     if type_struct == "normalized":
         main_grp = "TomoNormalized"
@@ -178,6 +178,8 @@ def data_2_hdf5(h5_stack_file_handler,
 def many_to_stack(file_index_fn, table_name="hdf5_proc",
                   type_struct="normalized",
                   date=None, sample=None, energy=None, zpz=None):
+    """Go from many images hdf5 files to a single stack of images
+    hdf5 file"""
 
     # TODO: spectroscopy normalized not implemented (no Avg FF, etc)
 
@@ -218,10 +220,8 @@ def many_to_stack(file_index_fn, table_name="hdf5_proc",
             update_temp_db(temp_db, filtered, files_query.zpz, zpz)
         file_index_db = temp_db
 
-    #print(file_index_db.all())
     root_path = os.path.dirname(os.path.abspath(file_index_fn))
     all_file_records = file_index_db.all()
-    #print(all_file_records)
 
     dates_samples_energies_zpzs = []
     for record in all_file_records:
@@ -241,7 +241,7 @@ def many_to_stack(file_index_fn, table_name="hdf5_proc",
         energy = date_sample_energy_zpz[2]
         zpz = date_sample_energy_zpz[3]
 
-        # Raw image records by given date, sample, energy and zpz
+        # Image records by given date, sample, energy and zpz
         query_cmd = ((files_query.date == date) &
                      (files_query.sample == sample) &
                      (files_query.energy == energy) &
@@ -249,27 +249,22 @@ def many_to_stack(file_index_fn, table_name="hdf5_proc",
                      (files_query.FF == False))
         h5_records = file_index_db.search(query_cmd)
         data_files = get_file_paths(h5_records, root_path)
-        #for file in data_files:
-        #    print(os.path.basename(file))
 
         query_cmd_ff = ((files_query.date == date) &
-                     (files_query.sample == sample) &
-                     (files_query.energy == energy) &
-                     (files_query.FF == True))
+                        (files_query.sample == sample) &
+                        (files_query.energy == energy) &
+                        (files_query.FF == True))
         h5_ff_records = file_index_db.search(query_cmd_ff)
         data_files_ff = get_file_paths(h5_ff_records, root_path)
-        #for file in data_files:
-        #    print(os.path.basename(file))
-        #for file in data_files_ff:
-        #    print(os.path.basename(file))
 
-        # Creation of hdf5 stack
+        # Creation of dictionary
         h5_struct_dict = create_structure_dict(type_struct=type_struct)
         data_dict = metadata_2_stack_dict(h5_struct_dict,
                                           data_files,
                                           ff_filenames=data_files_ff,
                                           type_struct=type_struct)
 
+        # Creation of hdf5 stack
         h5_out_fn = (str(date) + "_" + str(sample) + "_" +
                      str(energy) + "_" + str(zpz) + "_stack.hdf5")
         h5_out_fn = root_path + "/" + h5_out_fn
@@ -290,8 +285,6 @@ def many_to_stack(file_index_fn, table_name="hdf5_proc",
           (time.time() - start_time))
 
 
-
-
 def main():
 
     #file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
@@ -304,8 +297,6 @@ def main():
     many_to_stack(file_index, table_name="hdf5_proc",
                   type_struct="normalized")
                   #date=20171122, sample="tomo05", energy=520.0, zpz=None)
-
-
 
 
 if __name__ == "__main__":
