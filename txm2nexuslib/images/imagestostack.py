@@ -234,6 +234,11 @@ def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
                                             record["energy"],
                                             record["zpz"]))
     dates_samples_energies_zpzs = list(set(dates_samples_energies_zpzs))
+    if dates_samples_energies_zpzs:
+        stack_table = db.table("hdf5_stacks")
+        stack_table.purge()
+        records = []
+
     for date_sample_energy_zpz in dates_samples_energies_zpzs:
         print(date_sample_energy_zpz)
         date = date_sample_energy_zpz[0]
@@ -277,8 +282,15 @@ def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
 
         h5_stack_file_handler.flush()
         h5_stack_file_handler.close()
+        record = {"filename": os.path.basename(h5_out_fn),
+                  "extension": ".hdf5",
+                  "date": date, "sample": sample, "stack": True}
+        record.update({"type": type_struct})
+        records.append(record)
 
-    # TODO: store stack records in a new table in the DB
+    if dates_samples_energies_zpzs:
+        stack_table.insert_multiple(records)
+        print(stack_table.all())
 
     db.close()
     print("--- End: Individual images to stack took %s seconds ---" %
