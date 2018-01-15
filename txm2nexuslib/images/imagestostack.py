@@ -175,9 +175,9 @@ def data_2_hdf5(h5_stack_file_handler,
             num_img_ff += 1
 
 
-def many_to_stack(file_index_fn, table_name="hdf5_proc",
-                  type_struct="normalized",
-                  date=None, sample=None, energy=None, zpz=None):
+def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
+                            type_struct="normalized",
+                            date=None, sample=None, energy=None, zpz=None):
     """Go from many images hdf5 files to a single stack of images
     hdf5 file"""
 
@@ -287,16 +287,15 @@ def many_to_stack(file_index_fn, table_name="hdf5_proc",
 
 def main():
 
-    #file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
-    #             "PARALLEL_IMAGING/image_operate_xrm_test_add/" \
-    #             "tests6/xrm/index.json"
-
     file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
-                 "PARALLEL_IMAGING/PARALLEL_XRM2H5/tomo05/index.json"
+                 "PARALLEL_IMAGING/image_operate_xrm_test_add/" \
+                 "tests6/xrm/index.json"
 
-    many_to_stack(file_index, table_name="hdf5_proc",
-                  type_struct="normalized")
-                  #date=20171122, sample="tomo05", energy=520.0, zpz=None)
+    #file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
+    #             "PARALLEL_IMAGING/PARALLEL_XRM2H5/tomo05/index.json"
+
+    many_images_to_h5_stack(file_index, table_name="hdf5_proc",
+                            type_struct="normalized")
 
 
 if __name__ == "__main__":

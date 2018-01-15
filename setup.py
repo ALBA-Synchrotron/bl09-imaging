@@ -75,7 +75,8 @@ setup(
             'img = txm2nexuslib.scripts.image_operate:main',
             'copy2proc = txm2nexuslib.scripts.copy2proc:main',
             'manyxrm2h5 = txm2nexuslib.scripts.manyxrm2h5:main',
-            'manynorm = txm2nexuslib.scripts.manynorm:main']
+            'manynorm = txm2nexuslib.scripts.manynorm:main',
+            'img2stack = txm2nexuslib.scripts.img2stack:main']
     },
     author='Marc Rosanes, Carlos Falcon, Zbigniew Reszela, Carlos Pascual',
     author_email='mrosanes@cells.es, cfalcon@cells.es, zreszela@cells.es, '
