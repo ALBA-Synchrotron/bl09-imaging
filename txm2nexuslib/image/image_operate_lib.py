@@ -86,6 +86,21 @@ class Image(object):
                                    description=description)
         return img_norm_by_constant
 
+    def crop(self, roi={"top": 26, "bottom": 24, "left": 21, "right": 19}):
+        """Crop an image. The roi indicates the pixels to be cut off.
+        A default ROI is given to cut
+        the image borders"""
+        [rows, columns] = np.shape(self.image)
+        rows_from = roi["top"]
+        rows_to = rows - roi["bottom"]
+        columns_from = roi["left"]
+        columns_to = columns - roi["right"]
+        image_cropped = self.image[rows_from:rows_to,
+                                   columns_from:columns_to]
+        description = ("Image " + self.image_dataset_name +
+                       " cropped by " + str(roi))
+        return image_cropped, description
+
     def close_h5(self):
         self.f_h5_handler.flush()
         self.f_h5_handler.close()

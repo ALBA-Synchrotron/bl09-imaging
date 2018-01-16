@@ -40,6 +40,7 @@ class ImageOperate(object):
 
 img commands are:
    copy          - Copy hdf5 file to a new hdf5 file for processing
+   crop          - Crop image borders
    add           - Addition of many images
                  - Add constant to image
    subtract      - From a reference image (minuend),
@@ -87,6 +88,62 @@ img commands are:
             base_fn = os.path.splitext(args.input)[0]
             output_fn = base_fn + args.suffix + ".hdf5"
         copy_h5(args.input, output_fn)
+
+    def crop(self):
+        parser = argparse.ArgumentParser(
+            description='Crop image borders',
+            formatter_class=RawTextHelpFormatter)
+        parser.add_argument('input_file', metavar='input_hdf5_filename',
+                            type=str, help='input hdf5 filename containing '
+                                           'the image to crop')
+        parser.add_argument('-d', '--dataset',
+                            type=str,
+                            default="data",
+                            help='Input dataset containing the image to crop')
+        parser.add_argument('-t', '--top',
+                            type=int,
+                            default=26,
+                            help='Top pixel rows to crop')
+        parser.add_argument('-b', '--bottom',
+                            type=int,
+                            default=24,
+                            help='Bottom pixel rows to crop')
+        parser.add_argument('-l', '--left',
+                            type=int,
+                            default=21,
+                            help='Left pixel columns to crop')
+        parser.add_argument('-r', '--right',
+                            type=int,
+                            default=19,
+                            help='Right pixel columns to crop')
+        parser.add_argument('-s', '--store',
+                            default='default',
+                            metavar='True',
+                            type=str, help='Store or not the resulting image')
+        parser.add_argument('-o', '--output',
+                            default='default',
+                            type=str, help='output hdf5 filename')
+        parser.add_argument('-nd', '--new-dataset',
+                            default='data',
+                            type=str, help='dataset name useful if storing'
+                                           'in a freshly new hdf5')
+        args = parser.parse_args(sys.argv[2:])
+
+        roi = {"top": args.top, "bottom": args.bottom,
+               "left": args.left, "right": args.right}
+        image = Image(h5_image_filename=args.input_file,
+                      image_data_set=args.dataset)
+
+        image_cropped, description = image.crop(roi=roi)
+        if args.store:
+            if args.output == "default":
+                image.store_image_in_h5(image_cropped,
+                                        description=description)
+            else:
+                store_single_image_in_new_h5(
+                    args.output, image_cropped, description=description,
+                    data_set=args.new_dataset)
+        image.close_h5()
 
     def add(self):
         parser = argparse.ArgumentParser(
