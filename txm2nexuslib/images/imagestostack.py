@@ -23,6 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import os
 import time
 import h5py
+import pprint
 from joblib import Parallel, delayed
 from tinydb import TinyDB, Query
 from tinydb.storages import JSONStorage
@@ -175,9 +176,49 @@ def data_2_hdf5(h5_stack_file_handler,
             num_img_ff += 1
 
 
+def make_stack(files_for_stack, records, root_path,
+               type_struct="normalized"):
+
+    data_files = files_for_stack["data"]
+    data_files_ff = files_for_stack["ff"]
+    date = files_for_stack["date"]
+    sample = files_for_stack["sample"]
+    energy = files_for_stack["energy"]
+    zpz = files_for_stack["zpz"]
+
+    # Creation of dictionary
+    h5_struct_dict = create_structure_dict(type_struct=type_struct)
+    data_dict = metadata_2_stack_dict(h5_struct_dict,
+                                      data_files,
+                                      ff_filenames=data_files_ff,
+                                      type_struct=type_struct)
+
+    # Creation of hdf5 stack
+    h5_out_fn = (str(date) + "_" + str(sample) + "_" +
+                 str(energy) + "_" + str(zpz) + "_stack.hdf5")
+    h5_out_fn = root_path + "/" + h5_out_fn
+    h5_stack_file_handler = h5py.File(h5_out_fn, "w")
+    dict2hdf5(h5_stack_file_handler, data_dict)
+    data_2_hdf5(h5_stack_file_handler,
+                data_files, ff_filenames=data_files_ff,
+                type_struct="normalized")
+
+    h5_stack_file_handler.flush()
+    h5_stack_file_handler.close()
+    # Record does not contain energy and zpz because in some cases
+    # the same stack could contain many different energies or
+    # many different zpz
+    record = {"filename": os.path.basename(h5_out_fn),
+              "extension": ".hdf5",
+              "date": date, "sample": sample, "stack": True}
+    record.update({"type": type_struct})
+    return record
+
+
 def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
                             type_struct="normalized",
-                            date=None, sample=None, energy=None, zpz=None):
+                            date=None, sample=None, energy=None, zpz=None,
+                            cores=-1):
     """Go from many images hdf5 files to a single stack of images
     hdf5 file"""
 
@@ -234,13 +275,13 @@ def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
                                             record["energy"],
                                             record["zpz"]))
     dates_samples_energies_zpzs = list(set(dates_samples_energies_zpzs))
-    if dates_samples_energies_zpzs:
-        stack_table = db.table("hdf5_stacks")
-        stack_table.purge()
-        records = []
 
+    stack_table = db.table("hdf5_stacks")
+    stack_table.purge()
+    records = []
+
+    files_list = []
     for date_sample_energy_zpz in dates_samples_energies_zpzs:
-        print(date_sample_energy_zpz)
         date = date_sample_energy_zpz[0]
         sample = date_sample_energy_zpz[1]
         energy = date_sample_energy_zpz[2]
@@ -261,39 +302,25 @@ def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
                         (files_query.FF == True))
         h5_ff_records = file_index_db.search(query_cmd_ff)
         data_files_ff = get_file_paths(h5_ff_records, root_path)
+        files_dict = {"data": data_files, "ff": data_files_ff,
+                      "date": date, "sample": sample, "energy": energy,
+                      "zpz": zpz}
+        files_list.append(files_dict)
 
-        # Creation of dictionary
-        h5_struct_dict = create_structure_dict(type_struct=type_struct)
-        data_dict = metadata_2_stack_dict(h5_struct_dict,
-                                          data_files,
-                                          ff_filenames=data_files_ff,
-                                          type_struct=type_struct)
+    # Parallization of making the stacks
+    records = Parallel(n_jobs=cores, backend="multiprocessing")(
+        delayed(make_stack)(files_for_stack, records, root_path,
+                            type_struct=type_struct
+                            ) for files_for_stack in files_list)
 
-        # Creation of hdf5 stack
-        h5_out_fn = (str(date) + "_" + str(sample) + "_" +
-                     str(energy) + "_" + str(zpz) + "_stack.hdf5")
-        h5_out_fn = root_path + "/" + h5_out_fn
-        print(h5_out_fn)
-        h5_stack_file_handler = h5py.File(h5_out_fn, "w")
-        dict2hdf5(h5_stack_file_handler, data_dict)
-        data_2_hdf5(h5_stack_file_handler,
-                    data_files, ff_filenames=data_files_ff,
-                    type_struct="normalized")
-
-        h5_stack_file_handler.flush()
-        h5_stack_file_handler.close()
-        record = {"filename": os.path.basename(h5_out_fn),
-                  "extension": ".hdf5",
-                  "date": date, "sample": sample, "stack": True}
-        record.update({"type": type_struct})
-        records.append(record)
-
-    if dates_samples_energies_zpzs:
-        stack_table.insert_multiple(records)
-        print(stack_table.all())
-
+    stack_table.insert_multiple(records)
+    pretty_printer = pprint.PrettyPrinter(indent=4)
+    print("Stacks created:")
+    for record in stack_table.all():
+        pretty_printer.pprint(record["filename"])
     db.close()
-    print("--- End: Individual images to stack took %s seconds ---" %
+
+    print("--- End: Individual images to stacks took %s seconds ---" %
           (time.time() - start_time))
 
 

@@ -76,16 +76,17 @@ def main():
                              '(default: None)')
 
     parser.add_argument('-c', '--cores', type=int,
-                        default=-1,
+                        default=-2,
                         help='Number of cores used for the format '
                              'conversion\n'
-                             '(default is max of available CPUs: -1)')
+                             '(default: all CPUs but one are used: -2)')
 
     args = parser.parse_args()
     many_images_to_h5_stack(args.file_index_fn, table_name=args.table_h5,
                             type_struct=args.structure,
                             date=args.date, sample=args.sample,
-                            energy=args.energy, zpz=args.zpz)
+                            energy=args.energy, zpz=args.zpz,
+                            cores=args.cores)
 
 
 if __name__ == "__main__":
