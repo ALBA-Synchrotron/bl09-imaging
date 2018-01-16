@@ -196,10 +196,9 @@ def _get_paths_from_subfolders(root_path, query_output):
             subfolder = entry["subfolder"]
             complete_file = os.path.join(root_path, subfolder, filename)
             files.append(complete_file)
+        print("Subfolders have been used\n")
     except:
-        print("WARNING: Subfolders are not specified in txt TXM script: "
-              "they should be specified. \n" 
-              "Fallback: Performing generic search in the root folder.\n")
+        print("Performing generic search in the root folder\n")
         files = _get_paths_from_root(root_path, query_output)
     return files
 
