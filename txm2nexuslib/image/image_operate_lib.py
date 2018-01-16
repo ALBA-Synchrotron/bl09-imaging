@@ -97,7 +97,7 @@ class Image(object):
         columns_to = columns - roi["right"]
         image_cropped = self.image[rows_from:rows_to,
                                    columns_from:columns_to]
-        description = ("Image " + self.image_dataset_name +
+        description = ("Image " + self.image_dataset +
                        " cropped by " + str(roi))
         return image_cropped, description
 
