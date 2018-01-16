@@ -82,6 +82,7 @@ def normalize_images(file_index_fn, table_name=None,
                                        record["sample"],
                                        record["energy"]))
     dates_samples_energies = list(set(dates_samples_energies))
+    num_files_total = 0
     for date_sample_energie in dates_samples_energies:
         date = date_sample_energie[0]
         sample = date_sample_energie[1]
@@ -101,6 +102,7 @@ def normalize_images(file_index_fn, table_name=None,
         h5_ff_records = file_index_db.search(query_cmd_ff)
         files = get_file_paths(h5_records, root_path)
         n_files = len(files)
+        num_files_total += n_files
         files_ff = get_file_paths(h5_ff_records, root_path)
 
         if not files_ff:
@@ -127,7 +129,7 @@ def normalize_images(file_index_fn, table_name=None,
             pass
 
     print("--- Normalize %d files took %s seconds ---" %
-          (n_files, (time.time() - start_time)))
+          (num_files_total, (time.time() - start_time)))
 
     db.close()
 
