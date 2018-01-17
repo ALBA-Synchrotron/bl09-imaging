@@ -24,7 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import argparse
 from argparse import RawTextHelpFormatter
 
-from txm2nexuslib.images.multipleimagesnormalization import normalize_images
+from txm2nexuslib.images.multiplenormalization import normalize_images
 
 
 def main():
