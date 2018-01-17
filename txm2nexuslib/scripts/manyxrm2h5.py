@@ -65,7 +65,7 @@ def main():
                                        subfolders=args.subfolders,
                                        cores=args.cores,
                                        update_db=args.update_db)
-    print("--- %s seconds ---" % (time.time() - start_time))
+    print("--- %s seconds ---\n" % (time.time() - start_time))
 
 
 if __name__ == "__main__":

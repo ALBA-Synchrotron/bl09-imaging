@@ -128,7 +128,7 @@ def normalize_images(file_index_fn, table_name=None,
             # TODO
             pass
 
-    print("--- Normalize %d files took %s seconds ---" %
+    print("--- Normalize %d files took %s seconds ---\n" %
           (num_files_total, (time.time() - start_time)))
 
     db.close()

@@ -24,6 +24,7 @@ import os
 import time
 import h5py
 import pprint
+import numpy as np
 from joblib import Parallel, delayed
 from tinydb import TinyDB, Query
 from tinydb.storages import JSONStorage
@@ -136,10 +137,8 @@ def data_2_hdf5(h5_stack_file_handler,
         # Images normalized
         f = h5py.File(file, "r")
         if num_img == 0:
-            metadata_original = f["metadata"]
             n_frames = len(data_filenames)
-            num_rows = metadata_original["image_height"].value
-            num_columns = metadata_original["image_width"].value
+            num_rows, num_columns = np.shape(f["data"].value)
             h5_stack_file_handler[main_grp].create_dataset(
                 main_dataset,
                 shape=(n_frames, num_rows, num_columns),
@@ -159,10 +158,8 @@ def data_2_hdf5(h5_stack_file_handler,
         for ff_file in ff_filenames:
             f = h5py.File(ff_file, "r")
             if num_img_ff == 0:
-                metadata_original = f["metadata"]
                 n_ff_frames = len(ff_filenames)
-                num_rows = metadata_original["image_height"].value
-                num_columns = metadata_original["image_width"].value
+                num_rows, num_columns = np.shape(f["data"].value)
                 h5_stack_file_handler[main_grp].create_dataset(
                     ff_dataset,
                     shape=(n_ff_frames, num_rows, num_columns),
@@ -320,7 +317,7 @@ def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
         pretty_printer.pprint(record["filename"])
     db.close()
 
-    print("--- End: Individual images to stacks took %s seconds ---" %
+    print("--- End: Individual images to stacks took %s seconds ---\n" %
           (time.time() - start_time))
 
 
