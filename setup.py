@@ -76,6 +76,7 @@ setup(
             'copy2proc = txm2nexuslib.scripts.copy2proc:main',
             'manyxrm2h5 = txm2nexuslib.scripts.manyxrm2h5:main',
             'manynorm = txm2nexuslib.scripts.manynorm:main',
+            'manycrop = txm2nexuslib.scripts.manycrop:main',
             'img2stack = txm2nexuslib.scripts.img2stack:main']
     },
     author='Marc Rosanes, Carlos Falcon, Zbigniew Reszela, Carlos Pascual',
