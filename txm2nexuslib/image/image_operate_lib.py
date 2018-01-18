@@ -20,10 +20,13 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+
 from os import path
 import shutil
+import cv2
 import h5py
 import numpy as np
+from util import align
 
 
 class Image(object):
@@ -37,7 +40,11 @@ class Image(object):
         self.data_type = np.int32
         self.image = 0
         self.image_dataset = ""
-        self.image_dataset_name = image_data_set
+        try:
+            self.image_dataset_name = self.f_h5_handler[
+                image_data_set].attrs["dataset"]
+        except Exception:
+            self.image_dataset_name = image_data_set
         self.extract_single_image_from_h5(image_data_set)
         self.workflow_step = 1
 
@@ -101,6 +108,28 @@ class Image(object):
                        " cropped by " + str(roi))
         return image_cropped, description
 
+    def align_from_file(self, reference_image_obj, roi_size=0.5):
+        """Align an image taking by reference another image. roi_size
+        is entered as input parameter as tant per one of the original
+        image size"""
+        image_ref = reference_image_obj.image
+        image_to_align = self.image
+        aligned_image, mv_vector = align(image_ref, image_to_align,
+                                         roi_size=roi_size)
+        ref_fn = reference_image_obj.h5_image_filename
+        ref_dataset_name = reference_image_obj.image_dataset_name
+        description = ("Image " + self.image_dataset +
+                       " has been aligned taking as reference image " +
+                       ref_dataset_name + "@" + path.basename(ref_fn))
+        return aligned_image, mv_vector, description
+
+    def align_and_store(self, reference_image_obj, roi_size=0.5):
+        aligned_image, mv_vector, description = self.align_from_file(
+            reference_image_obj, roi_size=roi_size)
+        self.store_image_in_h5(aligned_image,
+                               description=description)
+        return aligned_image, mv_vector
+
     def close_h5(self):
         self.f_h5_handler.flush()
         self.f_h5_handler.close()
@@ -120,6 +149,14 @@ def store_single_image_in_new_h5(
     f[data_set].attrs["description"] = description
     f.flush()
     f.close()
+
+
+def store_in_multiple_files(result_image, image_filenames, description=""):
+    for image_fn in image_filenames:
+        image_obj = Image(h5_image_filename=image_fn)
+        image_obj.store_image_in_h5(result_image,
+                                    description=description)
+        image_obj.close_h5()
 
 
 def add(image_filenames, constant=0, store=False, output_h5_fn="default"):
@@ -150,11 +187,8 @@ def add(image_filenames, constant=0, store=False, output_h5_fn="default"):
 
     if store:
         if output_h5_fn == "default":
-            for image_fn in image_filenames:
-                image_obj = Image(h5_image_filename=image_fn)
-                image_obj.store_image_in_h5(result_image,
-                                            description=description)
-                image_obj.close_h5()
+            store_in_multiple_files(result_image, image_filenames,
+                                    description=description)
         else:
             store_single_image_in_new_h5(
                 output_h5_fn, result_image, description=description,
@@ -234,11 +268,8 @@ def multiply(image_filenames, constant=1, store=False, output_h5_fn="default"):
 
     if store:
         if output_h5_fn == "default":
-            for image_fn in image_filenames:
-                image_obj = Image(h5_image_filename=image_fn)
-                image_obj.store_image_in_h5(result_image,
-                                            description=description)
-                image_obj.close_h5()
+            store_in_multiple_files(result_image, image_filenames,
+                                    description=description)
         else:
             store_single_image_in_new_h5(
                 output_h5_fn, result_image, description=description,
@@ -431,8 +462,24 @@ def main():
                     "20161203_F33_tomo02_10.0_-11351.9_proc.hdf5"
     ff_filenames = [fn_image_FF_1, fn_image_FF_2]
 
-    normalize_image(fn_image, ff_filenames, store_normalized=True)
+    img_ref_name = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
+                   "PARALLEL_IMAGING/image_operate_xrm_test_add/" \
+                   "tests7/xrm/20171122_tomo05_520.0_0.0_-10435.5_proc.hdf5"
+    reference_image_obj = Image(img_ref_name)
 
+    img_to_align_name = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
+                        "PARALLEL_IMAGING/image_operate_xrm_test_add/tests7" \
+                        "/xrm/20171122_tomo05_520.0_10.0_-10434.0_proc.hdf5"
+    image_to_align = Image(img_to_align_name)
+
+    #aligned_image, mv_vector, description = image_to_align.\
+    #    align_from_file(reference_image_obj)
+
+    aligned_image, mv_vector = image_to_align.align_and_store(
+        reference_image_obj)
+
+    print(mv_vector)
+    print(np.shape(aligned_image))
 
 if __name__ == "__main__":
     main()
