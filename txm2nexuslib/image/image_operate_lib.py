@@ -40,11 +40,6 @@ class Image(object):
         self.data_type = np.int32
         self.image = 0
         self.image_dataset = ""
-        try:
-            self.image_dataset_name = self.f_h5_handler[
-                image_data_set].attrs["dataset"]
-        except Exception:
-            self.image_dataset_name = image_data_set
         self.extract_single_image_from_h5(image_data_set)
         self.workflow_step = 1
 
@@ -93,6 +88,16 @@ class Image(object):
                                    description=description)
         return img_norm_by_constant
 
+    def clone_image_dataset(self):
+        img = self.image
+        try:
+            description = self.f_h5_handler[
+                self.image_dataset].attrs["description"]
+        except:
+            description = "No description available"
+        self.store_image_in_h5(img,
+                               description=description)
+
     def crop(self, roi={"top": 26, "bottom": 24, "left": 21, "right": 19}):
         """Crop an image. The roi indicates the pixels to be cut off.
         A default ROI is given to cut
@@ -117,7 +122,7 @@ class Image(object):
         aligned_image, mv_vector = align(image_ref, image_to_align,
                                          roi_size=roi_size)
         ref_fn = reference_image_obj.h5_image_filename
-        ref_dataset_name = reference_image_obj.image_dataset_name
+        ref_dataset_name = reference_image_obj.image_dataset
         description = ("Image " + self.image_dataset +
                        " has been aligned taking as reference image " +
                        ref_dataset_name + "@" + path.basename(ref_fn))
@@ -167,13 +172,13 @@ def add(image_filenames, constant=0, store=False, output_h5_fn="default"):
     description = "Add images and/or add a constant element-wise: \n"
     image_obj = Image(h5_image_filename=image_filenames[0])
     result_image = np.array(image_obj.image, dtype=np.int32)
-    dataset = image_obj.image_dataset_name
+    dataset = image_obj.image_dataset
     description += dataset + "@" + str(image_obj.h5_image_filename)
     image_obj.close_h5()
 
     for image_fn in image_filenames[1:]:
         image_obj = Image(h5_image_filename=image_fn)
-        dataset = image_obj.image_dataset_name
+        dataset = image_obj.image_dataset
         description += (" + \n" + dataset + "@" +
                         str(image_obj.h5_image_filename))
         result_image += image_obj.image
@@ -207,13 +212,13 @@ def subtract(image_filenames, constant=0, store=False,
                   "to the minuend image (element-wise): \n"
     image_obj = Image(h5_image_filename=image_filenames[0])
     result_image = np.array(image_obj.image, dtype=np.int32)
-    dataset = image_obj.image_dataset_name
+    dataset = image_obj.image_dataset
     description += dataset + "@" + str(image_obj.h5_image_filename)
     image_obj.close_h5()
 
     for image_fn in image_filenames[1:]:
         image_obj = Image(h5_image_filename=image_fn)
-        dataset = image_obj.image_dataset_name
+        dataset = image_obj.image_dataset
         description += (" - \n" + dataset + "@" +
                         str(image_obj.h5_image_filename))
         result_image -= image_obj.image
@@ -247,13 +252,13 @@ def multiply(image_filenames, constant=1, store=False, output_h5_fn="default"):
                    "element-wise by a constant: \n")
     image_obj = Image(h5_image_filename=image_filenames[0])
     result_image = np.array(image_obj.image, dtype=np.int32)
-    dataset = image_obj.image_dataset_name
+    dataset = image_obj.image_dataset
     description += dataset + "@" + str(image_obj.h5_image_filename)
     image_obj.close_h5()
 
     for image_fn in image_filenames[1:]:
         image_obj = Image(h5_image_filename=image_fn)
-        dataset = image_obj.image_dataset_name
+        dataset = image_obj.image_dataset
         description += (" * \n" + dataset + "@" +
                             str(image_obj.h5_image_filename))
         result_image = np.multiply(result_image, image_obj.image,
@@ -292,7 +297,7 @@ def divide(numerator, denominators, store=False, output_h5_fn="default"):
         store_filename = numerator
         image_obj = Image(h5_image_filename=numerator)
         result_image = np.array(image_obj.image, dtype=np.int32)
-        dataset = image_obj.image_dataset_name
+        dataset = image_obj.image_dataset
         description += dataset + "@" + numerator + " / ("
         image_obj.close_h5()
 
@@ -306,7 +311,7 @@ def divide(numerator, denominators, store=False, output_h5_fn="default"):
                 description += " * " + str(constant)
         except ValueError:
             image_obj = Image(h5_image_filename=denominator)
-            dataset = image_obj.image_dataset_name
+            dataset = image_obj.image_dataset
             if i == 0:
                 description += dataset + "@" + denominator
                 if store_filename == "none":
@@ -475,11 +480,13 @@ def main():
     #aligned_image, mv_vector, description = image_to_align.\
     #    align_from_file(reference_image_obj)
 
-    aligned_image, mv_vector = image_to_align.align_and_store(
-        reference_image_obj)
+    #aligned_image, mv_vector = image_to_align.align_and_store(
+    #    reference_image_obj)
 
-    print(mv_vector)
-    print(np.shape(aligned_image))
+
+    reference_image_obj.clone_image_dataset()
+    #print(mv_vector)
+    #print(np.shape(aligned_image))
 
 if __name__ == "__main__":
     main()

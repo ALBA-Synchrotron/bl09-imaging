@@ -38,28 +38,29 @@ class ImageOperate(object):
             description='img allows performing operations with images',
             usage="""img <command> [<args>]
 
-img commands are:
-   copy          - Copy hdf5 file to a new hdf5 file for processing
-   crop          - Crop image borders
-   add           - Addition of many images
-                 - Add constant to image
-   subtract      - From a reference image (minuend),
-                   subtract another image (subtrahend)
-                 - Subtract constant to image
-                 - Subtract image to constant
+img commands:
+   copy        - Copy hdf5 file to a new hdf5 file for processing
+   clone       - Clone an hdf5 image dataset to a new dataset in the same file
+   crop        - Crop image borders
+   add         - Addition of many images
+               - Add constant to image
+   subtract    - From a reference image (minuend),
+                  subtract another image (subtrahend)
+               - Subtract constant to image
+               - Subtract image to constant
    multiply
-                 - Multiply many images element-wise
-                 - Multiply an image by a constant
+               - Multiply many images element-wise
+               - Multiply an image by a constant
    divide
-                 - Divide an image by another image, element-wise
-                   numerator image divided by denominator image
-                 - Divide an image by a constant
-                 - Divide a constant by an image
+               - Divide an image by another image, element-wise
+                  numerator image divided by denominator image
+               - Divide an image by a constant
+               - Divide a constant by an image
    normalize
-                 - Normalize image by single FF, exposure times and
-                   machine currents
-                 - Normalize image by average FF, exposure times and
-                   machine currents
+               - Normalize image by single FF, exposure times and
+                  machine currents
+               - Normalize image by average FF, exposure times and
+                  machine currents
 """)
         parser.add_argument('command', help='Subcommand to run')
         args = parser.parse_args(sys.argv[1:2])
@@ -270,6 +271,26 @@ img commands are:
 
         normalize_image(args.image_filename, args.ff_filenames,
                         store_normalized=True, output_h5_fn=args.output)
+
+    def clone(self):
+        """Clone an image to a new dataset"""
+        parser = argparse.ArgumentParser(
+            description='Clone an image located in a hdf5 file, to a new'
+                        'dataset in the same file',
+            formatter_class=RawTextHelpFormatter)
+        parser.add_argument('input_file', type=str,
+                            help='hdf5 input file containing the single '
+                                 'image to be cloned')
+        parser.add_argument('-d', '--dataset',
+                            type=str,
+                            default="data",
+                            help='dataset containing the image to clone')
+        args = parser.parse_args(sys.argv[2:])
+
+        image = Image(h5_image_filename=args.input_file,
+                      image_data_set=args.dataset)
+        image.clone_image_dataset()
+
 
 
 def main():
