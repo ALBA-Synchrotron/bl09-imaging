@@ -42,6 +42,7 @@ class Image(object):
         self.image_dataset = ""
         self.extract_single_image_from_h5(image_data_set)
         self.workflow_step = 1
+        self.metadata = None
 
     def extract_single_image_from_h5(self, data_set="data"):
         image = self.f_h5_handler[data_set].value
@@ -69,6 +70,23 @@ class Image(object):
         except:
             del self.f_h5_handler["data"]
             self.f_h5_handler["data"] = h5py.SoftLink(dataset)
+        return dataset
+
+    def store_dataset_metadata(self, dataset="data",
+                               metadata_dset_name="default",
+                               metadata_value=None,
+                               metadata_unit=None):
+        """Store dataset metadata"""
+        if metadata_value:
+            dset_name = self.f_h5_handler[dataset].attrs["dataset"]
+            metadata_grp = "metadata_" + dset_name
+            if metadata_grp not in self.f_h5_handler:
+                self.metadata = self.f_h5_handler.create_group(metadata_grp)
+                self.metadata.create_dataset(metadata_dset_name,
+                                             data=metadata_value)
+                if metadata_unit:
+                    self.metadata[metadata_dset_name].attrs[
+                        "units"] = metadata_unit
 
     def normalize_by_constant(self, constant=None,
                               store_normalized_by_constant=False,
@@ -131,8 +149,11 @@ class Image(object):
     def align_and_store(self, reference_image_obj, roi_size=0.5):
         aligned_image, mv_vector, description = self.align_from_file(
             reference_image_obj, roi_size=roi_size)
-        self.store_image_in_h5(aligned_image,
+        new_dataset = self.store_image_in_h5(aligned_image,
                                description=description)
+        self.store_dataset_metadata(dataset=new_dataset,
+                                    metadata_dset_name="move_vector",
+                                    metadata_value=mv_vector)
         return aligned_image, mv_vector
 
     def close_h5(self):
@@ -480,13 +501,13 @@ def main():
     #aligned_image, mv_vector, description = image_to_align.\
     #    align_from_file(reference_image_obj)
 
-    #aligned_image, mv_vector = image_to_align.align_and_store(
-    #    reference_image_obj)
+    aligned_image, mv_vector = image_to_align.align_and_store(
+        reference_image_obj)
 
 
-    reference_image_obj.clone_image_dataset()
-    #print(mv_vector)
-    #print(np.shape(aligned_image))
+    #reference_image_obj.clone_image_dataset()
+    print(mv_vector)
+    print(np.shape(aligned_image))
 
 if __name__ == "__main__":
     main()

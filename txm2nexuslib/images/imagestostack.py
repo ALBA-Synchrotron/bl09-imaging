@@ -59,7 +59,8 @@ def create_structure_dict(type_struct="normalized"):
 
 def metadata_2_stack_dict(hdf5_structure_dict,
                           data_filenames, ff_filenames=None,
-                          type_struct="normalized"):
+                          type_struct="normalized",
+                          avg_ff_dataset="data"):
     """ Transfer data from many hdf5 individual image files
     into a single hdf5 stack file.
     This method is quite specific for normalized BL09 images"""
@@ -107,7 +108,7 @@ def metadata_2_stack_dict(hdf5_structure_dict,
                 if c == 0:
                     hdf5_structure_dict["Avg_FF_ExpTime"].append(
                         metadata_original["exposure_time"].value)
-                    hdf5_structure_dict["AverageFF"] = f["data_3"].value
+                    hdf5_structure_dict["AverageFF"] = f[avg_ff_dataset].value
                 hdf5_structure_dict["CurrentsFF"].append(
                     metadata_original["machine_current"].value)
             f.close()
@@ -119,7 +120,8 @@ def metadata_2_stack_dict(hdf5_structure_dict,
 
 def data_2_hdf5(h5_stack_file_handler,
                 data_filenames, ff_filenames=None,
-                type_struct="normalized"):
+                type_struct="normalized",
+                dataset="data"):
     """Generic method to create an hdf5 stack of images from individual
     images"""
 
@@ -138,7 +140,7 @@ def data_2_hdf5(h5_stack_file_handler,
         f = h5py.File(file, "r")
         if num_img == 0:
             n_frames = len(data_filenames)
-            num_rows, num_columns = np.shape(f["data"].value)
+            num_rows, num_columns = np.shape(f[dataset].value)
             h5_stack_file_handler[main_grp].create_dataset(
                 main_dataset,
                 shape=(n_frames, num_rows, num_columns),
@@ -148,7 +150,7 @@ def data_2_hdf5(h5_stack_file_handler,
                 'Number of Frames'] = n_frames
             # FF images normalized by machine_current and exp time
         h5_stack_file_handler[main_grp][main_dataset][
-            num_img] = f["data_2"].value
+            num_img] = f[dataset].value
         f.close()
         num_img += 1
 
@@ -159,7 +161,7 @@ def data_2_hdf5(h5_stack_file_handler,
             f = h5py.File(ff_file, "r")
             if num_img_ff == 0:
                 n_ff_frames = len(ff_filenames)
-                num_rows, num_columns = np.shape(f["data"].value)
+                num_rows, num_columns = np.shape(f[dataset].value)
                 h5_stack_file_handler[main_grp].create_dataset(
                     ff_dataset,
                     shape=(n_ff_frames, num_rows, num_columns),
@@ -168,13 +170,12 @@ def data_2_hdf5(h5_stack_file_handler,
                 h5_stack_file_handler[main_grp][ff_dataset].attrs[
                     'Number of Frames'] = n_ff_frames
             h5_stack_file_handler[main_grp][ff_dataset][
-                num_img_ff] = f["data_2"].value
+                num_img_ff] = f[dataset].value
             f.close()
             num_img_ff += 1
 
 
-def make_stack(files_for_stack, records, root_path,
-               type_struct="normalized"):
+def make_stack(files_for_stack, root_path, type_struct="normalized"):
 
     data_files = files_for_stack["data"]
     data_files_ff = files_for_stack["ff"]
@@ -306,7 +307,7 @@ def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
 
     # Parallization of making the stacks
     records = Parallel(n_jobs=cores, backend="multiprocessing")(
-        delayed(make_stack)(files_for_stack, records, root_path,
+        delayed(make_stack)(files_for_stack, root_path,
                             type_struct=type_struct
                             ) for files_for_stack in files_list)
 
