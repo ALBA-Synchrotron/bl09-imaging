@@ -21,13 +21,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 
+import time
 import subprocess
 import argparse
 from argparse import RawTextHelpFormatter
 
 
 def main():
-
+    """
+    - Convert from xrm to hdf5 individual image hdf5 files
+    - Copy raw hdf5 to new files for processing
+    - Crop borders
+    - Normalize
+    - Create stacks by date, sample, energy and zpz,
+      with multiple angles in each stack
+    """
     def str2bool(v):
         return v.lower() in ("yes", "true", "t", "1")
 
@@ -58,12 +66,14 @@ def main():
 
     args = parser.parse_args()
 
+    start_time = time.time()
     subprocess.call(["manyxrm2h5", args.txm_txt_script])
     subprocess.call(["copy2proc", args.db_file_index])
     if args.crop:
         subprocess.call(["manycrop", args.db_file_index])
     subprocess.call(["manynorm", args.db_file_index])
     subprocess.call(["img2stack", args.db_file_index])
+    print("\nxrm2norm took %d seconds\n" % (time.time() - start_time))
 
 
 if __name__ == "__main__":
