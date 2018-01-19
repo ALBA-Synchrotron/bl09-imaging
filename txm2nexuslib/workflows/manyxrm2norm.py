@@ -73,7 +73,7 @@ def main():
         subprocess.call(["manycrop", args.db_file_index])
     subprocess.call(["manynorm", args.db_file_index])
     subprocess.call(["img2stack", args.db_file_index])
-    print("\nxrm2norm took %d seconds\n" % (time.time() - start_time))
+    print("\nmanyxrm2norm took %d seconds\n" % (time.time() - start_time))
 
 
 if __name__ == "__main__":

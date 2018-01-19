@@ -57,7 +57,7 @@ setup(
             'manynorm = txm2nexuslib.scripts.manynorm:main',
             'manycrop = txm2nexuslib.scripts.manycrop:main',
             'img2stack = txm2nexuslib.scripts.img2stack:main',
-            'xrm2norm = txm2nexuslib.workflows.xrm2norm:main']
+            'manyxrm2norm = txm2nexuslib.workflows.manyxrm2norm:main']
     },
     author='Marc Rosanes, Carlos Falcon, Zbigniew Reszela, Carlos Pascual',
     author_email='mrosanes@cells.es, cfalcon@cells.es, zreszela@cells.es, '

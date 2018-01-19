@@ -83,10 +83,10 @@ def normalize_images(file_index_fn, table_name=None,
                                        record["energy"]))
     dates_samples_energies = list(set(dates_samples_energies))
     num_files_total = 0
-    for date_sample_energie in dates_samples_energies:
-        date = date_sample_energie[0]
-        sample = date_sample_energie[1]
-        energy = date_sample_energie[2]
+    for date_sample_energy in dates_samples_energies:
+        date = date_sample_energy[0]
+        sample = date_sample_energy[1]
+        energy = date_sample_energy[2]
 
         # Raw image records by given date, sample and energy
         query_cmd = ((files_query.date == date) &

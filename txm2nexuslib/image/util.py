@@ -119,16 +119,21 @@ def align(image_ref, image_to_align, roi_size=0.5):
                          col_tem_from:col_tem_from+w]
     #template = np.array(template)
 
-    # Apply template Matching: cross-correlation is used
-    # by using function matchTemplate from cv2.
+    # template matching from cv2 only works with float 32, or
+    # with uint8 (from 0 to 256)
     if isinstance(template[0][0], (np.floating, float)):
         if type(template[0][0]) != np.float32:
-            image_to_align = image_to_align.astype(np.float32)
             template = template.astype(np.float32)
     else:
-        image_to_align = image_to_align.astype(np.uint8)
         template = template.astype(np.uint8)
 
+    if isinstance(image_to_align[0][0], (np.floating, float)):
+        if type(image_to_align[0][0]) != np.float32:
+            image_to_align = image_to_align.astype(np.float32)
+    else:
+        image_to_align = image_to_align.astype(np.uint8)
+
+    # Apply template Matching from cv2
     result = cv2.matchTemplate(image_to_align, template,
                                eval('cv2.TM_CCOEFF_NORMED'))
     (min_val, max_val, min_loc, max_loc) = cv2.minMaxLoc(result)

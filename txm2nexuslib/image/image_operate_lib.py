@@ -150,7 +150,7 @@ class Image(object):
         aligned_image, mv_vector, description = self.align_from_file(
             reference_image_obj, roi_size=roi_size)
         new_dataset = self.store_image_in_h5(aligned_image,
-                               description=description)
+                                             description=description)
         self.store_dataset_metadata(dataset=new_dataset,
                                     metadata_dset_name="move_vector",
                                     metadata_value=mv_vector)

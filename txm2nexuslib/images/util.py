@@ -27,10 +27,46 @@ from shutil import copy
 
 from tinydb import TinyDB, Query
 from tinydb.storages import JSONStorage
+from tinydb.storages import MemoryStorage
 from tinydb.middlewares import CachingMiddleware
 from joblib import Parallel, delayed
 
 from txm2nexuslib.parser import get_file_paths
+
+
+def filter_file_index(file_index_db, files_query,
+                      date=None, sample=None, energy=None,
+                      ff=None):
+    temp_db = TinyDB(storage=MemoryStorage)
+    if date:
+        records = file_index_db.search(files_query.date == date)
+        temp_db.insert_multiple(records)
+    if sample:
+        if temp_db:
+            records = temp_db.search(files_query.sample == sample)
+            temp_db.purge()
+            temp_db.insert_multiple(records)
+        else:
+            records = file_index_db.search(files_query.sample == sample)
+            temp_db.insert_multiple(records)
+    if energy:
+        if temp_db:
+            records = temp_db.search(files_query.energy == energy)
+            temp_db.purge()
+            temp_db.insert_multiple(records)
+        else:
+            records = file_index_db.search(files_query.energy == energy)
+            temp_db.insert_multiple(records)
+    if ff is True or ff is False:
+        if temp_db:
+            records = temp_db.search(files_query.FF == ff)
+            temp_db.purge()
+            temp_db.insert_multiple(records)
+        else:
+            records = file_index_db.search(files_query.FF == ff)
+            temp_db.insert_multiple(records)
+    return temp_db
+
 
 def create_subset_db(file_index_fn, subset_file_index_fn,
                      processed=True, extension=".hdf5"):

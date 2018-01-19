@@ -35,7 +35,8 @@ class ImageOperate(object):
 
     def __init__(self):
         parser = argparse.ArgumentParser(
-            description='img allows performing operations with images',
+            description='img allows performing operations with images stored'
+                        'in hdf5 files',
             usage="""img <command> [<args>]
 
 img commands:
@@ -61,6 +62,8 @@ img commands:
                   machine currents
                - Normalize image by average FF, exposure times and
                   machine currents
+   align
+               - Align image regarding another reference image
 """)
         parser.add_argument('command', help='Subcommand to run')
         args = parser.parse_args(sys.argv[1:2])
@@ -291,6 +294,41 @@ img commands:
                       image_data_set=args.dataset)
         image.clone_image_dataset()
 
+    def align(self):
+        """Align a given image regarding another reference image"""
+        parser = argparse.ArgumentParser(
+            description='Align an image located in a hdf5 file, regarding'
+                        'a reference image situated in another hdf5 file',
+            formatter_class=RawTextHelpFormatter)
+        parser.add_argument('input_file', type=str,
+                            help='hdf5 input file containing the '
+                                 'image to be aligned')
+        parser.add_argument('reference_file', type=str,
+                            help='hdf5 reference file containing the '
+                                 'image used as reference')
+        parser.add_argument('-r', '--roi_size',
+                            type=float,
+                            default=0.5,
+                            help='Tant per one, of the total amount of image '
+                                 'pixels. \nIt determines the ROI size used'
+                                 'in the alignment')
+        parser.add_argument('-da', '--dataset_for_aligning',
+                            type=str,
+                            default="data",
+                            help='dataset containing the image to be aligned\n'
+                                 'Default: data')
+        parser.add_argument('-dr', '--dataset_reference',
+                            type=str,
+                            default="data",
+                            help='dataset containing the reference dataset\n'
+                                 'Default: data')
+        args = parser.parse_args(sys.argv[2:])
+
+        image = Image(h5_image_filename=args.input_file,
+                      image_data_set=args.dataset_for_aligning)
+        reference_image_obj = Image(h5_image_filename=args.reference_file,
+                                    image_data_set=args.dataset_reference)
+        image.align_and_store(reference_image_obj, roi_size=args.roi_size)
 
 
 def main():
