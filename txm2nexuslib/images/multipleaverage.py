@@ -37,6 +37,7 @@ def average_and_store(group_to_average_image_filenames,
                       dataset_for_averaging="data",
                       variable="zpz", description="",
                       dataset_store="data"):
+
     if variable == "zpz":
         zp_central = group_to_average_image_filenames[0]
         images_to_average_filenames = group_to_average_image_filenames[1]
@@ -50,12 +51,18 @@ def average_and_store(group_to_average_image_filenames,
         output_fn = (str(date) + "_" + str(sample) + "_" + str(energy) +
                      "_" + str(angle) + "_" +
                      str(zp_central) + "_avg_zpz.hdf5")
-        output_fn = dir_name + "/" + output_fn
+        output_complete_fn = dir_name + "/" + output_fn
         average_images(images_to_average_filenames,
                        dataset_for_average=dataset_for_averaging,
                        description=description, store=True,
-                       output_h5_fn=output_fn, dataset_store=dataset_store)
-    return output_fn
+                       output_h5_fn=output_complete_fn,
+                       dataset_store=dataset_store)
+
+        record = {"filename": output_fn, "extension": ".hdf5",
+                  "date": date, "sample": sample, "energy": energy,
+                  "angle": angle, "average": True, "avg_by": "zpz",
+                  "zpz": zp_central}
+    return record
 
 
 def average_images_for_many_img_groups(
@@ -107,6 +114,9 @@ def average_images_for_many_img_groups(
                                               record["angle"]))
     dates_samples_energies_angles = list(set(dates_samples_energies_angles))
 
+    averages_table = db.table("hdf5_averages")
+    averages_table.purge()
+
     groups_to_average = []
     if variable == "zpz":
         for date_sample_energy_angle in dates_samples_energies_angles:
@@ -137,7 +147,7 @@ def average_images_for_many_img_groups(
             groups_to_average.append(central_zpz_with_group_to_average)
 
     if groups_to_average[0][1]:
-        Parallel(n_jobs=cores, backend="multiprocessing")(
+        records = Parallel(n_jobs=cores, backend="multiprocessing")(
             delayed(average_and_store)(
                 group_to_average,
                 dataset_for_averaging=dataset_for_averaging,
@@ -145,6 +155,8 @@ def average_images_for_many_img_groups(
                 dataset_store=dataset_store
             ) for group_to_average in groups_to_average)
 
+    averages_table.insert_multiple(records)
+    print(averages_table.all())
     print("--- Average %d files by groups, took %s seconds ---\n" %
           (n_files, (time.time() - start_time)))
     db.close()
