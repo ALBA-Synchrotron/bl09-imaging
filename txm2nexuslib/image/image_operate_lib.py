@@ -166,13 +166,12 @@ def copy_h5(input, output):
     shutil.copy(input, output)
 
 
-def store_single_image_in_new_h5(
-        h5_filename, image, description="default", data_set="data"):
+def store_single_image_in_new_h5(h5_filename, image, description="default",
+                                 data_set="data"):
     """Store a single image in a new hdf5 file"""
-    f = h5py.File(h5_filename, "w")
-    f.create_dataset(data_set, data=image)
-    f[data_set].attrs["dataset"] = data_set
-    f[data_set].attrs["description"] = description
+    f = h5py.File(h5_filename, 'w')
+    data_type = type(image[0][0])
+    f.create_dataset(data_set, data=image, dtype=data_type)
     f.flush()
     f.close()
 
@@ -356,19 +355,24 @@ def divide(numerator, denominators, store=False, output_h5_fn="default"):
     return result_image
 
 
-def average_images(image_filenames, description="", store=False,
-                   dataset_store="data", output_h5_fn="default"):
+def average_images(image_filenames, dataset_for_average="data",
+                   description="", store=False,
+                   output_h5_fn="default", dataset_store="data"):
     """Average images"""
+    image_obj = Image(h5_image_filename=image_filenames[0])
     average_image = np.zeros(np.shape(image_obj.image),
                              dtype=type(np.float32))
     num_imgs = len(image_filenames)
     for image_fn in image_filenames:
-        image_obj = Image(h5_image_filename=image_fn)
+        image_obj = Image(h5_image_filename=image_fn,
+                          image_data_set=dataset_for_average)
         average_image += image_obj.image
         image_obj.close_h5()
     # Average of images that have been beforehand normalized by a constant
     average_image /= num_imgs
+    average_image = np.float32(average_image)
     # Store the average image in the first of the input h5 image file
+
     if store:
         if output_h5_fn == "default":
             image_obj = Image(h5_image_filename=image_filenames[0])
@@ -504,17 +508,6 @@ def normalize_image(image_filename, ff_img_filenames=[],
 
 def main():
 
-    fn_image = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
-               "image_operate_xrm_test_add/" \
-               "20161203_F33_tomo02_-8.0_-11351.9_proc.hdf5"
-    fn_image_FF_1 = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
-                    "image_operate_xrm_test_add/" \
-                    "20161203_F33_tomo02_0.0_-11351.9_proc.hdf5"
-    fn_image_FF_2 = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
-                    "image_operate_xrm_test_add/" \
-                    "20161203_F33_tomo02_10.0_-11351.9_proc.hdf5"
-    ff_filenames = [fn_image_FF_1, fn_image_FF_2]
-
     img_ref_name = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
                    "PARALLEL_IMAGING/image_operate_xrm_test_add/" \
                    "tests7/xrm/20171122_tomo05_520.0_0.0_-10435.5_proc.hdf5"
@@ -525,12 +518,8 @@ def main():
                         "/xrm/20171122_tomo05_520.0_10.0_-10434.0_proc.hdf5"
     image_to_align = Image(img_to_align_name)
 
-    #aligned_image, mv_vector, description = image_to_align.\
-    #    align_from_file(reference_image_obj)
-
     aligned_image, mv_vector = image_to_align.align_and_store(
         reference_image_obj)
-
 
     #reference_image_obj.clone_image_dataset()
     print(mv_vector)
