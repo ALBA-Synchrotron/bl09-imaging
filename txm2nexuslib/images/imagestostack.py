@@ -276,7 +276,6 @@ def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
 
     stack_table = db.table("hdf5_stacks")
     stack_table.purge()
-    records = []
 
     files_list = []
     for date_sample_energy_zpz in dates_samples_energies_zpzs:
