@@ -37,6 +37,7 @@ from txm2nexuslib.parser import get_file_paths
 def filter_file_index(file_index_db, files_query,
                       date=None, sample=None, energy=None,
                       ff=None):
+    """If ff is None, all images are taken"""
     temp_db = TinyDB(storage=MemoryStorage)
     if date:
         records = file_index_db.search(files_query.date == date)
