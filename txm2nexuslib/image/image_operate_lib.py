@@ -356,9 +356,36 @@ def divide(numerator, denominators, store=False, output_h5_fn="default"):
     return result_image
 
 
-def average_h5_images(image_filenames, constant=None,
-                      store_normalized_by_constant=False,
-                      store_average=False):
+def average_images(image_filenames, description="", store=False,
+                   dataset_store="data", output_h5_fn="default"):
+    """Average images"""
+    average_image = np.zeros(np.shape(image_obj.image),
+                             dtype=type(np.float32))
+    num_imgs = len(image_filenames)
+    for image_fn in image_filenames:
+        image_obj = Image(h5_image_filename=image_fn)
+        average_image += image_obj.image
+        image_obj.close_h5()
+    # Average of images that have been beforehand normalized by a constant
+    average_image /= num_imgs
+    # Store the average image in the first of the input h5 image file
+    if store:
+        if output_h5_fn == "default":
+            image_obj = Image(h5_image_filename=image_filenames[0])
+            description = "Average image: " + description
+            image_obj.store_image_in_h5(average_image,
+                                        description=description)
+            image_obj.close_h5()
+        else:
+            store_single_image_in_new_h5(
+                output_h5_fn, average_image, description=description,
+                data_set=dataset_store)
+    return average_image
+
+
+def divide_by_constant_and_average_images(image_filenames, constant=None,
+                                          store_normalized_by_constant=False,
+                                          store=False):
     """Normalize each of the image in the list by a constant and average all
     the normalized images.
     If the constant is not indicated, as default, the constant is
@@ -379,7 +406,7 @@ def average_h5_images(image_filenames, constant=None,
     # Average of images that have been beforehand normalized by a constant
     average_image /= num_imgs
     # Store the average image in the first of the input h5 image file
-    if store_average:
+    if store:
         image_obj = Image(h5_image_filename=image_filenames[0])
         description = ("Average image calculated after normalizing each "
                        "of the input images by a constant. If the constant "
@@ -428,9 +455,9 @@ def normalize_image(image_filename, ff_img_filenames=[],
             ff_img_obj.close_h5()
             # Average of FF images that are beforehand normalized by its
             # corresponding exposure times and machine currents
-            ff_norm_image = average_h5_images(
+            ff_norm_image = divide_by_constant_and_average_images(
                 ff_img_filenames, store_normalized_by_constant=True,
-                store_average=True)
+                store=True)
         else:
             # Normalize FF image by exposure_time and machine_current
             ff_norm_image = ff_img_obj.normalize_by_constant()
