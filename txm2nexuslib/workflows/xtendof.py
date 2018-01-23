@@ -99,7 +99,8 @@ def main():
     average_images_for_many_img_groups(db_filename)
 
     # Build up hdf5 stacks from individual images
-    many_images_to_h5_stack(db_filename, table_name=args.table_for_stack)
+    many_images_to_h5_stack(db_filename, table_name=args.table_for_stack,
+                            suffix="_FS")
 
     print("xtendof took %d seconds\n" % (time.time() - start_time))
 

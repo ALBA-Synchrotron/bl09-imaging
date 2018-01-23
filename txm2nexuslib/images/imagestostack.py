@@ -175,7 +175,8 @@ def data_2_hdf5(h5_stack_file_handler,
             num_img_ff += 1
 
 
-def make_stack(files_for_stack, root_path, type_struct="normalized"):
+def make_stack(files_for_stack, root_path, type_struct="normalized",
+               suffix="_stack"):
 
     data_files = files_for_stack["data"]
     data_files_ff = files_for_stack["ff"]
@@ -193,7 +194,7 @@ def make_stack(files_for_stack, root_path, type_struct="normalized"):
 
     # Creation of hdf5 stack
     h5_out_fn = (str(date) + "_" + str(sample) + "_" +
-                 str(energy) + "_" + str(zpz) + "_stack.hdf5")
+                 str(energy) + "_" + str(zpz) + suffix + ".hdf5")
     h5_out_fn = root_path + "/" + h5_out_fn
     h5_stack_file_handler = h5py.File(h5_out_fn, "w")
     dict2hdf5(h5_stack_file_handler, data_dict)
@@ -214,7 +215,7 @@ def make_stack(files_for_stack, root_path, type_struct="normalized"):
 
 
 def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
-                            type_struct="normalized",
+                            type_struct="normalized", suffix="_stack",
                             date=None, sample=None, energy=None, zpz=None,
                             subfolders=False,
                             cores=-2):
@@ -310,7 +311,7 @@ def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
     # Parallization of making the stacks
     records = Parallel(n_jobs=cores, backend="multiprocessing")(
         delayed(make_stack)(files_for_stack, root_path,
-                            type_struct=type_struct
+                            type_struct=type_struct, suffix=suffix
                             ) for files_for_stack in files_list)
 
     stack_table.insert_multiple(records)
@@ -326,14 +327,18 @@ def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
 
 def main():
 
-    file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
-                 "PARALLEL_IMAGING/image_operate_xrm_test_add/" \
-                 "tests6/xrm/index.json"
+    #file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
+    #             "PARALLEL_IMAGING/image_operate_xrm_test_add/" \
+    #             "tests6/xrm/index.json"
 
     #file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
     #             "PARALLEL_IMAGING/PARALLEL_XRM2H5/tomo05/index.json"
 
-    many_images_to_h5_stack(file_index, table_name="hdf5_proc",
+    file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
+                 "PARALLEL_IMAGING/PARALLEL_XRM2H5/TOMOFEW/tomo_few_2/" \
+                 "index.json"
+
+    many_images_to_h5_stack(file_index, table_name="hdf5_averages",
                             type_struct="normalized")
 
 
