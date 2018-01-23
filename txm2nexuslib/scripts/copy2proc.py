@@ -20,7 +20,6 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import time
 
 import argparse
 from argparse import RawTextHelpFormatter
@@ -74,14 +73,10 @@ def main():
 
     args = parser.parse_args()
 
-    start_time = time.time()
-
     copy2proc_multiple(args.file_index_db, table_in_name=args.table_h5_in,
                        table_out_name=args.table_h5_out,
                        use_subfolders=args.subfolders, cores=args.cores,
                        update_db=args.update_db)
-    print("--- Copy to processed files took %s seconds ---" %
-          (time.time() - start_time))
 
     # printer.pprint(files)
 

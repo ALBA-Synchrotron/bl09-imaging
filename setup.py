@@ -57,7 +57,8 @@ setup(
             'manynorm = txm2nexuslib.scripts.manynorm:main',
             'manycrop = txm2nexuslib.scripts.manycrop:main',
             'img2stack = txm2nexuslib.scripts.img2stack:main',
-            'manyxrm2norm = txm2nexuslib.workflows.manyxrm2norm:main']
+            'manyxrm2norm = txm2nexuslib.workflows.manyxrm2norm:main',
+            'xtendof = txm2nexuslib.workflows.xtendof:main']
     },
     author='Marc Rosanes, Carlos Falcon, Zbigniew Reszela, Carlos Pascual',
     author_email='mrosanes@cells.es, cfalcon@cells.es, zreszela@cells.es, '
@@ -70,7 +71,7 @@ setup(
     description='HDF5 images pre-processing (formats: hdf5, xrm, txrm)',
     long_description=long_description,
     requires=['setuptools (>=1.1)'],
-    install_requires=['numpy', 'h5py', 'tinydb'],
+    install_requires=['numpy'],
     classifiers=classifiers
 )
 

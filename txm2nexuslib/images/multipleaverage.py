@@ -61,7 +61,7 @@ def average_and_store(group_to_average_image_filenames,
         record = {"filename": output_fn, "extension": ".hdf5",
                   "date": date, "sample": sample, "energy": energy,
                   "angle": angle, "average": True, "avg_by": "zpz",
-                  "zpz": zp_central}
+                  "zpz": zp_central, "zpz_central": zp_central}
     return record
 
 
@@ -73,8 +73,8 @@ def average_images_for_many_img_groups(
     If date, sample and/or energy are indicated, only the corresponding
     images for the given date, sample and/or energy are processed.
     The average of the different groups of images will be done in parallel:
-    all cores but one used (Value=-2). All images of the same angle, for the
-    different ZPz are averaged.
+    all cores but one used (Value=-2). All data images of the same angle,
+    for the different ZPz are averaged.
     """
 
     """
@@ -156,7 +156,8 @@ def average_images_for_many_img_groups(
             ) for group_to_average in groups_to_average)
 
     averages_table.insert_multiple(records)
-    print(averages_table.all())
+
+    # print(averages_table.all())
     print("--- Average %d files by groups, took %s seconds ---\n" %
           (n_files, (time.time() - start_time)))
     db.close()

@@ -33,9 +33,9 @@ from txm2nexuslib.parser import get_file_paths
 from txm2nexuslib.image.image_operate_lib import normalize_image
 
 
-def normalize_images(file_index_fn, table_name=None,
+def normalize_images(file_index_fn, table_name="hdf5_proc",
                      date=None, sample=None, energy=None,
-                     average_ff=True, cores=-1):
+                     average_ff=True, cores=-2):
     """Normalize images of one experiment.
     If date, sample and/or energy are indicated, only the corresponding
     images for the given date, sample and/or energy are normalized.

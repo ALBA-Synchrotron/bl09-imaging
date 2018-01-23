@@ -20,7 +20,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-
+import pprint
 import os
 import time
 from joblib import Parallel, delayed
@@ -95,6 +95,8 @@ def align_images(file_index_fn, table_name="hdf5_proc",
     dates_samples_energies_angles = list(set(dates_samples_energies_angles))
 
     couples_to_align = []
+    # The goal in this case is to align all the images for a same date,
+    # sample, energy and angle, and a variable zpz.
     if variable == "zpz":
         for date_sample_energy_angle in dates_samples_energies_angles:
             date = date_sample_energy_angle[0]
@@ -108,6 +110,11 @@ def align_images(file_index_fn, table_name="hdf5_proc",
                          (files_query.energy == energy) &
                          (files_query.angle == angle))
             h5_records = file_index_db.search(query_cmd)
+
+            # pobj = pprint.PrettyPrinter(indent=4)
+            # print("group for align")
+            # for rec in h5_records:
+            #    pobj.pprint(rec["filename"])
 
             files = get_file_paths(h5_records, root_path)
 

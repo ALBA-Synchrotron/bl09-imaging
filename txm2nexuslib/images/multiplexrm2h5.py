@@ -21,6 +21,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import os
+import time
+
 from joblib import Parallel, delayed
 
 from txm2nexuslib.parser import get_db, get_file_paths
@@ -33,8 +35,11 @@ def convert_xrm2h5(xrm_file):
     xrm2h5_converter.convert_xrm_to_h5_file()
 
 
-def multiple_xrm_2_hdf5(txm_txt_script, subfolders=False, cores=-1,
+def multiple_xrm_2_hdf5(txm_txt_script, subfolders=False, cores=-2,
                         update_db=True):
+    """Using all cores but one for the computations"""
+
+    start_time = time.time()
 
     # printer = pprint.PrettyPrinter(indent=4)
     db = get_db(txm_txt_script)
@@ -52,5 +57,9 @@ def multiple_xrm_2_hdf5(txm_txt_script, subfolders=False, cores=-1,
 
     if update_db:
         util.update_db_func(db, "hdf5_raw", all_file_records)
-
     db.close()
+
+    n_files = len(files)
+    print("--- Convert from xrm to hdf5 %d files took %s seconds ---\n" %
+          (n_files, (time.time() - start_time)))
+    return db

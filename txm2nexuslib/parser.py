@@ -198,7 +198,7 @@ def _get_paths_from_subfolders(root_path, query_output):
             files.append(complete_file)
         print("Subfolders have been used\n")
     except:
-        print("Performing generic search in the root folder\n")
+        # print("Performing generic search in the root folder\n")
         files = _get_paths_from_root(root_path, query_output)
     return files
 

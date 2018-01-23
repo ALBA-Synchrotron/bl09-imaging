@@ -22,6 +22,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 import os
+import time
+
 import h5py
 from shutil import copy
 
@@ -135,6 +137,9 @@ def copy2proc_multiple(file_index_db, table_in_name="hdf5_raw",
                        use_subfolders=False, cores=-1, update_db=True):
     """Copy many files to processed files"""
     # printer = pprint.PrettyPrinter(indent=4)
+
+    start_time = time.time()
+
     db = TinyDB(file_index_db, storage=CachingMiddleware(JSONStorage))
     files_query = Query()
     if table_in_name == "default":
@@ -155,6 +160,10 @@ def copy2proc_multiple(file_index_db, table_in_name="hdf5_raw",
 
     if update_db:
         update_db_func(db, table_out_name, hdf5_records, suffix)
+
+    n_files = len(files)
+    print("--- Copy for processing %d files took %s seconds ---\n" %
+          (n_files, (time.time() - start_time)))
 
     db.close()
 

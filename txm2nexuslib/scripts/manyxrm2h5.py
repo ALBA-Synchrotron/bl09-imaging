@@ -21,11 +21,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 
-import time
 import argparse
 from argparse import RawTextHelpFormatter
 
-from txm2nexuslib.images import multiplexrm2h5
+from txm2nexuslib.images.multiplexrm2h5 import multiple_xrm_2_hdf5
 
 
 def main():
@@ -50,22 +49,18 @@ def main():
                              '(default: False)')
 
     parser.add_argument('-c', '--cores', type=int,
-                        default=-1,
+                        default=-2,
                         help='Number of cores used for the format conversion\n'
                              '(default is max of available CPUs: -1)')
 
     parser.add_argument('-u', '--update_db', type='bool',
-                       default='True',
-                       help='Update DB with hdf5 records\n'
-                            '(default: True)')
+                        default='True',
+                        help='Update DB with hdf5 records\n'
+                             '(default: True)')
 
     args = parser.parse_args()
-    start_time = time.time()
-    multiplexrm2h5.multiple_xrm_2_hdf5(args.txm_txt_script,
-                                       subfolders=args.subfolders,
-                                       cores=args.cores,
-                                       update_db=args.update_db)
-    print("--- %s seconds ---\n" % (time.time() - start_time))
+    multiple_xrm_2_hdf5(args.txm_txt_script, subfolders=args.subfolders,
+                        cores=args.cores, update_db=args.update_db)
 
 
 if __name__ == "__main__":

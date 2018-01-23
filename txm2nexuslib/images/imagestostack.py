@@ -76,7 +76,7 @@ def metadata_2_stack_dict(hdf5_structure_dict,
                     metadata_original[dataset_name].value)
     c = 0
     for file in data_filenames:
-        #print(file)
+        # print(file)
         f = h5py.File(file, "r")
         # Process metadata
         metadata_original = f["metadata"]
@@ -216,13 +216,14 @@ def make_stack(files_for_stack, root_path, type_struct="normalized"):
 def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
                             type_struct="normalized",
                             date=None, sample=None, energy=None, zpz=None,
-                            cores=-1):
+                            subfolders=False,
+                            cores=-2):
     """Go from many images hdf5 files to a single stack of images
-    hdf5 file"""
+    hdf5 file.
+    Using all cores but one, for the computations"""
 
     # TODO: spectroscopy normalized not implemented (no Avg FF, etc)
-
-    print("--- Start: From individual hdf5 files to hdf5 image stacks ---")
+    print("--- Individual images to stacks ---")
     start_time = time.time()
     file_index_db = TinyDB(file_index_fn,
                            storage=CachingMiddleware(JSONStorage))
@@ -291,14 +292,16 @@ def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
                      (files_query.zpz == zpz) &
                      (files_query.FF == False))
         h5_records = file_index_db.search(query_cmd)
-        data_files = get_file_paths(h5_records, root_path)
+        data_files = get_file_paths(h5_records, root_path,
+                                    use_subfolders=subfolders)
 
         query_cmd_ff = ((files_query.date == date) &
                         (files_query.sample == sample) &
                         (files_query.energy == energy) &
                         (files_query.FF == True))
         h5_ff_records = file_index_db.search(query_cmd_ff)
-        data_files_ff = get_file_paths(h5_ff_records, root_path)
+        data_files_ff = get_file_paths(h5_ff_records, root_path,
+                                       use_subfolders=subfolders)
         files_dict = {"data": data_files, "ff": data_files_ff,
                       "date": date, "sample": sample, "energy": energy,
                       "zpz": zpz}
@@ -312,12 +315,12 @@ def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
 
     stack_table.insert_multiple(records)
     pretty_printer = pprint.PrettyPrinter(indent=4)
-    print("Stacks created:")
+    print("Created stacks:")
     for record in stack_table.all():
         pretty_printer.pprint(record["filename"])
     db.close()
 
-    print("--- End: Individual images to stacks took %s seconds ---\n" %
+    print("--- Individual images to stacks took %s seconds ---\n" %
           (time.time() - start_time))
 
 
