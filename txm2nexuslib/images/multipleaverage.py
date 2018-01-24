@@ -114,10 +114,10 @@ def average_and_store(group_to_average_image_filenames,
     return record
 
 
-def average_images_for_many_img_groups(
-        file_index_fn, table_name="hdf5_proc", dataset_for_averaging="data",
-        variable="zpz", description="", dataset_store="data",
-        date=None, sample=None, energy=None, cores=-2):
+def average_image_groups(file_index_fn, table_name="hdf5_proc",
+                         dataset_for_averaging="data", variable="zpz",
+                         description="", dataset_store="data",
+                         date=None, sample=None, energy=None, cores=-2):
     """Average images of one experiment by zpz.
     If date, sample and/or energy are indicated, only the corresponding
     images for the given date, sample and/or energy are processed.
@@ -220,7 +220,7 @@ def main():
     file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
                  "PARALLEL_IMAGING/PARALLEL_XRM2H5/TOMOFEW/tomo_few/index.json"
 
-    average_images_for_many_img_groups(file_index)
+    average_image_groups(file_index)
     # sample="ols", energy=640, date=20161203)
 
 

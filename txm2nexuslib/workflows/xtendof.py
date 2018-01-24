@@ -32,8 +32,7 @@ from txm2nexuslib.images.util import copy2proc_multiple
 from txm2nexuslib.images.multiplecrop import crop_images
 from txm2nexuslib.images.multiplenormalization import normalize_images
 from txm2nexuslib.images.multiplealign import align_images
-from txm2nexuslib.images.multipleaverage import (
-    average_images_for_many_img_groups)
+from txm2nexuslib.images.multipleaverage import average_image_groups
 from txm2nexuslib.images.imagestostack import many_images_to_h5_stack
 
 def main():
@@ -96,7 +95,7 @@ def main():
     align_images(db_filename)
 
     # Average multiple hdf5 files: working with many single images files
-    average_images_for_many_img_groups(db_filename)
+    average_image_groups(db_filename)
 
     # Build up hdf5 stacks from individual images
     many_images_to_h5_stack(db_filename, table_name=args.table_for_stack,
