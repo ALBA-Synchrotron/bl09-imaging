@@ -80,11 +80,13 @@ def average_and_store(group_to_average_image_filenames,
             if metadata_out not in h5_avg:
                 meta_out_grp = h5_avg.create_group(metadata_out)
             if "/metadata/energy" in h5_in:
-                energy = meta_in_grp["energy"].value
+                energy = round(meta_in_grp["energy"].value, 1)
                 meta_out_grp.create_dataset("energy", data=energy)
                 meta_out_grp["energy"].attrs["units"] = "eV"
             if "/metadata/angle" in h5_in:
-                angle = meta_in_grp["angle"].value
+                angle = round(meta_in_grp["angle"].value, 2)
+                if angle == 0:
+                    angle = 0.0
                 meta_out_grp.create_dataset("angle", data=angle)
                 meta_out_grp["angle"].attrs["units"] = "degree"
             if "/metadata/pixel_size" in h5_in:
