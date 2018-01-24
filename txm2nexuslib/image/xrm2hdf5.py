@@ -44,7 +44,7 @@ class Xrm2H5Converter(object):
 
         with XradiaFile(self.xrm_filename) as xrm_file:
             try:
-                self.metadata['angle'] = xrm_file.get_angles()
+                self.metadata['angle'] = xrm_file.get_angles()[0]
                 self.metadata_h5.create_dataset(
                     "angle",
                     data=self.metadata['angle'])
