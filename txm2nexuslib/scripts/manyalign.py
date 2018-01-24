@@ -45,7 +45,6 @@ def main():
     parser.add_argument('-t', '--table_h5', type=str,
                         default="hdf5_proc",
                         help='DB table of hdf5 to be normalized\n'
-                             'If None, default tinyDB table is used\n'
                              '(default: hdf5_proc)')
 
     parser.add_argument('-r', '--roi_size',
@@ -54,6 +53,7 @@ def main():
                         help='Tant per one, of the total amount of image '
                              'pixels. \nIt determines the ROI size used'
                              'in the alignment')
+
     parser.add_argument('-da', '--dataset_for_aligning',
                         type=str,
                         default="data",
@@ -64,6 +64,7 @@ def main():
                         default="data",
                         help='dataset containing the reference dataset\n'
                              'Default: data')
+
     parser.add_argument('-v', '--variable',
                         type=str,
                         default="zpz",
