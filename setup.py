@@ -57,6 +57,7 @@ setup(
             'manynorm = txm2nexuslib.scripts.manynorm:main',
             'manycrop = txm2nexuslib.scripts.manycrop:main',
             'manyalign = txm2nexuslib.scripts.manyalign:main',
+            'manyaverage = txm2nexuslib.scripts.manyaverage:main',
             'img2stack = txm2nexuslib.scripts.img2stack:main',
             'manyxrm2norm = txm2nexuslib.workflows.manyxrm2norm:main',
             'xtendof = txm2nexuslib.workflows.xtendof:main']
