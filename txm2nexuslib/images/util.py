@@ -37,38 +37,36 @@ from txm2nexuslib.parser import get_file_paths
 
 
 def filter_file_index(file_index_db, files_query,
-                      date=None, sample=None, energy=None,
+                      date=None, sample=None, energy=None, zpz=None,
                       ff=None):
-    """If ff is None, all images are taken"""
-    temp_db = TinyDB(storage=MemoryStorage)
-    if date:
-        records = file_index_db.search(files_query.date == date)
-        temp_db.insert_multiple(records)
-    if sample:
-        if temp_db:
-            records = temp_db.search(files_query.sample == sample)
-            temp_db.purge()
-            temp_db.insert_multiple(records)
+    def update_temp_db(temp_db_h5, filtered, query, attribute):
+        if filtered:
+            records_temp = temp_db_h5.search(query == attribute)
+            temp_db_h5.purge()
+            temp_db_h5.insert_multiple(records_temp)
         else:
-            records = file_index_db.search(files_query.sample == sample)
-            temp_db.insert_multiple(records)
-    if energy:
-        if temp_db:
-            records = temp_db.search(files_query.energy == energy)
-            temp_db.purge()
-            temp_db.insert_multiple(records)
-        else:
-            records = file_index_db.search(files_query.energy == energy)
-            temp_db.insert_multiple(records)
-    if ff is True or ff is False:
-        if temp_db:
-            records = temp_db.search(files_query.FF == ff)
-            temp_db.purge()
-            temp_db.insert_multiple(records)
-        else:
-            records = file_index_db.search(files_query.FF == ff)
-            temp_db.insert_multiple(records)
-    return temp_db
+            records_temp = file_index_db.search(query == attribute)
+            temp_db_h5.insert_multiple(records_temp)
+
+    # Create temporary DB filtering by date and/or sample and/or energy
+    # and/or zpz
+    if date or sample or energy or zpz or ff is not None:
+        filtered = False
+        temp_db = TinyDB(storage=MemoryStorage)
+        if date:
+            update_temp_db(temp_db, filtered, files_query.date, date)
+            filtered = True
+        if sample:
+            update_temp_db(temp_db, filtered, files_query.sample, sample)
+            filtered = True
+        if energy:
+            update_temp_db(temp_db, filtered, files_query.energy, energy)
+            filtered = True
+        if zpz:
+            update_temp_db(temp_db, filtered, files_query.zpz, zpz)
+        if ff is True or ff is False:
+            update_temp_db(temp_db, filtered, files_query.FF, ff)
+        return temp_db
 
 
 def create_subset_db(file_index_fn, subset_file_index_fn,

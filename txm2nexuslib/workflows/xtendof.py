@@ -100,6 +100,7 @@ def main():
 
     # Build up hdf5 stacks from individual images
     many_images_to_h5_stack(db_filename, table_name=args.table_for_stack,
+                            type_struct="normalized_multifocus",
                             suffix="_FS")
 
     print("xtendof took %d seconds\n" % (time.time() - start_time))

@@ -22,17 +22,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
 import time
+
 import h5py
 import pprint
 import numpy as np
+from operator import itemgetter
+
 from joblib import Parallel, delayed
+
 from tinydb import TinyDB, Query
 from tinydb.storages import JSONStorage
 from tinydb.middlewares import CachingMiddleware
 from tinydb.storages import MemoryStorage
 
 from txm2nexuslib.parser import get_file_paths
-from txm2nexuslib.images.util import dict2hdf5
+from txm2nexuslib.images.util import filter_file_index, dict2hdf5
 
 
 def create_structure_dict(type_struct="normalized"):
@@ -45,6 +49,13 @@ def create_structure_dict(type_struct="normalized"):
             "CurrentsFF": [],
             "CurrentsTomo": [],
             "ExpTimesTomo": [],
+            "energy": [],
+            "rotation_angle": [],
+            "x_pixel_size": [],
+            "y_pixel_size": []}
+        }
+    elif type_struct == "normalized_multifocus":
+        hdf5_metadata_structure_dict = {"TomoNormalized": {
             "energy": [],
             "rotation_angle": [],
             "x_pixel_size": [],
@@ -81,19 +92,21 @@ def metadata_2_stack_dict(hdf5_structure_dict,
         # Process metadata
         metadata_original = f["metadata"]
         extract_metadata_original(metadata_original, hdf5_structure_dict)
-
-        if type_struct == "normalized":
+        if (type_struct == "normalized" or
+                type_struct == "normalized_multifocus"):
             if c == 0:
                 hdf5_structure_dict["x_pixel_size"].append(
                     metadata_original["pixel_size"].value)
                 hdf5_structure_dict["y_pixel_size"].append(
                     metadata_original["pixel_size"].value)
-            hdf5_structure_dict["energy"].append(
-                metadata_original["energy"].value)
-            hdf5_structure_dict["ExpTimesTomo"].append(
-                metadata_original["exposure_time"].value)
+            if "energy" not in hdf5_structure_dict:
+                hdf5_structure_dict["energy"].append(
+                    metadata_original["energy"].value)
             hdf5_structure_dict["rotation_angle"].append(
                 metadata_original["angle"].value)
+        if type_struct == "normalized":
+            hdf5_structure_dict["ExpTimesTomo"].append(
+                metadata_original["exposure_time"].value)
             hdf5_structure_dict["CurrentsTomo"].append(
                 metadata_original["machine_current"].value)
         f.close()
@@ -102,7 +115,6 @@ def metadata_2_stack_dict(hdf5_structure_dict,
     c = 0
     if ff_filenames:
         for ff_file in ff_filenames:
-            #print(ff_file)
             f = h5py.File(ff_file, "r")
             metadata_original = f["metadata"]
             # Process metadata
@@ -127,10 +139,11 @@ def data_2_hdf5(h5_stack_file_handler,
     """Generic method to create an hdf5 stack of images from individual
     images"""
 
-    if type_struct == "normalized":
+    if type_struct == "normalized" or type_struct == "normalized_multifocus":
         main_grp = "TomoNormalized"
         main_dataset = "TomoNormalized"
-        ff_dataset = "FFNormalizedWithCurrent"
+        if ff_filenames:
+            ff_dataset = "FFNormalizedWithCurrent"
     elif type_struct == "aligned":
         pass
     else:
@@ -181,11 +194,15 @@ def make_stack(files_for_stack, root_path, type_struct="normalized",
                suffix="_stack"):
 
     data_files = files_for_stack["data"]
-    data_files_ff = files_for_stack["ff"]
+    if "ff" in files_for_stack:
+        data_files_ff = files_for_stack["ff"]
+    else:
+        data_files_ff = None
     date = files_for_stack["date"]
     sample = files_for_stack["sample"]
     energy = files_for_stack["energy"]
-    zpz = files_for_stack["zpz"]
+    if "zpz" in files_for_stack:
+        zpz = files_for_stack["zpz"]
 
     # Creation of dictionary
     h5_struct_dict = create_structure_dict(type_struct=type_struct)
@@ -195,14 +212,18 @@ def make_stack(files_for_stack, root_path, type_struct="normalized",
                                       type_struct=type_struct)
 
     # Creation of hdf5 stack
-    h5_out_fn = (str(date) + "_" + str(sample) + "_" +
-                 str(energy) + "_" + str(zpz) + suffix + ".hdf5")
+    if type_struct == "normalized":
+        h5_out_fn = (str(date) + "_" + str(sample) + "_" +
+                     str(energy) + "_" + str(zpz) + suffix + ".hdf5")
+    elif type_struct == "normalized_multifocus":
+        h5_out_fn = (str(date) + "_" + str(sample) + "_" +
+                     str(energy) + suffix + ".hdf5")
     h5_out_fn = root_path + "/" + h5_out_fn
     h5_stack_file_handler = h5py.File(h5_out_fn, "w")
     dict2hdf5(h5_stack_file_handler, data_dict)
     data_2_hdf5(h5_stack_file_handler,
                 data_files, ff_filenames=data_files_ff,
-                type_struct="normalized")
+                type_struct="normalized_multifocus")
 
     h5_stack_file_handler.flush()
     h5_stack_file_handler.close()
@@ -219,8 +240,7 @@ def make_stack(files_for_stack, root_path, type_struct="normalized",
 def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
                             type_struct="normalized", suffix="_stack",
                             date=None, sample=None, energy=None, zpz=None,
-                            subfolders=False,
-                            cores=-2):
+                            ff=None, subfolders=False, cores=-2):
     """Go from many images hdf5 files to a single stack of images
     hdf5 file.
     Using all cores but one, for the computations"""
@@ -235,88 +255,90 @@ def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
         file_index_db = file_index_db.table(table_name)
 
     files_query = Query()
-
-    def update_temp_db(temp_db_h5, filtered, query, attribute):
-        if filtered:
-            records_temp = temp_db_h5.search(query == attribute)
-            temp_db_h5.purge()
-            temp_db_h5.insert_multiple(records_temp)
-        else:
-            records_temp = file_index_db.search(query == attribute)
-            temp_db_h5.insert_multiple(records_temp)
-
-    # Create temporary DB filtering by date and/or sample and/or energy
-    # and/or zpz
-    if date or sample or energy or zpz:
-        filtered = False
-        temp_db = TinyDB(storage=MemoryStorage)
-        if date:
-            update_temp_db(temp_db, filtered, files_query.date, date)
-            filtered = True
-        if sample:
-            update_temp_db(temp_db, filtered, files_query.sample, sample)
-            filtered = True
-        if energy:
-            update_temp_db(temp_db, filtered, files_query.energy, energy)
-            filtered = True
-        if zpz:
-            update_temp_db(temp_db, filtered, files_query.zpz, zpz)
-        file_index_db = temp_db
+    if (date is not None or sample is not None or energy is not None or
+            zpz is not None or ff is not None):
+        file_index_db = filter_file_index(file_index_db, files_query,
+                                          date=date, sample=sample, energy=energy,
+                                          zpz=zpz, ff=ff)
 
     root_path = os.path.dirname(os.path.abspath(file_index_fn))
     all_file_records = file_index_db.all()
-
-    dates_samples_energies_zpzs = []
-    for record in all_file_records:
-        # TODO: If many ZPs are used, maybe the average ZP will have to be
-        # used, or maybe at long term they will not have to be used
-        # But a new DB or DB table will have to be created in order to deal
-        # with the average images between many different zpz.
-        dates_samples_energies_zpzs.append((record["date"],
-                                            record["sample"],
-                                            record["energy"],
-                                            record["zpz"]))
-    dates_samples_energies_zpzs = list(set(dates_samples_energies_zpzs))
-
     stack_table = db.table("hdf5_stacks")
     stack_table.purge()
-
     files_list = []
-    for date_sample_energy_zpz in dates_samples_energies_zpzs:
-        #print(date_sample_energy_zpz)
-        date = date_sample_energy_zpz[0]
-        sample = date_sample_energy_zpz[1]
-        energy = date_sample_energy_zpz[2]
-        zpz = date_sample_energy_zpz[3]
 
-        # Image records by given date, sample, energy and zpz
+    if type_struct == "normalized":
+        dates_samples_energies_zpzs = []
+        for record in all_file_records:
+            dates_samples_energies_zpzs.append((record["date"],
+                                                record["sample"],
+                                                record["energy"],
+                                                record["zpz"]))
+        dates_samples_energies_zpzs = list(set(dates_samples_energies_zpzs))
+        for date_sample_energy_zpz in dates_samples_energies_zpzs:
+            date = date_sample_energy_zpz[0]
+            sample = date_sample_energy_zpz[1]
+            energy = date_sample_energy_zpz[2]
+            zpz = date_sample_energy_zpz[3]
 
-        da = (files_query.date == date)
-        sa = (files_query.sample == sample)
-        en = (files_query.energy == energy)
-        zp = (files_query.zpz == zpz)
-        ff_false = (files_query.FF == False)
-        ff_true = (files_query.FF == True)
+            # Query building parts
+            da = (files_query.date == date)
+            sa = (files_query.sample == sample)
+            en = (files_query.energy == energy)
+            zp = (files_query.zpz == zpz)
+            ff_false = (files_query.FF == False)
+            ff_true = (files_query.FF == True)
 
-        data_files_ff = []
-        if file_index_db.search(files_query.FF.exists()):
-            query_cmd_ff = (da & sa & en & ff_true)
-            h5_ff_records = file_index_db.search(query_cmd_ff)
-            data_files_ff = get_file_paths(h5_ff_records, root_path,
-                                           use_subfolders=subfolders)
-        if file_index_db.search(files_query.FF.exists()):
-            query_cmd = (da & sa & en & zp & ff_false)
-        else:
-            query_cmd = (da & sa & en & zp)
-        h5_records = file_index_db.search(query_cmd)
-        data_files = get_file_paths(h5_records, root_path,
-                                    use_subfolders=subfolders)
-        files_dict = {"data": data_files, "ff": data_files_ff,
-                      "date": date, "sample": sample, "energy": energy,
-                      "zpz": zpz}
-        files_list.append(files_dict)
+            data_files_ff = []
+            if file_index_db.search(files_query.FF.exists()):
+                # Query command
+                query_cmd_ff = (da & sa & en & ff_true)
+                h5_ff_records = file_index_db.search(query_cmd_ff)
+                data_files_ff = get_file_paths(h5_ff_records, root_path,
+                                               use_subfolders=subfolders)
+            if file_index_db.search(files_query.FF.exists()):
+                # Query command
+                query_cmd = (da & sa & en & zp & ff_false)
+            else:
+                # Query command
+                query_cmd = (da & sa & en & zp)
+            h5_records = file_index_db.search(query_cmd)
+            h5_records = sorted(h5_records, key=itemgetter('angle'))
 
-    #Parallization of making the stacks
+            data_files = get_file_paths(h5_records, root_path,
+                                        use_subfolders=subfolders)
+            files_dict = {"data": data_files, "ff": data_files_ff,
+                          "date": date, "sample": sample, "energy": energy,
+                          "zpz": zpz}
+            files_list.append(files_dict)
+    elif type_struct == "normalized_multifocus":
+        dates_samples_energies = []
+        for record in all_file_records:
+            dates_samples_energies.append((record["date"],
+                                           record["sample"],
+                                           record["energy"]))
+        dates_samples_energies = list(set(dates_samples_energies))
+        for date_sample_energy in dates_samples_energies:
+            date = date_sample_energy[0]
+            sample = date_sample_energy[1]
+            energy = date_sample_energy[2]
+
+            # Query building parts
+            da = (files_query.date == date)
+            sa = (files_query.sample == sample)
+            en = (files_query.energy == energy)
+
+            # Query command
+            query_cmd = (da & sa & en)
+            h5_records = file_index_db.search(query_cmd)
+            h5_records = sorted(h5_records, key=itemgetter('angle'))
+
+            data_files = get_file_paths(h5_records, root_path,
+                                        use_subfolders=subfolders)
+            files_dict = {"data": data_files, "date": date, "sample": sample,
+                          "energy": energy}
+            files_list.append(files_dict)
+    # Parallization of making the stacks
     records = Parallel(n_jobs=cores, backend="multiprocessing")(
         delayed(make_stack)(files_for_stack, root_path,
                             type_struct=type_struct, suffix=suffix
