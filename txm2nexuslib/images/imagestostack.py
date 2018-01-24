@@ -88,6 +88,8 @@ def metadata_2_stack_dict(hdf5_structure_dict,
                     metadata_original["pixel_size"].value)
                 hdf5_structure_dict["y_pixel_size"].append(
                     metadata_original["pixel_size"].value)
+            hdf5_structure_dict["energy"].append(
+                metadata_original["energy"].value)
             hdf5_structure_dict["ExpTimesTomo"].append(
                 metadata_original["exposure_time"].value)
             hdf5_structure_dict["rotation_angle"].append(
@@ -281,34 +283,40 @@ def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
 
     files_list = []
     for date_sample_energy_zpz in dates_samples_energies_zpzs:
+        #print(date_sample_energy_zpz)
         date = date_sample_energy_zpz[0]
         sample = date_sample_energy_zpz[1]
         energy = date_sample_energy_zpz[2]
         zpz = date_sample_energy_zpz[3]
 
         # Image records by given date, sample, energy and zpz
-        query_cmd = ((files_query.date == date) &
-                     (files_query.sample == sample) &
-                     (files_query.energy == energy) &
-                     (files_query.zpz == zpz) &
-                     (files_query.FF == False))
+
+        da = (files_query.date == date)
+        sa = (files_query.sample == sample)
+        en = (files_query.energy == energy)
+        zp = (files_query.zpz == zpz)
+        ff_false = (files_query.FF == False)
+        ff_true = (files_query.FF == True)
+
+        data_files_ff = []
+        if file_index_db.search(files_query.FF.exists()):
+            query_cmd_ff = (da & sa & en & ff_true)
+            h5_ff_records = file_index_db.search(query_cmd_ff)
+            data_files_ff = get_file_paths(h5_ff_records, root_path,
+                                           use_subfolders=subfolders)
+        if file_index_db.search(files_query.FF.exists()):
+            query_cmd = (da & sa & en & zp & ff_false)
+        else:
+            query_cmd = (da & sa & en & zp)
         h5_records = file_index_db.search(query_cmd)
         data_files = get_file_paths(h5_records, root_path,
                                     use_subfolders=subfolders)
-
-        query_cmd_ff = ((files_query.date == date) &
-                        (files_query.sample == sample) &
-                        (files_query.energy == energy) &
-                        (files_query.FF == True))
-        h5_ff_records = file_index_db.search(query_cmd_ff)
-        data_files_ff = get_file_paths(h5_ff_records, root_path,
-                                       use_subfolders=subfolders)
         files_dict = {"data": data_files, "ff": data_files_ff,
                       "date": date, "sample": sample, "energy": energy,
                       "zpz": zpz}
         files_list.append(files_dict)
 
-    # Parallization of making the stacks
+    #Parallization of making the stacks
     records = Parallel(n_jobs=cores, backend="multiprocessing")(
         delayed(make_stack)(files_for_stack, root_path,
                             type_struct=type_struct, suffix=suffix
@@ -337,6 +345,12 @@ def main():
     file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
                  "PARALLEL_IMAGING/PARALLEL_XRM2H5/TOMOFEW/tomo_few_2/" \
                  "index.json"
+
+    db = TinyDB(file_index)
+    a = db.table("hdf5_proc")
+    print(a.all())
+
+    #many_images_to_h5_stack(file_index, type_struct="normalized")
 
     many_images_to_h5_stack(file_index, table_name="hdf5_averages",
                             type_struct="normalized")

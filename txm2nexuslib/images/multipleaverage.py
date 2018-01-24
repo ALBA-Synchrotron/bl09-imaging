@@ -28,6 +28,7 @@ from tinydb import TinyDB, Query
 from tinydb.storages import JSONStorage
 from tinydb.middlewares import CachingMiddleware
 
+from txm2nexuslib.image.image_operate_lib import Image
 from txm2nexuslib.parser import get_file_paths
 from txm2nexuslib.image.image_operate_lib import average_images
 from txm2nexuslib.images.util import filter_file_index
@@ -58,10 +59,56 @@ def average_and_store(group_to_average_image_filenames,
                        output_h5_fn=output_complete_fn,
                        dataset_store=dataset_store)
 
+        # Store metadata
+        # TODO: Do average of values of each group of images to be averaged
+        # For the moment we take the first image ([0] index)
+
         record = {"filename": output_fn, "extension": ".hdf5",
                   "date": date, "sample": sample, "energy": energy,
                   "angle": angle, "average": True, "avg_by": "zpz",
                   "zpz": zp_central, "zpz_central": zp_central}
+
+        img_in_obj = Image(images_to_average_filenames[0], mode="r")
+        h5_in = img_in_obj.f_h5_handler
+        img_avg_obj = Image(output_complete_fn)
+        h5_avg = img_avg_obj.f_h5_handler
+
+        metadata_in = "metadata"
+        metadata_out = "metadata"
+        if metadata_in in h5_in:
+            meta_in_grp = h5_in[metadata_in]
+            if metadata_out not in h5_avg:
+                meta_out_grp = h5_avg.create_group(metadata_out)
+            if "/metadata/energy" in h5_in:
+                energy = meta_in_grp["energy"].value
+                meta_out_grp.create_dataset("energy", data=energy)
+                meta_out_grp["energy"].attrs["units"] = "eV"
+            if "/metadata/angle" in h5_in:
+                angle = meta_in_grp["angle"].value
+                meta_out_grp.create_dataset("angle", data=angle)
+                meta_out_grp["angle"].attrs["units"] = "degree"
+            if "/metadata/pixel_size" in h5_in:
+                pixel_size = meta_in_grp["pixel_size"].value
+                meta_out_grp.create_dataset("pixel_size", data=pixel_size)
+                meta_out_grp["pixel_size"].attrs["units"] = "um"
+            if "/metadata/magnification" in h5_in:
+                magnification = meta_in_grp["magnification"].value
+                meta_out_grp.create_dataset("magnification",
+                                            data=magnification)
+            if "/metadata/exposure_time" in h5_in:
+                exposure_time = meta_in_grp["exposure_time"].value
+                meta_out_grp.create_dataset("exposure_time",
+                                            data=exposure_time)
+                meta_out_grp["exposure_time"].attrs["units"] = "s"
+            if "/metadata/machine_current" in h5_in:
+                machine_current = meta_in_grp["machine_current"].value
+                meta_out_grp.create_dataset("machine_current",
+                                            data=machine_current)
+                meta_out_grp["machine_current"].attrs["units"] = "mA"
+
+        h5_in.close()
+        img_avg_obj.close_h5()
+
     return record
 
 
@@ -154,12 +201,11 @@ def average_images_for_many_img_groups(
                 variable=variable, description=description,
                 dataset_store=dataset_store
             ) for group_to_average in groups_to_average)
-
     averages_table.insert_multiple(records)
 
-    # print(averages_table.all())
     print("--- Average %d files by groups, took %s seconds ---\n" %
           (n_files, (time.time() - start_time)))
+
     db.close()
 
 
