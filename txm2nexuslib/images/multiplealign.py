@@ -41,7 +41,8 @@ def align_and_store_from_fn(couple_imgs_to_align_filenames,
                             roi_size=0.5):
     image_ref_fn = couple_imgs_to_align_filenames[0]
     img_ref_obj = Image(h5_image_filename=image_ref_fn,
-                        image_data_set=dataset_reference)
+                        image_data_set=dataset_reference,
+                        mode="r")
 
     image_to_align_fn = couple_imgs_to_align_filenames[1]
     img_to_align_obj = Image(h5_image_filename=image_to_align_fn,
@@ -117,9 +118,10 @@ def align_images(file_index_fn, table_name="hdf5_proc",
             #    pobj.pprint(rec["filename"])
 
             files = get_file_paths(h5_records, root_path)
-
+            ref_file = files[0]
+            files.pop(0)
             for file in files:
-                couple_to_align = (files[0], file)
+                couple_to_align = (ref_file, file)
                 couples_to_align.append(couple_to_align)
 
     if couples_to_align:
