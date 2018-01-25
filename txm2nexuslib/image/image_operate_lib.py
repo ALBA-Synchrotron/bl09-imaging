@@ -477,8 +477,10 @@ def normalize_image(image_filename, ff_img_filenames=[],
     if store_normalized:
         dataset = image_obj.image_dataset
         description = dataset + "@" + path.basename(image_filename)
-        if isinstance(ff_img_filenames, list) and len(ff_img_filenames) > 1:
-            description = (" normalized by average FF, using exposure time "
+        if (average_normalized_ff_img is not None or
+                (isinstance(ff_img_filenames, list)
+                 and len(ff_img_filenames) > 1)):
+            description += (" normalized by average FF, using exposure time "
                             "and machine current. To calculate the average "
                             "FF, each FF image has been, beforehand, "
                             "normalized by its exposure time and "
