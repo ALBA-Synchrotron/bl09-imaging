@@ -223,7 +223,7 @@ def make_stack(files_for_stack, root_path, type_struct="normalized",
     dict2hdf5(h5_stack_file_handler, data_dict)
     data_2_hdf5(h5_stack_file_handler,
                 data_files, ff_filenames=data_files_ff,
-                type_struct="normalized_multifocus")
+                type_struct=type_struct)
 
     h5_stack_file_handler.flush()
     h5_stack_file_handler.close()
