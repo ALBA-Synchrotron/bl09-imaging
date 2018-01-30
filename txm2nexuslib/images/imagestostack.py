@@ -54,15 +54,21 @@ def create_structure_dict(type_struct="normalized"):
             "x_pixel_size": [],
             "y_pixel_size": []}
         }
-    elif type_struct == "normalized_multifocus":
+    elif (type_struct == "normalized_multifocus" or
+          type_struct == "normalized_simple"):
         hdf5_metadata_structure_dict = {"TomoNormalized": {
             "energy": [],
             "rotation_angle": [],
             "x_pixel_size": [],
             "y_pixel_size": []}
         }
-    elif type_struct == "aligned":
-        pass
+    elif type_struct == "aligned" or type_struct == "aligned_multifocus":
+        hdf5_metadata_structure_dict = {"FastAligned": {
+            "energy": [],
+            "rotation_angle": [],
+            "x_pixel_size": [],
+            "y_pixel_size": []}
+        }
     else:
         pass
     return hdf5_metadata_structure_dict
@@ -83,8 +89,10 @@ def metadata_2_stack_dict(hdf5_structure_dict,
     def extract_metadata_original(metadata_original, hdf5_structure_dict):
         for dataset_name in hdf5_structure_dict:
             if dataset_name in metadata_original:
-                hdf5_structure_dict[dataset_name].append(
-                    metadata_original[dataset_name].value)
+                value = metadata_original[dataset_name].value
+                if dataset_name == "energy":
+                    value = round(value, 1)
+                hdf5_structure_dict[dataset_name].append(value)
     c = 0
     for file in data_filenames:
         # print(file)
@@ -93,38 +101,40 @@ def metadata_2_stack_dict(hdf5_structure_dict,
         metadata_original = f["metadata"]
         extract_metadata_original(metadata_original, hdf5_structure_dict)
         if (type_struct == "normalized" or
-                type_struct == "normalized_multifocus"):
+                type_struct == "normalized_simple" or
+                type_struct == "normalized_multifocus" or
+                type_struct == "aligned" or
+                type_struct == "aligned_multifocus"):
             if c == 0:
                 hdf5_structure_dict["x_pixel_size"].append(
-                    metadata_original["pixel_size"].value)
+                    round(metadata_original["pixel_size"].value, 6))
                 hdf5_structure_dict["y_pixel_size"].append(
-                    metadata_original["pixel_size"].value)
+                    round(metadata_original["pixel_size"].value, 6))
             if "energy" not in hdf5_structure_dict:
                 hdf5_structure_dict["energy"].append(
-                    metadata_original["energy"].value)
+                    round(metadata_original["energy"].value, 1))
             hdf5_structure_dict["rotation_angle"].append(
-                metadata_original["angle"].value)
+                round(metadata_original["angle"].value, 1))
         if type_struct == "normalized":
             hdf5_structure_dict["ExpTimesTomo"].append(
-                metadata_original["exposure_time"].value)
+                round(metadata_original["exposure_time"].value, 2))
             hdf5_structure_dict["CurrentsTomo"].append(
-                metadata_original["machine_current"].value)
+                round(metadata_original["machine_current"].value, 6))
         f.close()
         c += 1
 
     c = 0
-    if ff_filenames:
+    if ff_filenames and type_struct == "normalized":
         for ff_file in ff_filenames:
             f = h5py.File(ff_file, "r")
             metadata_original = f["metadata"]
             # Process metadata
-            if type_struct == "normalized":
-                if c == 0:
-                    hdf5_structure_dict["Avg_FF_ExpTime"].append(
-                        metadata_original["exposure_time"].value)
-                    hdf5_structure_dict["AverageFF"] = f[avg_ff_dataset].value
-                hdf5_structure_dict["CurrentsFF"].append(
-                    metadata_original["machine_current"].value)
+            if c == 0:
+                hdf5_structure_dict["Avg_FF_ExpTime"].append(
+                    metadata_original["exposure_time"].value)
+                hdf5_structure_dict["AverageFF"] = f[avg_ff_dataset].value
+            hdf5_structure_dict["CurrentsFF"].append(
+                metadata_original["machine_current"].value)
             f.close()
             c += 1
     if num_keys == 1:
@@ -139,13 +149,16 @@ def data_2_hdf5(h5_stack_file_handler,
     """Generic method to create an hdf5 stack of images from individual
     images"""
 
-    if type_struct == "normalized" or type_struct == "normalized_multifocus":
+    if (type_struct == "normalized" or
+            type_struct == "normalized_simple" or
+            type_struct == "normalized_multifocus"):
         main_grp = "TomoNormalized"
         main_dataset = "TomoNormalized"
-        if ff_filenames:
+        if ff_filenames and type_struct == "normalized":
             ff_dataset = "FFNormalizedWithCurrent"
-    elif type_struct == "aligned":
-        pass
+    elif type_struct == "aligned" or type_struct == "aligned_multifocus":
+        main_grp = "FastAligned"
+        main_dataset = "tomo_aligned"
     else:
         pass
 
@@ -169,7 +182,7 @@ def data_2_hdf5(h5_stack_file_handler,
         f.close()
         num_img += 1
 
-    if ff_filenames:
+    if ff_filenames and type_struct == "normalized":
         # FF images normalized by machine_current and exp time
         num_img_ff = 0
         for ff_file in ff_filenames:
@@ -215,9 +228,16 @@ def make_stack(files_for_stack, root_path, type_struct="normalized",
     if type_struct == "normalized":
         h5_out_fn = (str(date) + "_" + str(sample) + "_" +
                      str(energy) + "_" + str(zpz) + suffix + ".hdf5")
-    elif type_struct == "normalized_multifocus":
+    elif (type_struct == "normalized_multifocus" or
+          type_struct == "normalized_simple"):
         h5_out_fn = (str(date) + "_" + str(sample) + "_" +
                      str(energy) + suffix + ".hdf5")
+    if type_struct == "aligned":
+        h5_out_fn = (str(date) + "_" + str(sample) + "_" +
+                     str(energy) + "_" + str(zpz) + suffix + "_ali.hdf5")
+    if type_struct == "aligned_multifocus":
+        h5_out_fn = (str(date) + "_" + str(sample) + "_" +
+                     str(energy) + suffix + "_ali.hdf5")
     h5_out_fn = root_path + "/" + h5_out_fn
     h5_stack_file_handler = h5py.File(h5_out_fn, "w")
     dict2hdf5(h5_stack_file_handler, data_dict)
@@ -267,7 +287,7 @@ def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
     stack_table.purge()
     files_list = []
 
-    if type_struct == "normalized":
+    if type_struct == "normalized" or type_struct == "aligned":
         dates_samples_energies_zpzs = []
         for record in all_file_records:
             dates_samples_energies_zpzs.append((record["date"],
@@ -311,7 +331,9 @@ def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
                           "date": date, "sample": sample, "energy": energy,
                           "zpz": zpz}
             files_list.append(files_dict)
-    elif type_struct == "normalized_multifocus":
+    elif (type_struct == "normalized_multifocus" or
+          type_struct == "normalized_simple" or
+          type_struct == "aligned_multifocus"):
         dates_samples_energies = []
         for record in all_file_records:
             dates_samples_energies.append((record["date"],
