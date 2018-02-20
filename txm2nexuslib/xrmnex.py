@@ -602,19 +602,21 @@ class XradiaFile(object):
         endtimeiso = endtime.isoformat()
         return endtimeiso
 
-    @validate_getter(["ConfigureBackup/ConfigCamera/" +
-                      "Camera 1/ConfigZonePlates/DetZero"])
     def get_det_zero(self):
-        if self._det_zero is None:
+        where_detzero = ("ConfigureBackup/ConfigCamera/" +
+                         "Camera 1/ConfigZonePlates/DetZero")
+        if self._det_zero is None and self.file.exists(where_detzero):
             stream = self.file.openstream("ConfigureBackup/ConfigCamera/" +
                                           "Camera 1/ConfigZonePlates/DetZero")
             data = stream.read()
-            if (len(data) != 0):
+            if len(data) != 0:
                 struct_fmt = '<1f'
                 sample_to_detector_zero_enc = struct.unpack(struct_fmt, data)
                 self._det_zero = sample_to_detector_zero_enc[0]
             else:
                 self._det_zero = 0
+        else:
+            self._det_zero = 0
         return self._det_zero
 
     det_zero = property(get_det_zero)
