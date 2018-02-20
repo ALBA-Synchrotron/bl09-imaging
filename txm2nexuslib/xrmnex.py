@@ -401,7 +401,7 @@ class XradiaFile(object):
 
         currents = self.no_of_images * [0]
         for i in range(self.no_of_images):
-            currents[i] = axis[self.no_of_axes * i + 28]  # In mA
+            currents[i] = axis[self.no_of_axes * i + CURRENT]  # In mA
         return currents
 
     @validate_getter([])
@@ -416,7 +416,7 @@ class XradiaFile(object):
                 axis = struct.unpack(struct_fmt, data)
                 energies = self.no_of_images * [0]
                 for i in range(self.no_of_images):
-                    energies[i] = axis[self.no_of_axes * i + 30]  # In eV
+                    energies[i] = axis[self.no_of_axes * i + ENERGYENC] # In eV
         # Energy for each image calculated from Energy motor ####
         elif (self.energy_name == "Energy"):
             if self.file.exists('PositionInfo/MotorPositions'):
@@ -428,7 +428,7 @@ class XradiaFile(object):
                 axis = struct.unpack(struct_fmt, data)
                 energies = self.no_of_images * [0]
                 for i in range(self.no_of_images):
-                    energies[i] = axis[self.no_of_axes * i + 27]  # In eV
+                    energies[i] = axis[self.no_of_axes * i + ENERGY]  # In eV
         # Energy for each image calculated from ImageInfo ####
         elif self.file.exists('ImageInfo/Energy'):
             stream = self.file.openstream('ImageInfo/Energy')
