@@ -221,7 +221,7 @@ class Xrm2H5Converter(object):
                 self.data['data'] = self.xrm_file.get_image_2D()
                 self.h5_handler.create_dataset(
                     "data_1",
-                    dtype=np.int16,
+                    dtype=np.uint16,
                     data=self.data['data'])
                 workflow_step = 1
                 dataset = "data_" + str(workflow_step)
