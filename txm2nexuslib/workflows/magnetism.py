@@ -47,7 +47,10 @@ def main():
     def str2bool(v):
         return v.lower() in ("yes", "true", "t", "1")
 
-    description = "xtend: eXTEnded Depth of field"
+    description = "magnetism: many repetition images at different angles." \
+                  "Normally using 2 different polarizations by setting the" \
+                  "JJ positions to change to circular left and right" \
+                  "polarizations"
     parser = argparse.ArgumentParser(description=description,
                                      formatter_class=RawTextHelpFormatter)
     parser.register('type', 'bool', str2bool)
@@ -70,11 +73,15 @@ def main():
 
     args = parser.parse_args()
 
-    print("\nWorkflow with Extended Depth of Field:\n" +
-          "xrm -> hdf5 -> crop -> normalize -> align for same angle and" +
-          " variable zpz -> average all images with same angle ->" +
-          " make normalized stacks")
+    print("\nWorkflow for magnetism experiments:\n" +
+          "xrm -> hdf5 -> crop -> normalize -> align for same angle, same"
+          " jj position and variable repetition ->"
+          " average all images with same angle and"
+          " same jj position ->" + " make normalized stacks")
     start_time = time.time()
+
+    # Align and average by repetition
+    variable = "repetition"
 
     # Multiple xrm 2 hdf5 files: working with many single images files
     multiple_xrm_2_hdf5(args.txm_txt_script)
@@ -92,17 +99,18 @@ def main():
     normalize_images(db_filename)
 
     # Align multiple hdf5 files: working with many single images files
-    align_images(db_filename, variable="repetition")
+    align_images(db_filename, variable=variable)
 
     # Average multiple hdf5 files: working with many single images files
-    #average_image_groups(db_filename)
+    average_image_groups(db_filename, variable=variable)
 
     # Build up hdf5 stacks from individual images
     #many_images_to_h5_stack(db_filename, table_name=args.table_for_stack,
     #                        type_struct="normalized_multifocus",
     #                        suffix="_FS")
 
-    print("xtendof took %d seconds\n" % (time.time() - start_time))
+    print("magnetism preprocessing took %d seconds\n" %
+          (time.time() - start_time))
 
 
 if __name__ == "__main__":
