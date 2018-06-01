@@ -64,12 +64,6 @@ def align_images(file_index_fn, table_name="hdf5_proc",
     but one used (Value=-2). Each file, contains a single image to be cropped.
     """
 
-    """
-    TODO: In the future it should be made available, the
-     alignment by variable == repetition.
-     For the moment only the alignment by variable == zpz is implemented
-    """
-
     start_time = time.time()
     root_path = os.path.dirname(os.path.abspath(file_index_fn))
 
@@ -87,18 +81,20 @@ def align_images(file_index_fn, table_name="hdf5_proc",
     all_file_records = file_index_db.all()
     n_files = len(all_file_records)
 
-    dates_samples_energies_angles = []
-    for record in all_file_records:
-        dates_samples_energies_angles.append((record["date"],
-                                              record["sample"],
-                                              record["energy"],
-                                              record["angle"]))
-    dates_samples_energies_angles = list(set(dates_samples_energies_angles))
-
     couples_to_align = []
+
     # The goal in this case is to align all the images for a same date,
     # sample, energy and angle, and a variable zpz.
     if variable == "zpz":
+        dates_samples_energies_angles = []
+        for record in all_file_records:
+            dates_samples_energies_angles.append((record["date"],
+                                                  record["sample"],
+                                                  record["energy"],
+                                                  record["angle"]))
+        dates_samples_energies_angles = list(
+            set(dates_samples_energies_angles))
+
         for date_sample_energy_angle in dates_samples_energies_angles:
             date = date_sample_energy_angle[0]
             sample = date_sample_energy_angle[1]
@@ -109,6 +105,53 @@ def align_images(file_index_fn, table_name="hdf5_proc",
             query_cmd = ((files_query.date == date) &
                          (files_query.sample == sample) &
                          (files_query.energy == energy) &
+                         (files_query.angle == angle))
+            h5_records = file_index_db.search(query_cmd)
+
+            # pobj = pprint.PrettyPrinter(indent=4)
+            # print("group for align")
+            # for rec in h5_records:
+            #    pobj.pprint(rec["filename"])
+
+            files = get_file_paths(h5_records, root_path)
+            ref_file = files[0]
+            files.pop(0)
+            for file in files:
+                couple_to_align = (ref_file, file)
+                couples_to_align.append(couple_to_align)
+
+    # The goal in this case is to align all the images for a same date,
+    # sample, jj_offset and angle, and a variable repetition.
+    # This is used in the magnetism experiments where many repetitions are
+    # necessary for each of the angles. 2 different JJ positions are
+    # usually used in this kind of experiments, which allows to set the
+    # two different circular polarizations (right and left)
+    if variable == "repetition":
+        dates_samples_energies_jjs_angles = []
+        for record in all_file_records:
+            dates_samples_energies_jjs_angles.append((record["date"],
+                                                      record["sample"],
+                                                      record["energy"],
+                                                      record["jj_u"],
+                                                      record["jj_d"],
+                                                      record["angle"]))
+        dates_samples_energies_jjs_angles = list(
+            set(dates_samples_energies_jjs_angles))
+
+        for date_sample_energy_jj_angle in dates_samples_energies_jjs_angles:
+            date = date_sample_energy_jj_angle[0]
+            sample = date_sample_energy_jj_angle[1]
+            energy = date_sample_energy_jj_angle[2]
+            jj_u = date_sample_energy_jj_angle[3]
+            jj_d = date_sample_energy_jj_angle[4]
+            angle = date_sample_energy_jj_angle[5]
+
+            # Raw image records by given date, sample and energy
+            query_cmd = ((files_query.date == date) &
+                         (files_query.sample == sample) &
+                         (files_query.energy == energy) &
+                         (files_query.jj_u == jj_u) &
+                         (files_query.jj_d == jj_d) &
                          (files_query.angle == angle))
             h5_records = file_index_db.search(query_cmd)
 
