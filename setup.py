@@ -60,7 +60,8 @@ setup(
             'manyaverage = txm2nexuslib.scripts.manyaverage:main',
             'img2stack = txm2nexuslib.scripts.img2stack:main',
             'manyxrm2norm = txm2nexuslib.workflows.manyxrm2norm:main',
-            'xtendof = txm2nexuslib.workflows.xtendof:main']
+            'xtendof = txm2nexuslib.workflows.xtendof:main',
+            'magnetism = txm2nexuslib.workflows.magnetism:main']
     },
     author='Marc Rosanes, Carlos Falcon, Zbigniew Reszela, Carlos Pascual',
     author_email='mrosanes@cells.es, cfalcon@cells.es, zreszela@cells.es, '
