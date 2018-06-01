@@ -151,7 +151,6 @@ class ParserTXMScript(object):
 
         store_parameters = copy.deepcopy(self.parameters)
         self.collected_files.append(store_parameters)
-        print(self.parameters)
 
     def parse_script(self, txm_txt_script):
         f = open(txm_txt_script, 'r')
