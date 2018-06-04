@@ -82,7 +82,7 @@ def average_and_store(group_to_average_image_filenames,
         jj_d = date_sample_energy_jj_angle[4]
         angle = date_sample_energy_jj_angle[5]
 
-        jj_offset = round((jj_u + jj_d)/2.0, 1)
+        jj_offset = round((jj_u + jj_d)/2.0, 2)
 
         output_fn = (str(date) + "_" + str(sample) + "_" + str(energy) +
                      "_" + str(jj_offset) + "_" + str(angle) +
