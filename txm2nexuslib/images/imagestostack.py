@@ -62,6 +62,14 @@ def create_structure_dict(type_struct="normalized"):
             "x_pixel_size": [],
             "y_pixel_size": []}
         }
+    elif type_struct == "normalized_magnetism_many_repetitions":
+        hdf5_metadata_structure_dict = {"TomoNormalized": {
+            "energy": [],
+            "rotation_angle": [],
+            "x_pixel_size": [],
+            "y_pixel_size": [],
+            "jj_offset": []}
+        }
     elif type_struct == "aligned" or type_struct == "aligned_multifocus":
         hdf5_metadata_structure_dict = {"FastAligned": {
             "energy": [],
@@ -73,14 +81,15 @@ def create_structure_dict(type_struct="normalized"):
         pass
     return hdf5_metadata_structure_dict
 
-
 def metadata_2_stack_dict(hdf5_structure_dict,
-                          data_filenames, ff_filenames=None,
+                          files_for_stack, ff_filenames=None,
                           type_struct="normalized",
                           avg_ff_dataset="data"):
     """ Transfer data from many hdf5 individual image files
     into a single hdf5 stack file.
     This method is quite specific for normalized BL09 images"""
+
+    data_filenames = files_for_stack["data"]
 
     num_keys = len(hdf5_structure_dict)
     if num_keys == 1:
@@ -93,6 +102,11 @@ def metadata_2_stack_dict(hdf5_structure_dict,
                 if dataset_name == "energy":
                     value = round(value, 1)
                 hdf5_structure_dict[dataset_name].append(value)
+
+    if type_struct == "normalized_magnetism_many_repetitions":
+        jj_offset = files_for_stack["jj_offset"]
+        hdf5_structure_dict["jj_offset"] = [jj_offset]
+
     c = 0
     for file in data_filenames:
         # print(file)
@@ -103,6 +117,7 @@ def metadata_2_stack_dict(hdf5_structure_dict,
         if (type_struct == "normalized" or
                 type_struct == "normalized_simple" or
                 type_struct == "normalized_multifocus" or
+                type_struct == "normalized_magnetism_many_repetitions" or
                 type_struct == "aligned" or
                 type_struct == "aligned_multifocus"):
             if c == 0:
@@ -151,7 +166,8 @@ def data_2_hdf5(h5_stack_file_handler,
 
     if (type_struct == "normalized" or
             type_struct == "normalized_simple" or
-            type_struct == "normalized_multifocus"):
+            type_struct == "normalized_multifocus" or
+            type_struct == "normalized_magnetism_many_repetitions"):
         main_grp = "TomoNormalized"
         main_dataset = "TomoNormalized"
         if ff_filenames and type_struct == "normalized":
@@ -176,7 +192,6 @@ def data_2_hdf5(h5_stack_file_handler,
                 dtype='float32')
             h5_stack_file_handler[main_grp][main_dataset].attrs[
                 'Number of Frames'] = n_frames
-            # FF images normalized by machine_current and exp time
         h5_stack_file_handler[main_grp][main_dataset][
             num_img] = f[dataset].value
         f.close()
@@ -216,11 +231,13 @@ def make_stack(files_for_stack, root_path, type_struct="normalized",
     energy = files_for_stack["energy"]
     if "zpz" in files_for_stack:
         zpz = files_for_stack["zpz"]
+    elif type_struct == "normalized_magnetism_many_repetitions":
+        jj_offset = files_for_stack["jj_offset"]
 
     # Creation of dictionary
     h5_struct_dict = create_structure_dict(type_struct=type_struct)
     data_dict = metadata_2_stack_dict(h5_struct_dict,
-                                      data_files,
+                                      files_for_stack,
                                       ff_filenames=data_files_ff,
                                       type_struct=type_struct)
 
@@ -232,6 +249,9 @@ def make_stack(files_for_stack, root_path, type_struct="normalized",
           type_struct == "normalized_simple"):
         h5_out_fn = (str(date) + "_" + str(sample) + "_" +
                      str(energy) + suffix + ".hdf5")
+    elif type_struct == "normalized_magnetism_many_repetitions":
+        h5_out_fn = (str(date) + "_" + str(sample) + "_" +
+                     str(energy) + "_" + str(jj_offset) + suffix + ".hdf5")
     if type_struct == "aligned":
         h5_out_fn = (str(date) + "_" + str(sample) + "_" +
                      str(energy) + "_" + str(zpz) + suffix + "_ali.hdf5")
@@ -360,7 +380,36 @@ def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
             files_dict = {"data": data_files, "date": date, "sample": sample,
                           "energy": energy}
             files_list.append(files_dict)
-    # Parallization of making the stacks
+
+    elif type_struct == "normalized_magnetism_many_repetitions":
+        dates_samples_energies_jjs = []
+        for record in all_file_records:
+            dates_samples_energies_jjs.append((record["date"],
+                                               record["sample"],
+                                               record["energy"],
+                                               record["jj_offset"]))
+
+        dates_samples_energies_jjs = list(set(dates_samples_energies_jjs))
+        for date_sample_energy_jj in dates_samples_energies_jjs:
+            date = date_sample_energy_jj[0]
+            sample = date_sample_energy_jj[1]
+            energy = date_sample_energy_jj[2]
+            jj_offset = date_sample_energy_jj[3]
+
+            # Raw image records by given date, sample and energy
+            query_cmd = ((files_query.date == date) &
+                         (files_query.sample == sample) &
+                         (files_query.energy == energy) &
+                         (files_query.jj_offset == jj_offset))
+            h5_records = file_index_db.search(query_cmd)
+            h5_records = sorted(h5_records, key=itemgetter('angle'))
+            data_files = get_file_paths(h5_records, root_path,
+                                        use_subfolders=subfolders)
+            files_dict = {"data": data_files, "date": date, "sample": sample,
+                          "energy": energy, "jj_offset": jj_offset}
+            files_list.append(files_dict)
+
+    # Parallelization of making the stacks
     records = Parallel(n_jobs=cores, backend="multiprocessing")(
         delayed(make_stack)(files_for_stack, root_path,
                             type_struct=type_struct, suffix=suffix
@@ -378,13 +427,6 @@ def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
 
 
 def main():
-
-    #file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
-    #             "PARALLEL_IMAGING/image_operate_xrm_test_add/" \
-    #             "tests6/xrm/index.json"
-
-    #file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
-    #             "PARALLEL_IMAGING/PARALLEL_XRM2H5/tomo05/index.json"
 
     file_index = "/home/mrosanes/TOT/BEAMLINES/MISTRAL/DATA/" \
                  "PARALLEL_IMAGING/PARALLEL_XRM2H5/TOMOFEW/tomo_few_2/" \
