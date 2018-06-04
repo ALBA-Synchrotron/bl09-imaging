@@ -227,9 +227,6 @@ def average_image_groups(file_index_fn, table_name="hdf5_proc",
             central_zpz_with_group_to_average.append(group_to_average)
             central_zpz_with_group_to_average.append(date_sample_energy_angle)
             groups_to_average.append(central_zpz_with_group_to_average)
-            print("------")
-            print(central_zpz_with_group_to_average)
-            print("------")
 
     elif variable == "repetition":
         dates_samples_energies_jjs_angles = []
