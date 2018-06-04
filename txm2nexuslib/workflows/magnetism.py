@@ -41,16 +41,16 @@ def main():
     - Copy raw hdf5 to new files for processing
     - Crop borders
     - Normalize
-    - Create stacks by date, sample, energy and zpz,
+    - Create stacks by date, sample, energy and jj position,
       with multiple angles in each stack
     """
     def str2bool(v):
         return v.lower() in ("yes", "true", "t", "1")
 
     description = "magnetism: many repetition images at different angles." \
-                  "Normally using 2 different polarizations by setting the" \
-                  "JJ positions to change to circular left and right" \
-                  "polarizations"
+                  " Normally using 2 different polarizations by setting the" \
+                  " JJ positions to change to circular left and right" \
+                  " polarizations"
     parser = argparse.ArgumentParser(description=description,
                                      formatter_class=RawTextHelpFormatter)
     parser.register('type', 'bool', str2bool)
@@ -105,9 +105,14 @@ def main():
     average_image_groups(db_filename, variable=variable)
 
     # Build up hdf5 stacks from individual images
-    #many_images_to_h5_stack(db_filename, table_name=args.table_for_stack,
-    #                        type_struct="normalized_multifocus",
-    #                        suffix="_FS")
+    # Stack of variable angle. Each of the images has been done by
+    # averaging many repetitions of the image at the same energy, jj,
+    # angle... The number of repetitions by each of the images in this
+    # stack files could be variable.
+    many_images_to_h5_stack(
+        db_filename, table_name=args.table_for_stack,
+        type_struct="normalized_magnetism_many_repetitions",
+        suffix="_FS")
 
     print("magnetism preprocessing took %d seconds\n" %
           (time.time() - start_time))
