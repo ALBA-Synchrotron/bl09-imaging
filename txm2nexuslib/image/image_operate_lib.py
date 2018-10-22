@@ -452,7 +452,7 @@ def normalize_image(image_filename, ff_img_filenames=[],
             ff_img_obj = Image(h5_image_filename=ff_img_filenames)
 
         if np.shape(image_obj.image) != np.shape(ff_img_obj.image):
-            raise ("Image dimensions does not correspond which "
+            raise Exception("Image dimensions does not correspond with "
                    "ff image dimensions")
 
         if isinstance(ff_img_filenames, list) and len(ff_img_filenames) > 1:
