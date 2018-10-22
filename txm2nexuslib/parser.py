@@ -172,6 +172,15 @@ class ParserTXMScript(object):
                 self.parse_collect(line)    
         return self.collected_files
 
+
+def get_db_path(txm_txt_script):
+    txm_file_dir = os.path.dirname(os.path.abspath(txm_txt_script))
+    return os.path.join(txm_file_dir, "index.json")
+
+def create_db(txm_txt_script):
+    db = get_db(txm_txt_script)
+    db.close()
+
 def get_db(txm_txt_script, use_existing_db=False):
     """Get the data files DataBase if exisiting, or create the DataBase
     if not existing yet or if the creation is specified explicitely"""
