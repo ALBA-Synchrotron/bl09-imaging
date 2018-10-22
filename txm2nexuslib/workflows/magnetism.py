@@ -26,6 +26,7 @@ import time
 import subprocess
 import argparse
 from argparse import RawTextHelpFormatter
+from tinydb import Query
 
 from txm2nexuslib.images.multiplexrm2h5 import multiple_xrm_2_hdf5
 from txm2nexuslib.images.util import copy2proc_multiple
@@ -34,11 +35,31 @@ from txm2nexuslib.images.multiplenormalization import normalize_images
 from txm2nexuslib.images.multiplealign import align_images
 from txm2nexuslib.images.multipleaverage import average_image_groups
 from txm2nexuslib.images.imagestostack import many_images_to_h5_stack
+from txm2nexuslib.parser import create_db, get_db_path
+
+
+def partial_preprocesing(db_filename, variable, crop, query=None, is_ff=False):
+    # Multiple xrm 2 hdf5 files: working with many single images files
+    
+    multiple_xrm_2_hdf5(db_filename, query=query)
+    # Copy of multiple hdf5 raw data files to files for processing
+    copy2proc_multiple(db_filename, query=query)
+    # Multiple files hdf5 images crop: working with single images files
+    if crop:
+        crop_images(db_filename, query=query)
+    # Normalize multiple hdf5 files: working with many single images files
+    if not is_ff:
+        normalize_images(db_filename, query=query)
+    # Align multiple hdf5 files: working with many single images files
+    align_images(db_filename, variable=variable, query=query)
+
+    return db_filename
+
 
 def main():
     """
     - Convert from xrm to hdf5 individual image hdf5 files
-    - Copy raw hdf5 to new files for processing
+    - Copy raw hdf5 to new files for processingtxm2nexuslib/workflows/magnetism.py:54
     - Crop borders
     - Normalize
     - Create stacks by date, sample, energy and jj position,
@@ -71,6 +92,31 @@ def main():
                         help=("DB table of image files to create the stacks" +
                               "(default: hdf5_averages)"))
 
+    parser.add_argument("--db", type=str2bool, nargs='?',
+                        const=True, default=False,
+                        help='- If True: Create database\n'
+                             '- If False: Do not create db\n'
+                             '(default: False)')
+
+    parser.add_argument("--ff", type=str2bool, nargs='?',
+                        const=True, default=False,
+                        help='- If True: Pre-process FF images\n'
+                             '- If False: Do not pre-process FF images\n'
+                             '(default: False)')
+
+    parser.add_argument('--th', type=float,
+                        nargs="*",
+                        help='- If True: Pre-process FF images\n'
+                             '- If False: Do not pre-process FF images\n'
+                             '(default: False)')
+
+    parser.add_argument('--stack', type='bool',
+                        default='False',
+                        nargs="?",
+                        help='- If True: Calculate stack\n'
+                             '- If False: Do not calculate stack\n'
+                             '(default: False)')
+
     args = parser.parse_args()
 
     print("\nWorkflow for magnetism experiments:\n" +
@@ -83,39 +129,40 @@ def main():
     # Align and average by repetition
     variable = "repetition"
 
-    # Multiple xrm 2 hdf5 files: working with many single images files
-    multiple_xrm_2_hdf5(args.txm_txt_script)
+    db_filename = get_db_path(args.txm_txt_script)
+    query = Query()
 
-    # Copy of multiple hdf5 raw data files to files for processing
-    db_dir = os.path.dirname(os.path.abspath(args.txm_txt_script))
-    db_filename = db_dir + "/index.json"
-    copy2proc_multiple(db_filename)
+    if args.db:
+        create_db(args.txm_txt_script)
 
-    # Multiple files hdf5 images crop: working with single images files
-    if args.crop:
-        crop_images(db_filename)
+    if args.ff:
+        partial_preprocesing(db_filename, variable, args.crop,
+                             query.FF==True,
+                             is_ff=True)
+    if args.th is not None: 
+        if len(args.th) == 0:
+            partial_preprocesing(db_filename, variable, args.crop,
+                                 query.FF==False)
+        else:
+            partial_preprocesing(db_filename, variable, args.crop,
+                                 query.angle==args.th[0])
 
-    # Normalize multiple hdf5 files: working with many single images files
-    normalize_images(db_filename)
+    if args.stack:
+        # Average multiple hdf5 files: working with many single images files
+        average_image_groups(db_filename, variable=variable)
 
-    # Align multiple hdf5 files: working with many single images files
-    align_images(db_filename, variable=variable)
+        # Build up hdf5 stacks from individual images
+        # Stack of variable angle. Each of the images has been done by
+        # averaging many repetitions of the image at the same energy, jj,
+        # angle... The number of repetitions by each of the images in this
+        # stack files could be variable.
+        many_images_to_h5_stack(
+            db_filename, table_name=args.table_for_stack,
+            type_struct="normalized_magnetism_many_repetitions",
+            suffix="_FS")
 
-    # Average multiple hdf5 files: working with many single images files
-    average_image_groups(db_filename, variable=variable)
-
-    # Build up hdf5 stacks from individual images
-    # Stack of variable angle. Each of the images has been done by
-    # averaging many repetitions of the image at the same energy, jj,
-    # angle... The number of repetitions by each of the images in this
-    # stack files could be variable.
-    many_images_to_h5_stack(
-        db_filename, table_name=args.table_for_stack,
-        type_struct="normalized_magnetism_many_repetitions",
-        suffix="_FS")
-
-    print("magnetism preprocessing took %d seconds\n" %
-          (time.time() - start_time))
+        print("magnetism preprocessing took %d seconds\n" %
+              (time.time() - start_time))
 
 
 if __name__ == "__main__":

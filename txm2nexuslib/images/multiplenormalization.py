@@ -35,7 +35,7 @@ from txm2nexuslib.image.image_operate_lib import normalize_image
 
 def normalize_images(file_index_fn, table_name="hdf5_proc",
                      date=None, sample=None, energy=None,
-                     average_ff=True, cores=-2):
+                     average_ff=True, cores=-2, query=None):
     """Normalize images of one experiment.
     If date, sample and/or energy are indicated, only the corresponding
     images for the given date, sample and/or energy are normalized.
@@ -56,28 +56,22 @@ def normalize_images(file_index_fn, table_name="hdf5_proc",
             records = file_index_db.search(files_query.date == date)
             temp_db.insert_multiple(records)
         if sample:
-            if temp_db:
-                records = temp_db.search(files_query.sample == sample)
-                temp_db.purge()
-                temp_db.insert_multiple(records)
-            else:
-                records = file_index_db.search(files_query.sample == sample)
-                temp_db.insert_multiple(records)
+            records = temp_db.search(files_query.sample == sample)
+            temp_db.purge()
+            temp_db.insert_multiple(records)
         if energy:
-            if temp_db:
-                records = temp_db.search(files_query.energy == energy)
-                temp_db.purge()
-                temp_db.insert_multiple(records)
-            else:
-                records = file_index_db.search(files_query.energy == energy)
-                temp_db.insert_multiple(records)
+            records = temp_db.search(files_query.energy == energy)
+            temp_db.purge()
+            temp_db.insert_multiple(records)
         file_index_db = temp_db
 
     root_path = os.path.dirname(os.path.abspath(file_index_fn))
 
-    all_file_records = file_index_db.all()
+
+    file_records = file_index_db.all()
+
     dates_samples_energies = []
-    for record in all_file_records:
+    for record in file_records:
         dates_samples_energies.append((record["date"],
                                        record["sample"],
                                        record["energy"]))
@@ -93,12 +87,17 @@ def normalize_images(file_index_fn, table_name="hdf5_proc",
                      (files_query.sample == sample) &
                      (files_query.energy == energy) &
                      (files_query.FF == False))
+        if query is not None:
+            query_cmd &= query
+
         h5_records = file_index_db.search(query_cmd)
         # FF records by given date, sample and energy
+        
         query_cmd_ff = ((files_query.date == date) &
                         (files_query.sample == sample) &
                         (files_query.energy == energy) &
                         (files_query.FF == True))
+
         h5_ff_records = file_index_db.search(query_cmd_ff)
         files = get_file_paths(h5_records, root_path)
         n_files = len(files)

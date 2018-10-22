@@ -24,10 +24,14 @@ import os
 import time
 
 from joblib import Parallel, delayed
+from tinydb import TinyDB
+from tinydb.storages import JSONStorage
+from tinydb.middlewares import CachingMiddleware
 
 from txm2nexuslib.parser import get_db, get_file_paths
 from txm2nexuslib.image.xrm2hdf5 import Xrm2H5Converter
 from txm2nexuslib.images import util
+
 
 
 def convert_xrm2h5(xrm_file):
@@ -35,16 +39,17 @@ def convert_xrm2h5(xrm_file):
     xrm2h5_converter.convert_xrm_to_h5_file()
 
 
-def multiple_xrm_2_hdf5(txm_txt_script, subfolders=False, cores=-2,
-                        update_db=True):
+def multiple_xrm_2_hdf5(file_index_db, subfolders=False, cores=-2,
+                        update_db=True, query=None):
     """Using all cores but one for the computations"""
 
     start_time = time.time()
     db = TinyDB(file_index_db, storage=CachingMiddleware(JSONStorage))
 
-    # printer = pprint.PrettyPrinter(indent=4)
-    db = get_db(txm_txt_script)
-    all_file_records = db.all()
+    if query is not None:
+        file_records = db.search(query)
+    else:
+        file_records = db.all()
 
     # printer.pprint(all_file_records[3])
     root_path = os.path.dirname(os.path.abspath(file_index_db))
@@ -57,7 +62,7 @@ def multiple_xrm_2_hdf5(txm_txt_script, subfolders=False, cores=-2,
         delayed(convert_xrm2h5)(xrm_file) for xrm_file in files)
 
     if update_db:
-        util.update_db_func(db, "hdf5_raw", all_file_records)
+        util.update_db_func(db, "hdf5_raw", file_records)
     db.close()
 
     n_files = len(files)

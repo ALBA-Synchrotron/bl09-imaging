@@ -107,14 +107,15 @@ def copy_2_proc(filename, suffix):
     copy(filename, filename_processed)
 
 
-def update_db_func(files_db, table_name, files_records, suffix=None):
+def update_db_func(files_db, table_name, files_records, suffix=None, purge=True):
     """Create new DB table with records of hdf5 raw data (changing the
     extension to hdf5), or with records of processed files (adding a suffix).
     If suffix is not given (suffix None), the new DB will contain the same
     file names as the original DB but with .hdf5 extension; otherwise,
     a suffix is added to the already hdf5 filenames."""
     table = files_db.table(table_name)
-    table.purge()
+    if purge is True:
+        table.purge()
     records = []
     for record in files_records:
         record = dict(record)
@@ -132,22 +133,27 @@ def update_db_func(files_db, table_name, files_records, suffix=None):
 
 def copy2proc_multiple(file_index_db, table_in_name="hdf5_raw",
                        table_out_name="hdf5_proc", suffix="_proc",
-                       use_subfolders=False, cores=-1, update_db=True):
+                       use_subfolders=False, cores=-1, update_db=True,
+                       query=None):
     """Copy many files to processed files"""
     # printer = pprint.PrettyPrinter(indent=4)
 
     start_time = time.time()
 
     db = TinyDB(file_index_db, storage=CachingMiddleware(JSONStorage))
+
     files_query = Query()
     if table_in_name == "default":
-        hdf5_records = db.search(files_query.extension == ".hdf5")
+        query_cmd = (files_query.extension == ".hdf5")
+        if query is not None:
+            query_cmd &= query
+        hdf5_records = db.search(query_cmd)
     else:
         table_in = db.table(table_in_name)
         hdf5_records = table_in.all()
 
     # printer.pprint(all_file_records[3])
-
+    
     root_path = os.path.dirname(os.path.abspath(file_index_db))
     files = get_file_paths(hdf5_records, root_path,
                            use_subfolders=use_subfolders)
@@ -157,7 +163,7 @@ def copy2proc_multiple(file_index_db, table_in_name="hdf5_raw",
         delayed(copy_2_proc)(h5_file, suffix) for h5_file in files)
 
     if update_db:
-        update_db_func(db, table_out_name, hdf5_records, suffix)
+        update_db_func(db, table_out_name, hdf5_records, suffix, purge=False)
 
     n_files = len(files)
     print("--- Copy for processing %d files took %s seconds ---\n" %

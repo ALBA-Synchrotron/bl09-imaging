@@ -43,34 +43,29 @@ def crop_and_store(image_h5_filename, dataset="data",
     img.close_h5()
 
 
-def filter_file_index(file_index_db, files_query,
-                      date=None, sample=None, energy=None):
+def filter_file_index(file_index_db, date=None, sample=None, energy=None,
+                      query=None):
+    files_query = Query()
     temp_db = TinyDB(storage=MemoryStorage)
+    query_cmds = []
     if date:
-        records = file_index_db.search(files_query.date == date)
-        temp_db.insert_multiple(records)
+        query_cmds.append(files_query.date == date)
     if sample:
-        if temp_db:
-            records = temp_db.search(files_query.sample == sample)
-            temp_db.purge()
-            temp_db.insert_multiple(records)
-        else:
-            records = file_index_db.search(files_query.sample == sample)
-            temp_db.insert_multiple(records)
+        query_cmds.append(files_query.sample == sample)
     if energy:
-        if temp_db:
-            records = temp_db.search(files_query.energy == energy)
-            temp_db.purge()
-            temp_db.insert_multiple(records)
-        else:
-            records = file_index_db.search(files_query.energy == energy)
-            temp_db.insert_multiple(records)
+        query_cmds.append(files_query.energy == energy)
+    for query_cmd in query_cmds:
+        if query is not None:
+            query_cmd &= query
+        records = file_index_db.search(query_cmd)
+        temp_db.purge()
+        temp_db.insert_multiple(records)
     return temp_db
 
 
 def crop_images(file_index_fn, table_name="hdf5_proc", dataset="data",
                 roi={"top": 26, "bottom": 24, "left": 21, "right": 19},
-                date=None, sample=None, energy=None, cores=-2):
+                date=None, sample=None, energy=None, cores=-2, query=None):
     """Crop images of one experiment.
     If date, sample and/or energy are indicated, only the corresponding
     images for the given date, sample and/or energy are cropped.
@@ -84,15 +79,17 @@ def crop_images(file_index_fn, table_name="hdf5_proc", dataset="data",
     if table_name is not None:
         file_index_db = file_index_db.table(table_name)
 
-    files_query = Query()
     if date or sample or energy:
-        file_index_db = filter_file_index(file_index_db, files_query,
-                                          date=date, sample=sample,
-                                          energy=energy)
+        file_index_db = filter_file_index(file_index_db, date=date,
+                                          sample=sample, energy=energy,
+                                          query=query)
 
     root_path = os.path.dirname(os.path.abspath(file_index_fn))
-    all_file_records = file_index_db.all()
-    files = get_file_paths(all_file_records, root_path)
+    if query is not None:
+        file_records = file_index_db.search(query)
+    else:
+        file_records = file_index_db.all()
+    files = get_file_paths(file_records, root_path)
     if files:
         Parallel(n_jobs=cores, backend="multiprocessing")(
             delayed(crop_and_store)(h5_file, dataset=dataset,

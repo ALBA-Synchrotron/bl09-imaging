@@ -56,7 +56,8 @@ def align_and_store_from_fn(couple_imgs_to_align_filenames,
 def align_images(file_index_fn, table_name="hdf5_proc",
                  dataset_for_aligning="data", dataset_reference="data",
                  roi_size=0.5, variable="zpz",
-                 date=None, sample=None, energy=None, cores=-2):
+                 date=None, sample=None, energy=None, cores=-2,
+                 query=None):
     """Align images of one experiment by zpz.
     If date, sample and/or energy are indicated, only the corresponding
     images for the given date, sample and/or energy are cropped.
@@ -77,9 +78,14 @@ def align_images(file_index_fn, table_name="hdf5_proc",
     file_index_db = filter_file_index(file_index_db, files_query,
                                       date=date, sample=sample,
                                       energy=energy, ff=False)
+    if query is not None:
+        file_records = file_index_db.search(query)
+    else:
+        file_records = file_index_db.all()
 
-    all_file_records = file_index_db.all()
-    n_files = len(all_file_records)
+
+
+    n_files = len(file_records)
 
     couples_to_align = []
 
@@ -87,7 +93,7 @@ def align_images(file_index_fn, table_name="hdf5_proc",
     # sample, energy and angle, and a variable zpz.
     if variable == "zpz":
         dates_samples_energies_angles = []
-        for record in all_file_records:
+        for record in file_records:
             dates_samples_energies_angles.append((record["date"],
                                                   record["sample"],
                                                   record["energy"],
@@ -106,6 +112,8 @@ def align_images(file_index_fn, table_name="hdf5_proc",
                          (files_query.sample == sample) &
                          (files_query.energy == energy) &
                          (files_query.angle == angle))
+            if query is not None:
+                query_cmd &= query
             h5_records = file_index_db.search(query_cmd)
 
             # pobj = pprint.PrettyPrinter(indent=4)
@@ -128,7 +136,7 @@ def align_images(file_index_fn, table_name="hdf5_proc",
     # two different circular polarizations (right and left)
     if variable == "repetition":
         dates_samples_energies_jjs_angles = []
-        for record in all_file_records:
+        for record in file_records:
             dates_samples_energies_jjs_angles.append((record["date"],
                                                       record["sample"],
                                                       record["energy"],
