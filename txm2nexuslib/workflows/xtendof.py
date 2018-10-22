@@ -34,6 +34,7 @@ from txm2nexuslib.images.multiplenormalization import normalize_images
 from txm2nexuslib.images.multiplealign import align_images
 from txm2nexuslib.images.multipleaverage import average_image_groups
 from txm2nexuslib.images.imagestostack import many_images_to_h5_stack
+from txm2nexuslib.parser import create_db, get_db_path
 
 def main():
     """
@@ -76,12 +77,13 @@ def main():
           " make normalized stacks")
     start_time = time.time()
 
+
+    db_filename = get_db_path(args.txm_txt_script)
+    create_db(args.txm_txt_script)
     # Multiple xrm 2 hdf5 files: working with many single images files
-    multiple_xrm_2_hdf5(args.txm_txt_script)
+    multiple_xrm_2_hdf5(db_filename)
 
     # Copy of multiple hdf5 raw data files to files for processing
-    db_dir = os.path.dirname(os.path.abspath(args.txm_txt_script))
-    db_filename = db_dir + "/index.json"
     copy2proc_multiple(db_filename)
 
     # Multiple files hdf5 images crop: working with single images files

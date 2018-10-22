@@ -40,14 +40,15 @@ def multiple_xrm_2_hdf5(txm_txt_script, subfolders=False, cores=-2,
     """Using all cores but one for the computations"""
 
     start_time = time.time()
+    db = TinyDB(file_index_db, storage=CachingMiddleware(JSONStorage))
 
     # printer = pprint.PrettyPrinter(indent=4)
     db = get_db(txm_txt_script)
     all_file_records = db.all()
 
     # printer.pprint(all_file_records[3])
-    root_path = os.path.dirname(os.path.abspath(txm_txt_script))
-    files = get_file_paths(all_file_records, root_path,
+    root_path = os.path.dirname(os.path.abspath(file_index_db))
+    files = get_file_paths(file_records, root_path,
                            use_subfolders=subfolders)
 
     # printer.pprint(files)

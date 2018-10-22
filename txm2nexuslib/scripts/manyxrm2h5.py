@@ -25,6 +25,7 @@ import argparse
 from argparse import RawTextHelpFormatter
 
 from txm2nexuslib.images.multiplexrm2h5 import multiple_xrm_2_hdf5
+from txm2nexuslib.parser import create_db, get_db_path
 
 
 def main():
@@ -59,7 +60,11 @@ def main():
                              '(default: True)')
 
     args = parser.parse_args()
-    multiple_xrm_2_hdf5(args.txm_txt_script, subfolders=args.subfolders,
+
+    db_filename = get_db_path(args.txm_txt_script)
+    create_db(args.txm_txt_script)
+
+    multiple_xrm_2_hdf5(db_filename, subfolders=args.subfolders,
                         cores=args.cores, update_db=args.update_db)
 
 
