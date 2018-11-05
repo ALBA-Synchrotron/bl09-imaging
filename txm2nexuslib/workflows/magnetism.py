@@ -111,8 +111,8 @@ def main():
                              '(default: False)')
 
     parser.add_argument('--stack', type='bool',
-                        default='False',
-                        nargs="?",
+                        nargs='?',
+                        const=True, default=False,
                         help='- If True: Calculate stack\n'
                              '- If False: Do not calculate stack\n'
                              '(default: False)')
