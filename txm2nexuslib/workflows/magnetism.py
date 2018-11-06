@@ -49,7 +49,7 @@ def partial_preprocesing(db_filename, variable, crop, query=None, is_ff=False):
         crop_images(db_filename, query=query)
     # Normalize multiple hdf5 files: working with many single images files
     if not is_ff:
-        normalize_images(db_filename, query=query)
+        normalize_images(db_filename, query=query, jj=True)
     # Align multiple hdf5 files: working with many single images files
     align_images(db_filename, variable=variable, query=query)
 

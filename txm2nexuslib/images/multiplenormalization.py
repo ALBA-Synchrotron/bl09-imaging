@@ -35,7 +35,7 @@ from txm2nexuslib.image.image_operate_lib import normalize_image
 
 def normalize_images(file_index_fn, table_name="hdf5_proc",
                      date=None, sample=None, energy=None,
-                     average_ff=True, cores=-2, query=None):
+                     average_ff=True, cores=-2, query=None, jj=False):
     """Normalize images of one experiment.
     If date, sample and/or energy are indicated, only the corresponding
     images for the given date, sample and/or energy are normalized.
@@ -71,10 +71,17 @@ def normalize_images(file_index_fn, table_name="hdf5_proc",
     file_records = file_index_db.all()
 
     dates_samples_energies = []
+    jj = None
     for record in file_records:
-        dates_samples_energies.append((record["date"],
-                                       record["sample"],
-                                       record["energy"]))
+        data = (record["date"],
+                record["sample"],
+                record["energy"])
+        if jj is True:
+            data += (record["jj_u"],
+                     record["jj_d"]
+                                       )
+        dates_samples_energies.append(data)
+
     dates_samples_energies = list(set(dates_samples_energies))
     num_files_total = 0
     for date_sample_energy in dates_samples_energies:
@@ -87,6 +94,12 @@ def normalize_images(file_index_fn, table_name="hdf5_proc",
                      (files_query.sample == sample) &
                      (files_query.energy == energy) &
                      (files_query.FF == False))
+        if jj is True:
+            jj_u = date_sample_energy[3]
+            jj_d = date_sample_energy[4]
+            query_cmd &= ((files_query.jj_u == jj_u) &
+                          (files_query.jj_d == jj_d))
+
         if query is not None:
             query_cmd &= query
 
@@ -96,7 +109,15 @@ def normalize_images(file_index_fn, table_name="hdf5_proc",
         query_cmd_ff = ((files_query.date == date) &
                         (files_query.sample == sample) &
                         (files_query.energy == energy) &
-                        (files_query.FF == True))
+                        (files_query.FF == True)
+                        )
+
+        if jj is True:
+            jj_u = date_sample_energy[3]
+            jj_d = date_sample_energy[4]
+            query_cmd_ff &= ((files_query.jj_u == jj_u) &
+                             (files_query.jj_d == jj_d))
+
 
         h5_ff_records = file_index_db.search(query_cmd_ff)
         files = get_file_paths(h5_records, root_path)
@@ -110,8 +131,8 @@ def normalize_images(file_index_fn, table_name="hdf5_proc",
 
         if average_ff:
             # Average the FF files and use always the same average (for a
-            # same date, sample and energy)
-            # Normally the case of tomographies
+            # same date, sample, energy and jj's)
+            # Normally the case of magnetism
             _, ff_norm_image = normalize_image(files[0],
                                                ff_img_filenames=files_ff)
             files.pop(0)
