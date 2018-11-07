@@ -71,7 +71,6 @@ def normalize_images(file_index_fn, table_name="hdf5_proc",
     file_records = file_index_db.all()
 
     dates_samples_energies = []
-    jj = None
     for record in file_records:
         data = (record["date"],
                 record["sample"],
