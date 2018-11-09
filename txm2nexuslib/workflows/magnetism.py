@@ -31,15 +31,15 @@ from tinydb import Query
 from txm2nexuslib.images.multiplexrm2h5 import multiple_xrm_2_hdf5
 from txm2nexuslib.images.util import copy2proc_multiple
 from txm2nexuslib.images.multiplecrop import crop_images
-from txm2nexuslib.images.multiplenormalization import normalize_images
+from txm2nexuslib.images.multiplenormalization import (normalize_images,
+                                                       average_ff)
 from txm2nexuslib.images.multiplealign import align_images
 from txm2nexuslib.images.multipleaverage import average_image_groups
 from txm2nexuslib.images.imagestostack import many_images_to_h5_stack
 from txm2nexuslib.parser import create_db, get_db_path
 
 
-def partial_preprocesing(db_filename, variable, crop, query=None, is_ff=False,
-                         read_ff=False):
+def partial_preprocesing(db_filename, variable, crop, query=None, is_ff=False):
     # Multiple xrm 2 hdf5 files: working with many single images files
     
     multiple_xrm_2_hdf5(db_filename, query=query)
@@ -50,7 +50,9 @@ def partial_preprocesing(db_filename, variable, crop, query=None, is_ff=False,
         crop_images(db_filename, query=query)
     # Normalize multiple hdf5 files: working with many single images files
     if not is_ff:
-        normalize_images(db_filename, query=query, jj=True, read_ff=read_ff)
+        normalize_images(db_filename, query=query, jj=True, read_norm_ff=True)
+    else:
+        average_ff(db_filename, query=query, jj=True)
     # Align multiple hdf5 files: working with many single images files
     align_images(db_filename, variable=variable, query=query)
 
@@ -118,12 +120,6 @@ def main():
                              '- If False: Do not calculate stack\n'
                              '(default: False)')
 
-    parser.add_argument('--readff', type='bool',
-                        nargs='?',
-                        const=True, default=False,
-                        help='- If True: Do not calculate FF avg\n'
-                             '- If False: Calculate FF avg\n'
-                             '(default: False)')
 
     args = parser.parse_args()
 
@@ -153,7 +149,7 @@ def main():
                                  query.FF==False)
         else:
             partial_preprocesing(db_filename, variable, args.crop,
-                                 query.angle==args.th[0], read_ff=args.readff)
+                                 query.angle==args.th[0])
 
     if args.stack:
         # Average multiple hdf5 files: working with many single images files

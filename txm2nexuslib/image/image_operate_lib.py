@@ -429,13 +429,28 @@ def get_normalized_ff(ff_img_filenames):
     else:
         ff_img_obj = Image(h5_image_filename=ff_img_filenames)
 
-    # average_image = np.zeros(np.shape(ff_img_obj.image),
-    #                          dtype=type(ff_img_obj.image[0][0]))
-    #
-    # average_image += ff_img_obj.normalize_by_constant(constant=1)
-    #
-    # return average_image
     return ff_img_obj.image
+
+
+def normalize_ff(ff_img_filenames):
+    if isinstance(ff_img_filenames, list):
+        ff_img_obj = Image(h5_image_filename=ff_img_filenames[0])
+    else:
+        ff_img_obj = Image(h5_image_filename=ff_img_filenames)
+
+    if isinstance(ff_img_filenames, list) and len(ff_img_filenames) > 1:
+        ff_img_obj.close_h5()
+        # Average of FF images that are beforehand normalized by its
+        # corresponding exposure times and machine currents
+        ff_norm_image = divide_by_constant_and_average_images(
+            ff_img_filenames, store_normalized_by_constant=True,
+            store=True)
+    else:
+        # Normalize FF image by exposure_time and machine_current
+        ff_norm_image = ff_img_obj.normalize_by_constant()
+
+    return ff_norm_image
+
 
 def normalize_image(image_filename, ff_img_filenames=[],
                     average_normalized_ff_img=None,
@@ -468,17 +483,7 @@ def normalize_image(image_filename, ff_img_filenames=[],
         if np.shape(image_obj.image) != np.shape(ff_img_obj.image):
             raise Exception("Image dimensions does not correspond with "
                    "ff image dimensions")
-
-        if isinstance(ff_img_filenames, list) and len(ff_img_filenames) > 1:
-            ff_img_obj.close_h5()
-            # Average of FF images that are beforehand normalized by its
-            # corresponding exposure times and machine currents
-            ff_norm_image = divide_by_constant_and_average_images(
-                ff_img_filenames, store_normalized_by_constant=True,
-                store=True)
-        else:
-            # Normalize FF image by exposure_time and machine_current
-            ff_norm_image = ff_img_obj.normalize_by_constant()
+        ff_norm_image = normalize_ff(ff_img_filenames)
 
     # Normalize main image by exposure_time and machine_current
     img_norm_by_constant = image_obj.normalize_by_constant()

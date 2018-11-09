@@ -31,13 +31,81 @@ from tinydb.storages import MemoryStorage
 from util import create_subset_db
 from txm2nexuslib.parser import get_file_paths
 from txm2nexuslib.image.image_operate_lib import (normalize_image,
-                                                  get_normalized_ff)
+                                                  get_normalized_ff,
+                                                  normalize_ff)
+
+
+def average_ff(file_index_fn, table_name="hdf5_proc",
+                     date=None, sample=None, energy=None,
+                     cores=-2, query=None, jj=False):
+    start_time = time.time()
+    file_index_db = TinyDB(file_index_fn,
+                           storage=CachingMiddleware(JSONStorage))
+    db = file_index_db
+    if table_name is not None:
+        file_index_db = file_index_db.table(table_name)
+
+    files_query = Query()
+    if date or sample or energy:
+        temp_db = TinyDB(storage=MemoryStorage)
+        if date:
+            records = file_index_db.search(files_query.date == date)
+            temp_db.insert_multiple(records)
+        if sample:
+            records = temp_db.search(files_query.sample == sample)
+            temp_db.purge()
+            temp_db.insert_multiple(records)
+        if energy:
+            records = temp_db.search(files_query.energy == energy)
+            temp_db.purge()
+            temp_db.insert_multiple(records)
+        file_index_db = temp_db
+
+    root_path = os.path.dirname(os.path.abspath(file_index_fn))
+
+    file_records = file_index_db.all()
+
+    dates_samples_energies = []
+    for record in file_records:
+        data = (record["date"],
+                record["sample"],
+                record["energy"])
+        if jj is True:
+            data += (record["jj_u"],
+                     record["jj_d"]
+                     )
+        dates_samples_energies.append(data)
+
+    dates_samples_energies = list(set(dates_samples_energies))
+    num_files_total = 0
+    for date_sample_energy in dates_samples_energies:
+        date = date_sample_energy[0]
+        sample = date_sample_energy[1]
+        energy = date_sample_energy[2]
+
+       # FF records by given date, sample and energy
+
+        query_cmd_ff = ((files_query.date == date) &
+                        (files_query.sample == sample) &
+                        (files_query.energy == energy) &
+                        (files_query.FF == True)
+                        )
+
+        if jj is True:
+            jj_u = date_sample_energy[3]
+            jj_d = date_sample_energy[4]
+            query_cmd_ff &= ((files_query.jj_u == jj_u) &
+                             (files_query.jj_d == jj_d))
+
+        h5_ff_records = file_index_db.search(query_cmd_ff)
+        files_ff = get_file_paths(h5_ff_records, root_path)
+        normalize_ff(files_ff)
 
 
 def normalize_images(file_index_fn, table_name="hdf5_proc",
                      date=None, sample=None, energy=None,
                      average_ff=True, cores=-2, query=None, jj=False,
-                     read_ff=False):
+                     read_norm_ff=False):
     """Normalize images of one experiment.
     If date, sample and/or energy are indicated, only the corresponding
     images for the given date, sample and/or energy are normalized.
@@ -134,12 +202,12 @@ def normalize_images(file_index_fn, table_name="hdf5_proc",
             # Average the FF files and use always the same average (for a
             # same date, sample, energy and jj's)
             # Normally the case of magnetism
-            if read_ff is True:
+            if read_norm_ff is True:
                 ff_norm_image = get_normalized_ff(files_ff)
             else:
-                _, ff_norm_image = normalize_image(files[0],
-                                               ff_img_filenames=files_ff)
-                files.pop(0)
+                 _, ff_norm_image = normalize_image(files[0],
+                                                ff_img_filenames=files_ff)
+                 files.pop(0)
             if len(files):
                 Parallel(n_jobs=cores, backend="multiprocessing")(
                     delayed(normalize_image)(
