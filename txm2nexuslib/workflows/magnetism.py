@@ -38,7 +38,8 @@ from txm2nexuslib.images.imagestostack import many_images_to_h5_stack
 from txm2nexuslib.parser import create_db, get_db_path
 
 
-def partial_preprocesing(db_filename, variable, crop, query=None, is_ff=False):
+def partial_preprocesing(db_filename, variable, crop, query=None, is_ff=False,
+                         read_ff=False):
     # Multiple xrm 2 hdf5 files: working with many single images files
     
     multiple_xrm_2_hdf5(db_filename, query=query)
@@ -49,7 +50,7 @@ def partial_preprocesing(db_filename, variable, crop, query=None, is_ff=False):
         crop_images(db_filename, query=query)
     # Normalize multiple hdf5 files: working with many single images files
     if not is_ff:
-        normalize_images(db_filename, query=query, jj=True)
+        normalize_images(db_filename, query=query, jj=True, read_ff=read_ff)
     # Align multiple hdf5 files: working with many single images files
     align_images(db_filename, variable=variable, query=query)
 
@@ -117,6 +118,13 @@ def main():
                              '- If False: Do not calculate stack\n'
                              '(default: False)')
 
+    parser.add_argument('--readff', type='bool',
+                        nargs='?',
+                        const=True, default=False,
+                        help='- If True: Do not calculate FF avg\n'
+                             '- If False: Calculate FF avg\n'
+                             '(default: False)')
+
     args = parser.parse_args()
 
     print("\nWorkflow for magnetism experiments:\n" +
@@ -145,7 +153,7 @@ def main():
                                  query.FF==False)
         else:
             partial_preprocesing(db_filename, variable, args.crop,
-                                 query.angle==args.th[0])
+                                 query.angle==args.th[0], read_ff=args.readff)
 
     if args.stack:
         # Average multiple hdf5 files: working with many single images files

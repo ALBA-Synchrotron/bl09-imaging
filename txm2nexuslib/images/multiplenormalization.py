@@ -30,12 +30,14 @@ from tinydb.storages import MemoryStorage
 
 from util import create_subset_db
 from txm2nexuslib.parser import get_file_paths
-from txm2nexuslib.image.image_operate_lib import normalize_image
+from txm2nexuslib.image.image_operate_lib import (normalize_image,
+                                                  get_normalized_ff)
 
 
 def normalize_images(file_index_fn, table_name="hdf5_proc",
                      date=None, sample=None, energy=None,
-                     average_ff=True, cores=-2, query=None, jj=False):
+                     average_ff=True, cores=-2, query=None, jj=False,
+                     read_ff=False):
     """Normalize images of one experiment.
     If date, sample and/or energy are indicated, only the corresponding
     images for the given date, sample and/or energy are normalized.
@@ -132,9 +134,12 @@ def normalize_images(file_index_fn, table_name="hdf5_proc",
             # Average the FF files and use always the same average (for a
             # same date, sample, energy and jj's)
             # Normally the case of magnetism
-            _, ff_norm_image = normalize_image(files[0],
+            if read_ff is True:
+                ff_norm_image = get_normalized_ff(files_ff)
+            else:
+                _, ff_norm_image = normalize_image(files[0],
                                                ff_img_filenames=files_ff)
-            files.pop(0)
+                files.pop(0)
             if len(files):
                 Parallel(n_jobs=cores, backend="multiprocessing")(
                     delayed(normalize_image)(
