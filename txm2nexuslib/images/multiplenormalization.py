@@ -111,7 +111,11 @@ def normalize_images(file_index_fn, table_name="hdf5_proc",
     images for the given date, sample and/or energy are normalized.
     The normalization of different images will be done in parallel. Each
     file, contains a single image to be normalized.
+    .. todo: This method should be divided in two. One should calculate
+     the average FF, and the other (normalize_images), should receive
+     as input argument, the averaged FF image (or the single FF image).
     """
+
     start_time = time.time()
     file_index_db = TinyDB(file_index_fn,
                            storage=CachingMiddleware(JSONStorage))
