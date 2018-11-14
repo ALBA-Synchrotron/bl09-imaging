@@ -134,17 +134,27 @@ def align(image_ref, image_to_align, roi_size=0.5):
         image_to_align = image_to_align.astype(np.uint8)
 
     # Apply template Matching from cv2
+    align_method = 'cv2.TM_SQDIFF_NORMED'
+    # align_method = 'cv2.TM_CCOEFF_NORMED'
     result = cv2.matchTemplate(image_to_align, template,
-                               eval('cv2.TM_CCOEFF_NORMED'))
+                               eval(align_method))
     (min_val, max_val, min_loc, max_loc) = cv2.minMaxLoc(result)
 
     # In openCV first indicate the columns and then the rows.
     top_left_base = (col_tem_from, row_tem_from)
-    top_left_move = (max_loc[0], max_loc[1])
+
+    # If you are using cv2.TM_SQDIFF as comparison method,
+    # minimum value gives the best match.
+    if align_method in ['cv2.TM_SQDIFF', 'cv2.TM_SQDIFF_NORMED']:
+        top_left_move = (min_loc[0], min_loc[1])
+    else:
+        top_left_move = (max_loc[0], max_loc[1])
+
     mv_vector = find_mv_vector(top_left_base, top_left_move)
     rows = mv_vector[1]
     cols = mv_vector[0]
     mv_vector = (rows, cols)
+    # print(mv_vector)
 
     # Move the projection thanks to the found move vector
     aligned_image = mv_projection(image_to_align, mv_vector)
