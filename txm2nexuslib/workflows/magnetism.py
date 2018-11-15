@@ -34,7 +34,8 @@ from txm2nexuslib.images.multiplecrop import crop_images
 from txm2nexuslib.images.multiplenormalization import (normalize_images,
                                                        average_ff)
 from txm2nexuslib.images.multiplealign import align_images
-from txm2nexuslib.images.multipleaverage import average_image_groups
+from txm2nexuslib.images.multipleaverage import (average_image_group_by_angle,
+                                                 average_image_groups)
 from txm2nexuslib.images.imagestostack import many_images_to_h5_stack
 from txm2nexuslib.parser import create_db, get_db_path
 
@@ -147,13 +148,18 @@ def main():
         if len(args.th) == 0:
             partial_preprocesing(db_filename, variable, args.crop,
                                  query.FF==False)
+            # Average multiple hdf5 files:
+            # working with many single images files
+            average_image_groups(db_filename, variable=variable)
         else:
             partial_preprocesing(db_filename, variable, args.crop,
                                  query.angle==args.th[0])
+            # Average multiple hdf5 files:
+            # working with many single images files
+            average_image_group_by_angle(db_filename, variable=variable,
+                                         angle=args.th[0])
 
     if args.stack:
-        # Average multiple hdf5 files: working with many single images files
-        average_image_groups(db_filename, variable=variable)
 
         # Build up hdf5 stacks from individual images
         # Stack of variable angle. Each of the images has been done by

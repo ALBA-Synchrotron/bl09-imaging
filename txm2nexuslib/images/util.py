@@ -37,8 +37,8 @@ from txm2nexuslib.parser import get_file_paths
 
 
 def filter_file_index(file_index_db, files_query,
-                      date=None, sample=None, energy=None, zpz=None,
-                      ff=None):
+                      date=None, sample=None, energy=None, angle=None,
+                      zpz=None, ff=None):
     def update_temp_db(temp_db_h5, filtered, query, attribute):
         if filtered:
             records_temp = temp_db_h5.search(query == attribute)
@@ -61,6 +61,9 @@ def filter_file_index(file_index_db, files_query,
             filtered = True
         if energy:
             update_temp_db(temp_db, filtered, files_query.energy, energy)
+            filtered = True
+        if angle:
+            update_temp_db(temp_db, filtered, files_query.angle, angle)
             filtered = True
         if zpz:
             update_temp_db(temp_db, filtered, files_query.zpz, zpz)

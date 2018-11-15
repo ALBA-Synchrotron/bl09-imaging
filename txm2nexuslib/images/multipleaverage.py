@@ -147,6 +147,99 @@ def average_and_store(group_to_average_image_filenames,
     return record
 
 
+def average_image_group_by_angle(file_index_fn, table_name="hdf5_proc",
+                                 angle=0.0,
+                                 dataset_for_averaging="data",
+                                 variable="repetition",
+                                 description="", dataset_store="data",
+                                 date=None, sample=None, energy=None):
+    """Average images by repetition for a single angle.
+    If date, sample and/or energy are indicated, only the corresponding
+    images for the given date, sample and/or energy are processed.
+    All data images of the same angle,
+    for the different repetitions are averaged.
+    """
+
+    root_path = os.path.dirname(os.path.abspath(file_index_fn))
+
+    file_index_db = TinyDB(file_index_fn,
+                           storage=CachingMiddleware(JSONStorage))
+    db = file_index_db
+    if table_name is not None:
+        file_index_db = file_index_db.table(table_name)
+
+    files_query = Query()
+    file_index_db = filter_file_index(file_index_db, files_query,
+                                      date=date, sample=sample,
+                                      energy=energy, angle=angle, ff=False)
+
+    all_file_records = file_index_db.all()
+    print(all_file_records)
+    averages_table = db.table("hdf5_averages")
+    print("----")
+    print(averages_table.all())
+    print("----")
+    # We only have files for a single angle
+    if variable == "repetition":
+        dates_samples_energies_jjs_angles = []
+        for record in all_file_records:
+            dates_samples_energies_jjs_angles.append((record["date"],
+                                                      record["sample"],
+                                                      record["energy"],
+                                                      record["jj_u"],
+                                                      record["jj_d"],
+                                                      record["angle"]))
+        dates_samples_energies_jjs_angles = list(
+            set(dates_samples_energies_jjs_angles))
+        print(dates_samples_energies_jjs_angles)
+
+        for date_sample_energy_jj_angle in dates_samples_energies_jjs_angles:
+            date = date_sample_energy_jj_angle[0]
+            sample = date_sample_energy_jj_angle[1]
+            energy = date_sample_energy_jj_angle[2]
+            jj_u = date_sample_energy_jj_angle[3]
+            jj_d = date_sample_energy_jj_angle[4]
+            angle = date_sample_energy_jj_angle[5]
+
+            # Raw image records by given date, sample and energy
+            query_cmd = ((files_query.date == date) &
+                         (files_query.sample == sample) &
+                         (files_query.energy == energy) &
+                         (files_query.jj_u == jj_u) &
+                         (files_query.jj_d == jj_d) &
+                         (files_query.angle == angle))
+            img_records = file_index_db.search(query_cmd)
+            print(img_records)
+
+            num_repetitions = len(img_records)
+            files = get_file_paths(img_records, root_path)
+            complete_group_to_average = [num_repetitions]
+            group_to_average = []
+            for file in files:
+                group_to_average.append(file)
+                print(os.path.basename(file))
+            complete_group_to_average.append(group_to_average)
+            complete_group_to_average.append(
+                dates_samples_energies_jjs_angles)
+
+            record = average_and_store(
+                complete_group_to_average,
+                dataset_for_averaging=dataset_for_averaging,
+                variable=variable, description=description,
+                dataset_store=dataset_store)
+            averages_table.insert(record)
+
+
+    # import pprint
+    # pobj = pprint.PrettyPrinter(indent=4)
+    # print("----")
+    # print("average records")
+    # for record in records:
+    #     pobj.pprint(record)
+    print(averages_table.all())
+    db.close()
+
+
 def average_image_groups(file_index_fn, table_name="hdf5_proc",
                          dataset_for_averaging="data", variable="zpz",
                          description="", dataset_store="data",
