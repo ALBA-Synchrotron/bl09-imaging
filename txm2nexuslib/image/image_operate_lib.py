@@ -131,13 +131,16 @@ class Image(object):
                        " cropped by " + str(roi))
         return image_cropped, description
 
-    def align_from_file(self, reference_image_obj, roi_size=0.5):
+    def align_from_file(self, reference_image_obj,
+                        align_method='cv2.TM_CCOEFF_NORMED',
+                        roi_size=0.5):
         """Align an image taking by reference another image. roi_size
         is entered as input parameter as tant per one of the original
         image size"""
         image_ref = reference_image_obj.image
         image_to_align = self.image
         aligned_image, mv_vector = align(image_ref, image_to_align,
+                                         align_method=align_method,
                                          roi_size=roi_size)
         ref_fn = reference_image_obj.h5_image_filename
         ref_dataset_name = reference_image_obj.image_dataset
@@ -146,9 +149,11 @@ class Image(object):
                        ref_dataset_name + "@" + path.basename(ref_fn))
         return aligned_image, mv_vector, description
 
-    def align_and_store(self, reference_image_obj, roi_size=0.5):
+    def align_and_store(self, reference_image_obj,
+                        align_method='cv2.TM_CCOEFF_NORMED', roi_size=0.5):
         aligned_image, mv_vector, description = self.align_from_file(
-            reference_image_obj, roi_size=roi_size)
+            reference_image_obj, align_method=align_method,
+            roi_size=roi_size)
         new_dataset = self.store_image_in_h5(aligned_image,
                                              description=description)
         self.store_dataset_metadata(dataset=new_dataset,

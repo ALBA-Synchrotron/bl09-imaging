@@ -38,6 +38,7 @@ from txm2nexuslib.images.util import filter_file_index
 def align_and_store_from_fn(couple_imgs_to_align_filenames,
                             dataset_reference="data",
                             dataset_for_aligning="data",
+                            align_method='cv2.TM_CCOEFF_NORMED',
                             roi_size=0.5):
     image_ref_fn = couple_imgs_to_align_filenames[0]
     img_ref_obj = Image(h5_image_filename=image_ref_fn,
@@ -48,7 +49,9 @@ def align_and_store_from_fn(couple_imgs_to_align_filenames,
     img_to_align_obj = Image(h5_image_filename=image_to_align_fn,
                              image_data_set=dataset_for_aligning)
 
-    _, mv_vector = img_to_align_obj.align_and_store(img_ref_obj, roi_size)
+    _, mv_vector = img_to_align_obj.align_and_store(img_ref_obj,
+                                                    align_method=align_method,
+                                                    roi_size=roi_size)
     img_ref_obj.close_h5()
     img_to_align_obj.close_h5()
 
@@ -56,6 +59,7 @@ def align_and_store_from_fn(couple_imgs_to_align_filenames,
 def align_images(file_index_fn, table_name="hdf5_proc",
                  dataset_for_aligning="data", dataset_reference="data",
                  roi_size=0.5, variable="zpz",
+                 align_method='cv2.TM_CCOEFF_NORMED',
                  date=None, sample=None, energy=None, cores=-2,
                  query=None):
     """Align images of one experiment by zpz.
@@ -83,12 +87,9 @@ def align_images(file_index_fn, table_name="hdf5_proc",
     else:
         file_records = file_index_db.all()
 
-
-
     n_files = len(file_records)
 
     couples_to_align = []
-
     # The goal in this case is to align all the images for a same date,
     # sample, energy and angle, and a variable zpz.
     if variable == "zpz":
@@ -181,6 +182,7 @@ def align_images(file_index_fn, table_name="hdf5_proc",
                 couple_to_align,
                 dataset_reference=dataset_reference,
                 dataset_for_aligning=dataset_for_aligning,
+                align_method=align_method,
                 roi_size=roi_size) for couple_to_align in couples_to_align)
 
     print("--- Align %d files took %s seconds ---\n" %
