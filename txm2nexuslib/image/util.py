@@ -106,7 +106,7 @@ def mv_projection(image, mv_vector):
 
 
 def align(image_ref, image_to_align, align_method='cv2.TM_CCOEFF_NORMED',
-          roi_size=0.5):
+          roi_size=0.5, move=0):
     """Align an image taking by reference another image. roi_size
     is entered as input parameter as tant per one of the original
     image size"""
@@ -153,6 +153,8 @@ def align(image_ref, image_to_align, align_method='cv2.TM_CCOEFF_NORMED',
     rows = mv_vector[1]
     cols = mv_vector[0]
     mv_vector = (rows, cols)
+    if move == 1:
+        mv_vector = (15, 20)
     # print(mv_vector)
 
     # Move the projection thanks to the found move vector

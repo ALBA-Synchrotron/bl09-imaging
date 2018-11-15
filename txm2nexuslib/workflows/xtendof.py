@@ -77,7 +77,7 @@ def main():
           " make normalized stacks")
     start_time = time.time()
 
-
+    """
     db_filename = get_db_path(args.txm_txt_script)
     create_db(args.txm_txt_script)
     # Multiple xrm 2 hdf5 files: working with many single images files
@@ -92,9 +92,13 @@ def main():
 
     # Normalize multiple hdf5 files: working with many single images files
     normalize_images(db_filename)
+    """
+
+    db_filename = "index.json"
 
     # Align multiple hdf5 files: working with many single images files
     align_images(db_filename, align_method='cv2.TM_SQDIFF_NORMED')
+                 #move=1)
 
     # Average multiple hdf5 files: working with many single images files
     average_image_groups(db_filename)

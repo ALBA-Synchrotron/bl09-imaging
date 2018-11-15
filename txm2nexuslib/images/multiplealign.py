@@ -39,7 +39,7 @@ def align_and_store_from_fn(couple_imgs_to_align_filenames,
                             dataset_reference="data",
                             dataset_for_aligning="data",
                             align_method='cv2.TM_CCOEFF_NORMED',
-                            roi_size=0.5):
+                            roi_size=0.5, move=0):
     image_ref_fn = couple_imgs_to_align_filenames[0]
     img_ref_obj = Image(h5_image_filename=image_ref_fn,
                         image_data_set=dataset_reference,
@@ -51,7 +51,8 @@ def align_and_store_from_fn(couple_imgs_to_align_filenames,
 
     _, mv_vector = img_to_align_obj.align_and_store(img_ref_obj,
                                                     align_method=align_method,
-                                                    roi_size=roi_size)
+                                                    roi_size=roi_size,
+                                                    move=move)
     img_ref_obj.close_h5()
     img_to_align_obj.close_h5()
 
@@ -59,7 +60,7 @@ def align_and_store_from_fn(couple_imgs_to_align_filenames,
 def align_images(file_index_fn, table_name="hdf5_proc",
                  dataset_for_aligning="data", dataset_reference="data",
                  roi_size=0.5, variable="zpz",
-                 align_method='cv2.TM_CCOEFF_NORMED',
+                 align_method='cv2.TM_CCOEFF_NORMED', move=0,
                  date=None, sample=None, energy=None, cores=-2,
                  query=None):
     """Align images of one experiment by zpz.
@@ -176,6 +177,9 @@ def align_images(file_index_fn, table_name="hdf5_proc",
                 couple_to_align = (ref_file, file)
                 couples_to_align.append(couple_to_align)
 
+    couple2 = couples_to_align.pop(1)
+    #couple3 = couples_to_align.pop(6)
+
     if couples_to_align:
         Parallel(n_jobs=cores, backend="multiprocessing")(
             delayed(align_and_store_from_fn)(
@@ -184,6 +188,22 @@ def align_images(file_index_fn, table_name="hdf5_proc",
                 dataset_for_aligning=dataset_for_aligning,
                 align_method=align_method,
                 roi_size=roi_size) for couple_to_align in couples_to_align)
+
+    align_and_store_from_fn(
+                couple2,
+                dataset_reference=dataset_reference,
+                dataset_for_aligning=dataset_for_aligning,
+                align_method=align_method,
+                roi_size=roi_size, move=move)
+
+    """
+    align_and_store_from_fn(
+                couple3,
+                dataset_reference=dataset_reference,
+                dataset_for_aligning=dataset_for_aligning,
+                align_method=align_method,
+                roi_size=roi_size, move=move)
+    """
 
     print("--- Align %d files took %s seconds ---\n" %
           (n_files, (time.time() - start_time)))
