@@ -94,7 +94,7 @@ def main():
     normalize_images(db_filename)
 
     # Align multiple hdf5 files: working with many single images files
-    align_images(db_filename)
+    align_images(db_filename, align_method='cv2.TM_SQDIFF_NORMED')
 
     # Average multiple hdf5 files: working with many single images files
     average_image_groups(db_filename)

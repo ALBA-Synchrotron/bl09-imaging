@@ -105,7 +105,8 @@ def mv_projection(image, mv_vector):
     return moved_image
 
 
-def align(image_ref, image_to_align, roi_size=0.5):
+def align(image_ref, image_to_align, align_method='cv2.TM_CCOEFF_NORMED',
+          roi_size=0.5):
     """Align an image taking by reference another image. roi_size
     is entered as input parameter as tant per one of the original
     image size"""
@@ -134,8 +135,6 @@ def align(image_ref, image_to_align, roi_size=0.5):
         image_to_align = image_to_align.astype(np.uint8)
 
     # Apply template Matching from cv2
-    align_method = 'cv2.TM_SQDIFF_NORMED'
-    # align_method = 'cv2.TM_CCOEFF_NORMED'
     result = cv2.matchTemplate(image_to_align, template,
                                eval(align_method))
     (min_val, max_val, min_loc, max_loc) = cv2.minMaxLoc(result)
