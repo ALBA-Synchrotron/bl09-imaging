@@ -69,6 +69,7 @@ def average_and_store(group_to_average_image_filenames,
                   "zpz": zp_central, "zpz_central": zp_central}
 
     elif variable == "repetition":
+
         num_repetitions = group_to_average_image_filenames[0]
         images_to_average_filenames = group_to_average_image_filenames[1]
         date_sample_energy_jj_angle = group_to_average_image_filenames[2]
@@ -174,11 +175,8 @@ def average_image_group_by_angle(file_index_fn, table_name="hdf5_proc",
                                       energy=energy, angle=angle, ff=False)
 
     all_file_records = file_index_db.all()
-    print(all_file_records)
     averages_table = db.table("hdf5_averages")
-    print("----")
-    print(averages_table.all())
-    print("----")
+
     # We only have files for a single angle
     if variable == "repetition":
         dates_samples_energies_jjs_angles = []
@@ -191,7 +189,6 @@ def average_image_group_by_angle(file_index_fn, table_name="hdf5_proc",
                                                       record["angle"]))
         dates_samples_energies_jjs_angles = list(
             set(dates_samples_energies_jjs_angles))
-        print(dates_samples_energies_jjs_angles)
 
         for date_sample_energy_jj_angle in dates_samples_energies_jjs_angles:
             date = date_sample_energy_jj_angle[0]
@@ -209,7 +206,6 @@ def average_image_group_by_angle(file_index_fn, table_name="hdf5_proc",
                          (files_query.jj_d == jj_d) &
                          (files_query.angle == angle))
             img_records = file_index_db.search(query_cmd)
-            print(img_records)
 
             num_repetitions = len(img_records)
             files = get_file_paths(img_records, root_path)
@@ -217,26 +213,24 @@ def average_image_group_by_angle(file_index_fn, table_name="hdf5_proc",
             group_to_average = []
             for file in files:
                 group_to_average.append(file)
-                print(os.path.basename(file))
             complete_group_to_average.append(group_to_average)
             complete_group_to_average.append(
-                dates_samples_energies_jjs_angles)
+                date_sample_energy_jj_angle)
 
             record = average_and_store(
                 complete_group_to_average,
                 dataset_for_averaging=dataset_for_averaging,
                 variable=variable, description=description,
                 dataset_store=dataset_store)
-            averages_table.insert(record)
-
-
-    # import pprint
-    # pobj = pprint.PrettyPrinter(indent=4)
-    # print("----")
-    # print("average records")
-    # for record in records:
-    #     pobj.pprint(record)
-    print(averages_table.all())
+            if record not in averages_table.all():
+                averages_table.insert(record)
+    #import pprint
+    #pobj = pprint.PrettyPrinter(indent=4)
+    #print("----")
+    #print("average records")
+    #for record in records:
+    #    pobj.pprint(record)
+    #pobj.pprint(averages_table.all())
     db.close()
 
 
