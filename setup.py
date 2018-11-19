@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 
 # The version is updated automatically with bumpversion
 # Do not update manually
-__version = '10.15.0-alpha'
+__version = '10.15.0'
 
 long_description = """This project allows to process in many ways images in
 hdf5 format. Moreover it allows to convert from xrm/txrm formats into
