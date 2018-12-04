@@ -122,7 +122,8 @@ def main():
             tree_hdf5 = 'TomoNormalized/TomoNormalized@' + fn_hdf5
             command = image_convert + " -i " + tree_hdf5 + " -o " + mrc_file
             print(command)
-            #os.system(command)
+            print("converting: " + mrc_file)
+            os.system(command)
             time.sleep(2)
     """ -------------------------------- """
 
