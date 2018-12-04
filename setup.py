@@ -11,7 +11,8 @@ __version = '10.17.0-alpha'
 long_description = """This project allows to process in many ways images in
 hdf5 format. Moreover it allows to convert from xrm/txrm formats into
 hdf5 format. It has been developd at ALBA Synchrotron Light Source, and
-it is mainly used for image processing purposes at BL09-Mistral Beamline.
+it is mainly used for image processing purposes at BL09-Mistral
+Tomography Beamline.
 """
 
 classifiers = [
@@ -61,14 +62,15 @@ setup(
             'img2stack = txm2nexuslib.scripts.img2stack:main',
             'manyxrm2norm = txm2nexuslib.workflows.manyxrm2norm:main',
             'xtendof = txm2nexuslib.workflows.xtendof:main',
-            'magnetism = txm2nexuslib.workflows.magnetism:main']
+            'magnetism = txm2nexuslib.workflows.magnetism:main',
+            'ctbio = txm2nexuslib.workflows.ctbio:main']
     },
     author='Marc Rosanes, Carlos Falcon, Zbigniew Reszela, Carlos Pascual',
     author_email='mrosanes@cells.es, cfalcon@cells.es, zreszela@cells.es, '
                  'cpascual@cells.es',
     maintainer='ctgensoft',
     maintainer_email='ctgensoft@cells.es',
-    url='https://git.cells.es/controls/txrm2nexus',
+    url='https://github.com/ALBA-Synchrotron/txrm2nexus.git',
     keywords='APP',
     license='GPLv3',
     description='HDF5 images pre-processing (formats: hdf5, xrm, txrm)',
