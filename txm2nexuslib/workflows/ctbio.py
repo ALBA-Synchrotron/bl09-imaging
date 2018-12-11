@@ -71,6 +71,11 @@ def main():
                         help=("DB table of image files to create the stacks" +
                               "(default: hdf5_averages)"))
 
+    parser.add_argument('-z', '--stacks_zp', type='bool',
+                        default='True',
+                        help="Create individual ZP stacks\n"
+                             "(default: True)")
+
     parser.add_argument('-m', '--hdf_to_mrc', type='bool',
                         default='True',
                         help="Convert FS hdf5 to mrc")
@@ -97,6 +102,10 @@ def main():
 
     # Normalize multiple hdf5 files: working with many single images files
     normalize_images(db_filename)
+
+    if args.stacks_zp:
+        many_images_to_h5_stack(db_filename, table_name="hdf5_proc",
+                                type_struct="normalized", suffix="_stack")
 
     # Align multiple hdf5 files: working with many single images files
     align_images(db_filename, align_method='cv2.TM_SQDIFF_NORMED')
