@@ -2,7 +2,8 @@
 
 """
 (C) Copyright 2018 ALBA-CELLS
-Author: Marc Rosanes Siscart
+Author(s): Marc Rosanes Siscart, Carlos Falcon Torres,
+Zbigniew Reszela, Carlos Pascual
 The program is distributed under the terms of the
 GNU General Public License (or the Lesser GPL).
 
@@ -40,26 +41,40 @@ from txm2nexuslib.parser import create_db, get_db_path, get_db
 
 
 def partial_preprocesing(db_filename, crop, query=None,
-                         date=None, sample=None, energy=None):
-    # Multiple xrm 2 hdf5 files: working with many single images files
+                         date=None, sample=None, energy=None,
+                         stacks_zp=False, table_name="hdf5_proc"):
 
+    #single_zp = True
+
+    # Multiple xrm 2 hdf5 files: working with many single images files
     multiple_xrm_2_hdf5(db_filename, query=query)
     # Copy of multiple hdf5 raw data files to files for processing
-    copy2proc_multiple(db_filename, query=query)
+    copy2proc_multiple(db_filename, query=query, purge=True)
     # Multiple files hdf5 images crop: working with single images files
-    #if crop:
-    #    crop_images(db_filename, query=query)
+    if crop:
+        crop_images(db_filename, query=query)
     # Normalize multiple hdf5 files: working with many single images files
-    #normalize_images(db_filename,
-    #                 date=date, sample=sample, energy=energy,
-    #                 query=query)
+    normalize_images(db_filename,
+                     date=date, sample=sample, energy=energy,
+                     query=query)
 
+    #file_records = db_filename.all()
+    #many_zps = check_if_multiple_zps()
 
-    #TODO: many_images_to_h5_stack
+    if stacks_zp or not many_zps:
+        many_images_to_h5_stack(db_filename, table_name="hdf5_proc",
+                                type_struct="normalized", suffix="_stack")
 
     # Align multiple hdf5 files: working with many single images files
-    #align_images(db_filename, variable=variable, query=query)
+    align_images(db_filename, align_method='cv2.TM_SQDIFF_NORMED')
 
+    # Average multiple hdf5 files: working with many single images files
+    average_image_groups(db_filename)
+
+    # Build up hdf5 stacks from individual images
+    many_images_to_h5_stack(db_filename, table_name=table_name,
+                            type_struct="normalized_multifocus",
+                            suffix="_FS")
     return db_filename
 
 
@@ -120,15 +135,13 @@ def main():
           "xrm -> hdf5 -> crop -> normalize -> align for same angle and" +
           " variable zpz -> average all images with same angle ->" +
           " make normalized stacks")
-
+    start_time = time.time()
 
 
     # Align and average by repetition
     # variable = "sample"
 
     db_filename = get_db_path(args.txm_txt_script)
-
-
     query = Query()
 
     if args.db:
@@ -144,45 +157,13 @@ def main():
                       (query.sample == sample) &
                       (query.energy == energy))
         partial_preprocesing(db_filename, args.crop, query=query_impl,
-                             date=date, sample=sample, energy=energy)
+                             date=date, sample=sample, energy=energy,
+                             stacks_zp=args.stacks_zp,
+                             table_name=args.table_for_stack)
 
-    # start_time = time.time()
-    #
-    # db_filename = get_db_path(args.txm_txt_script)
-    # create_db(args.txm_txt_script)
-    # # Multiple xrm 2 hdf5 files: working with many single images files
-    # multiple_xrm_2_hdf5(db_filename)
-    #
-    # # Copy of multiple hdf5 raw data files to files for processing
-    # copy2proc_multiple(db_filename)
-    #
-    # # Multiple files hdf5 images crop: working with single images files
-    # if args.crop:
-    #     crop_images(db_filename)
-    #
-    # # Normalize multiple hdf5 files: working with many single images files
-    # normalize_images(db_filename)
-    #
-    # if args.stacks_zp:
-    #     many_images_to_h5_stack(db_filename, table_name="hdf5_proc",
-    #                             type_struct="normalized", suffix="_stack")
-    #
-    # # Align multiple hdf5 files: working with many single images files
-    # align_images(db_filename, align_method='cv2.TM_SQDIFF_NORMED')
-    #
-    # # Average multiple hdf5 files: working with many single images files
-    # average_image_groups(db_filename)
-    #
-    # # Build up hdf5 stacks from individual images
-    # many_images_to_h5_stack(db_filename, table_name=args.table_for_stack,
-    #                         type_struct="normalized_multifocus",
-    #                         suffix="_FS")
-    #
-    # print("Execution took %d seconds\n" % (time.time() - start_time))
-
-
-
+    print("Execution took %d seconds\n" % (time.time() - start_time))
 
 
 if __name__ == "__main__":
     main()
+
