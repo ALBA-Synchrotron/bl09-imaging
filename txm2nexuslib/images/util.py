@@ -137,7 +137,7 @@ def update_db_func(files_db, table_name, files_records, suffix=None, purge=True)
 def copy2proc_multiple(file_index_db, table_in_name="hdf5_raw",
                        table_out_name="hdf5_proc", suffix="_proc",
                        use_subfolders=False, cores=-1, update_db=True,
-                       query=None):
+                       query=None, purge=False):
     """Copy many files to processed files"""
     # printer = pprint.PrettyPrinter(indent=4)
 
@@ -155,8 +155,11 @@ def copy2proc_multiple(file_index_db, table_in_name="hdf5_raw",
         table_in = db.table(table_in_name)
         hdf5_records = table_in.all()
 
-    # printer.pprint(all_file_records[3])
-    
+    # import pprint
+    # prettyprinter = pprint.PrettyPrinter(indent=4)
+    # prettyprinter.pprint(hdf5_records)
+
+
     root_path = os.path.dirname(os.path.abspath(file_index_db))
     files = get_file_paths(hdf5_records, root_path,
                            use_subfolders=use_subfolders)
@@ -166,13 +169,31 @@ def copy2proc_multiple(file_index_db, table_in_name="hdf5_raw",
         delayed(copy_2_proc)(h5_file, suffix) for h5_file in files)
 
     if update_db:
-        update_db_func(db, table_out_name, hdf5_records, suffix, purge=False)
+        update_db_func(db, table_out_name, hdf5_records, suffix, purge=purge)
 
     n_files = len(files)
     print("--- Copy for processing %d files took %s seconds ---\n" %
           (n_files, (time.time() - start_time)))
 
+    #print(db.table(table_out_name).all())
     db.close()
+
+
+def check_if_multiple_zps(db_filename, query=None):
+    single_zp_bool = True
+    db = TinyDB(db_filename,
+                storage=CachingMiddleware(JSONStorage))
+    if query is not None:
+        file_records = db.search(query)
+
+    zp_previous_record = file_records[0]['zpz']
+    for record in file_records:
+        current_zpz = record['zpz']
+        if current_zpz != zp_previous_record:
+            single_zp_bool = False
+            break
+        zp_previous_record = current_zpz
+    return single_zp_bool
 
 
 def dict2hdf5(h5_file_handler, indict):
