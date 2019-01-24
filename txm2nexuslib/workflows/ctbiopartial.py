@@ -28,10 +28,11 @@ import subprocess
 import argparse
 from argparse import RawTextHelpFormatter
 from tinydb import TinyDB, Query
+from tinydb.storages import JSONStorage
 from tinydb.middlewares import CachingMiddleware
 
 from txm2nexuslib.images.multiplexrm2h5 import multiple_xrm_2_hdf5
-from txm2nexuslib.images.util import copy2proc_multiple
+from txm2nexuslib.images.util import copy2proc_multiple, check_if_multiple_zps
 from txm2nexuslib.images.multiplecrop import crop_images
 from txm2nexuslib.images.multiplenormalization import normalize_images
 from txm2nexuslib.images.multiplealign import align_images
@@ -43,8 +44,6 @@ from txm2nexuslib.parser import create_db, get_db_path, get_db
 def partial_preprocesing(db_filename, crop, query=None,
                          date=None, sample=None, energy=None,
                          stacks_zp=False, table_name="hdf5_proc"):
-
-    #single_zp = True
 
     # Multiple xrm 2 hdf5 files: working with many single images files
     multiple_xrm_2_hdf5(db_filename, query=query)
@@ -58,23 +57,24 @@ def partial_preprocesing(db_filename, crop, query=None,
                      date=date, sample=sample, energy=energy,
                      query=query)
 
-    #file_records = db_filename.all()
-    #many_zps = check_if_multiple_zps()
+    single_zp_bool = check_if_multiple_zps(db_filename, query=query)
 
-    if stacks_zp or not many_zps:
+    if stacks_zp or single_zp_bool:
         many_images_to_h5_stack(db_filename, table_name="hdf5_proc",
                                 type_struct="normalized", suffix="_stack")
 
-    # Align multiple hdf5 files: working with many single images files
-    align_images(db_filename, align_method='cv2.TM_SQDIFF_NORMED')
+    # If many ZPz positions are used:
+    if not single_zp_bool:
+        # Align multiple hdf5 files: working with many single images files
+        align_images(db_filename, align_method='cv2.TM_SQDIFF_NORMED')
 
-    # Average multiple hdf5 files: working with many single images files
-    average_image_groups(db_filename)
+        # Average multiple hdf5 files: working with many single images files
+        average_image_groups(db_filename)
 
-    # Build up hdf5 stacks from individual images
-    many_images_to_h5_stack(db_filename, table_name=table_name,
-                            type_struct="normalized_multifocus",
-                            suffix="_FS")
+        # Build up hdf5 stacks from individual images
+        many_images_to_h5_stack(db_filename, table_name=table_name,
+                                type_struct="normalized_multifocus",
+                                suffix="_FS")
     return db_filename
 
 
