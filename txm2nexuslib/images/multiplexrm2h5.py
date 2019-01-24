@@ -51,12 +51,13 @@ def multiple_xrm_2_hdf5(file_index_db, subfolders=False, cores=-2,
     else:
         file_records = db.all()
 
-    # printer.pprint(all_file_records[3])
+    # import pprint
+    # printer = pprint.PrettyPrinter(indent=4)
+    # printer.pprint(file_records)
     root_path = os.path.dirname(os.path.abspath(file_index_db))
     files = get_file_paths(file_records, root_path,
                            use_subfolders=subfolders)
 
-    # printer.pprint(files)
     # The backend parameter can be either "threading" or "multiprocessing".
     Parallel(n_jobs=cores, backend="multiprocessing")(
         delayed(convert_xrm2h5)(xrm_file) for xrm_file in files)

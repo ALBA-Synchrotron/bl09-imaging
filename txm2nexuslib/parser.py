@@ -179,6 +179,9 @@ def get_db_path(txm_txt_script):
 
 def create_db(txm_txt_script):
     db = get_db(txm_txt_script)
+    #import pprint
+    #pp = pprint.PrettyPrinter(indent=4)
+    #pp.pprint(db.all())
     db.close()
 
 def get_db(txm_txt_script, use_existing_db=False):

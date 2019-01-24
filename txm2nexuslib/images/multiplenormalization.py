@@ -123,6 +123,8 @@ def normalize_images(file_index_fn, table_name="hdf5_proc",
     if table_name is not None:
         file_index_db = file_index_db.table(table_name)
 
+    #print(file_index_db.all())
+
     files_query = Query()
     if date or sample or energy:
         temp_db = TinyDB(storage=MemoryStorage)
@@ -143,6 +145,7 @@ def normalize_images(file_index_fn, table_name="hdf5_proc",
 
 
     file_records = file_index_db.all()
+    #print(file_records)
 
     dates_samples_energies = []
     for record in file_records:
@@ -194,6 +197,7 @@ def normalize_images(file_index_fn, table_name="hdf5_proc",
 
         h5_ff_records = file_index_db.search(query_cmd_ff)
         files = get_file_paths(h5_records, root_path)
+        #print(files)
         n_files = len(files)
         num_files_total += n_files
         files_ff = get_file_paths(h5_ff_records, root_path)
@@ -201,6 +205,12 @@ def normalize_images(file_index_fn, table_name="hdf5_proc",
         if not files_ff:
             msg = "FlatFields are not present, images cannot be normalized"
             raise Exception(msg)
+
+        # print("------------norm")
+        # import pprint
+        # prettyprinter = pprint.PrettyPrinter(indent=4)
+        # prettyprinter.pprint(files)
+        # prettyprinter.pprint(files_ff)
 
         if average_ff:
             # Average the FF files and use always the same average (for a
