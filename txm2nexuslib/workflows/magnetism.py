@@ -110,9 +110,8 @@ def main():
 
     parser.add_argument('--th', type=float,
                         nargs="*",
-                        help='- If True: Pre-process FF images\n'
-                             '- If False: Do not pre-process FF images\n'
-                             '(default: False)')
+                        help=('Angle theta to pre-process data' +
+                              ' referred to this angle'))
 
     parser.add_argument('--stack', type='bool',
                         nargs='?',
