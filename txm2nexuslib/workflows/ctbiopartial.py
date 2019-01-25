@@ -126,7 +126,7 @@ def main():
                              '- If False: Do not create db\n'
                              '(default: False)')
 
-    parser.add_argument('--id', type=int,
+    parser.add_argument('--id', type=float,
                         help='- ID of the record in DB\n')
 
     args = parser.parse_args()
