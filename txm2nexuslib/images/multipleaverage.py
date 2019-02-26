@@ -37,7 +37,7 @@ from txm2nexuslib.images.util import filter_file_index
 def average_and_store(group_to_average_image_filenames,
                       dataset_for_averaging="data",
                       variable="zpz", description="",
-                      dataset_store="data"):
+                      dataset_store="data", jj=True):
 
     if variable == "zpz":
         zp_central = group_to_average_image_filenames[0]
@@ -68,7 +68,7 @@ def average_and_store(group_to_average_image_filenames,
                   "angle": angle, "average": True, "avg_by": "zpz",
                   "zpz": zp_central, "zpz_central": zp_central}
 
-    elif variable == "repetition":
+    elif variable == "repetition" and jj:
 
         num_repetitions = group_to_average_image_filenames[0]
         images_to_average_filenames = group_to_average_image_filenames[1]
@@ -100,6 +100,33 @@ def average_and_store(group_to_average_image_filenames,
                   "date": date, "sample": sample, "energy": energy,
                   "jj_u": jj_u, "jj_d": jj_d, "jj_offset": jj_offset,
                   "angle": angle, "average": True, "avg_by": "repetition",
+                  "num_repetitions": num_repetitions}
+
+    elif variable == "repetition" and not jj:
+
+        num_repetitions = group_to_average_image_filenames[0]
+        images_to_average_filenames = group_to_average_image_filenames[1]
+        date_sample_energy = group_to_average_image_filenames[2]
+        fn_first = images_to_average_filenames[0]
+        dir_name = os.path.dirname(fn_first)
+
+        date = date_sample_energy[0]
+        sample = date_sample_energy[1]
+        energy = date_sample_energy[2]
+
+        output_fn = (str(date) + "_" + str(sample) + "_" + str(energy) +
+                     "_avg_repetitions.hdf5")
+        output_complete_fn = dir_name + "/" + output_fn
+        average_images(images_to_average_filenames,
+                       dataset_for_average=dataset_for_averaging,
+                       description=description, store=True,
+                       output_h5_fn=output_complete_fn,
+                       dataset_store=dataset_store)
+
+        # Store metadata: extracting metadata from repetition 0
+        record = {"filename": output_fn, "extension": ".hdf5",
+                  "date": date, "sample": sample, "energy": energy,
+                  "average": True, "avg_by": "repetition",
                   "num_repetitions": num_repetitions}
 
     img_in_obj = Image(images_to_average_filenames[0], mode="r")
@@ -146,6 +173,83 @@ def average_and_store(group_to_average_image_filenames,
     img_avg_obj.close_h5()
 
     return record
+
+
+def average_image_group_by_energy(file_index_fn, table_name="hdf5_proc",
+                                  dataset_for_averaging="data",
+                                  variable="repetition",
+                                  description="", dataset_store="data",
+                                  date=None, sample=None, energy=None):
+    """ Method used in energyscan macro. Average by energy.
+    Average images by repetition for a single energy.
+    If date, sample and/or energy are indicated, only the corresponding
+    images for the given date, sample and/or energy are processed.
+    All data images of the same energy,
+    for the different repetitions are averaged.
+    """
+
+    root_path = os.path.dirname(os.path.abspath(file_index_fn))
+
+    file_index_db = TinyDB(file_index_fn,
+                           storage=CachingMiddleware(JSONStorage))
+    db = file_index_db
+    if table_name is not None:
+        file_index_db = file_index_db.table(table_name)
+
+    files_query = Query()
+    file_index_db = filter_file_index(file_index_db, files_query,
+                                      date=date, sample=sample,
+                                      energy=energy, ff=False)
+
+    all_file_records = file_index_db.all()
+    averages_table = db.table("hdf5_averages")
+
+    # We only have files for a single energy
+    if variable == "repetition":
+        dates_samples_energies = []
+        for record in all_file_records:
+            dates_samples_energies.append((record["date"],
+                                           record["sample"],
+                                           record["energy"]))
+        dates_samples_energies = list(
+            set(dates_samples_energies))
+
+        for date_sample_energy in dates_samples_energies:
+            date = date_sample_energy[0]
+            sample = date_sample_energy[1]
+            energy = date_sample_energy[2]
+
+            # Raw image records by given date, sample and energy
+            query_cmd = ((files_query.date == date) &
+                         (files_query.sample == sample) &
+                         (files_query.energy == energy))
+            img_records = file_index_db.search(query_cmd)
+
+            num_repetitions = len(img_records)
+            files = get_file_paths(img_records, root_path)
+            complete_group_to_average = [num_repetitions]
+            group_to_average = []
+            for file in files:
+                group_to_average.append(file)
+            complete_group_to_average.append(group_to_average)
+            complete_group_to_average.append(
+                date_sample_energy)
+
+            record = average_and_store(
+                complete_group_to_average,
+                dataset_for_averaging=dataset_for_averaging,
+                variable=variable, description=description,
+                dataset_store=dataset_store, jj=False)
+            if record not in averages_table.all():
+                averages_table.insert(record)
+    #import pprint
+    #pobj = pprint.PrettyPrinter(indent=4)
+    #print("----")
+    #print("average records")
+    #for record in records:
+    #    pobj.pprint(record)
+    #pobj.pprint(averages_table.all())
+    db.close()
 
 
 def average_image_group_by_angle(file_index_fn, table_name="hdf5_proc",
@@ -237,7 +341,8 @@ def average_image_group_by_angle(file_index_fn, table_name="hdf5_proc",
 def average_image_groups(file_index_fn, table_name="hdf5_proc",
                          dataset_for_averaging="data", variable="zpz",
                          description="", dataset_store="data",
-                         date=None, sample=None, energy=None, cores=-2):
+                         date=None, sample=None, energy=None, cores=-2,
+                         jj=True):
     """Average images of one experiment by zpz.
     If date, sample and/or energy are indicated, only the corresponding
     images for the given date, sample and/or energy are processed.
@@ -315,7 +420,7 @@ def average_image_groups(file_index_fn, table_name="hdf5_proc",
             central_zpz_with_group_to_average.append(date_sample_energy_angle)
             groups_to_average.append(central_zpz_with_group_to_average)
 
-    elif variable == "repetition":
+    elif variable == "repetition" and jj:
         dates_samples_energies_jjs_angles = []
         for record in all_file_records:
             dates_samples_energies_jjs_angles.append((record["date"],
@@ -354,13 +459,42 @@ def average_image_groups(file_index_fn, table_name="hdf5_proc",
                 date_sample_energy_jj_angle)
             groups_to_average.append(complete_group_to_average)
 
+    elif variable == "repetition" and not jj:
+        dates_samples_energies = []
+        for record in all_file_records:
+            dates_samples_energies.append((record["date"],
+                                           record["sample"],
+                                           record["energy"]))
+        dates_samples_energies = list(
+            set(dates_samples_energies))
+
+        for date_sample_energy in dates_samples_energies:
+            date = date_sample_energy[0]
+            sample = date_sample_energy[1]
+            energy = date_sample_energy[2]
+
+            # Raw image records by given date, sample and energy
+            query_cmd = ((files_query.date == date) &
+                         (files_query.sample == sample) &
+                         (files_query.energy == energy))
+            img_records = file_index_db.search(query_cmd)
+            num_repetitions = len(img_records)
+            files = get_file_paths(img_records, root_path)
+            complete_group_to_average = [num_repetitions]
+            group_to_average = []
+            for file in files:
+                group_to_average.append(file)
+            complete_group_to_average.append(group_to_average)
+            complete_group_to_average.append(date_sample_energy)
+            groups_to_average.append(complete_group_to_average)
+
     if groups_to_average[0][1]:
         records = Parallel(n_jobs=cores, backend="multiprocessing")(
             delayed(average_and_store)(
                 group_to_average,
                 dataset_for_averaging=dataset_for_averaging,
                 variable=variable, description=description,
-                dataset_store=dataset_store
+                dataset_store=dataset_store, jj=jj
             ) for group_to_average in groups_to_average)
     averages_table.insert_multiple(records)
 

@@ -219,9 +219,13 @@ def normalize_images(file_index_fn, table_name="hdf5_proc",
             if read_norm_ff is True:
                 ff_norm_image = get_normalized_ff(files_ff)
             else:
-                 _, ff_norm_image = normalize_image(files[0],
-                                                ff_img_filenames=files_ff)
-                 files.pop(0)
+                #print("---files ff")
+                #print(files_ff)
+                #print("---files")
+                #print(files)
+                _, ff_norm_image = normalize_image(files[0],
+                                                   ff_img_filenames=files_ff)
+                files.pop(0)
             if len(files):
                 Parallel(n_jobs=cores, backend="multiprocessing")(
                     delayed(normalize_image)(

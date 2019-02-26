@@ -61,7 +61,7 @@ def align_images(file_index_fn, table_name="hdf5_proc",
                  roi_size=0.5, variable="zpz",
                  align_method='cv2.TM_CCOEFF_NORMED',
                  date=None, sample=None, energy=None, cores=-2,
-                 query=None):
+                 query=None, jj=True):
     """Align images of one experiment by zpz.
     If date, sample and/or energy are indicated, only the corresponding
     images for the given date, sample and/or energy are cropped.
@@ -121,13 +121,7 @@ def align_images(file_index_fn, table_name="hdf5_proc",
             # print("group for align")
             # for rec in h5_records:
             #    pobj.pprint(rec["filename"])
-
-            files = get_file_paths(h5_records, root_path)
-            ref_file = files[0]
-            files.pop(0)
-            for file in files:
-                couple_to_align = (ref_file, file)
-                couples_to_align.append(couple_to_align)
+            _get_couples_to_align(couples_to_align, h5_records, root_path)
 
     # The goal in this case is to align all the images for a same date,
     # sample, jj_offset and angle, and a variable repetition.
@@ -135,7 +129,7 @@ def align_images(file_index_fn, table_name="hdf5_proc",
     # necessary for each of the angles. 2 different JJ positions are
     # usually used in this kind of experiments, which allows to set the
     # two different circular polarizations (right and left)
-    if variable == "repetition":
+    elif variable == "repetition" and jj:
         dates_samples_energies_jjs_angles = []
         for record in file_records:
             dates_samples_energies_jjs_angles.append((record["date"],
@@ -169,12 +163,32 @@ def align_images(file_index_fn, table_name="hdf5_proc",
             # for rec in h5_records:
             #    pobj.pprint(rec["filename"])
 
-            files = get_file_paths(h5_records, root_path)
-            ref_file = files[0]
-            files.pop(0)
-            for file in files:
-                couple_to_align = (ref_file, file)
-                couples_to_align.append(couple_to_align)
+            _get_couples_to_align(couples_to_align, h5_records, root_path)
+    elif variable == "repetition" and not jj:
+        dates_samples_energies = []
+        for record in file_records:
+            dates_samples_energies.append((record["date"],
+                                           record["sample"],
+                                           record["energy"]))
+        dates_samples_energies = list(
+            set(dates_samples_energies))
+
+        for date_sample_energy in dates_samples_energies:
+            date = date_sample_energy[0]
+            sample = date_sample_energy[1]
+            energy = date_sample_energy[2]
+
+            # Raw image records by given date, sample and energy
+            query_cmd = ((files_query.date == date) &
+                         (files_query.sample == sample) &
+                         (files_query.energy == energy))
+            h5_records = file_index_db.search(query_cmd)
+
+            # pobj = pprint.PrettyPrinter(indent=4)
+            # print("group for align")
+            # for rec in h5_records:
+            #    pobj.pprint(rec["filename"])
+            _get_couples_to_align(couples_to_align, h5_records, root_path)
 
     if couples_to_align:
         Parallel(n_jobs=cores, backend="multiprocessing")(
@@ -188,6 +202,15 @@ def align_images(file_index_fn, table_name="hdf5_proc",
     print("--- Align %d files took %s seconds ---\n" %
           (n_files, (time.time() - start_time)))
     db.close()
+
+
+def _get_couples_to_align(couples_to_align, h5_records, root_path):
+    files = get_file_paths(h5_records, root_path)
+    ref_file = files[0]
+    files.pop(0)
+    for file in files:
+        couple_to_align = (ref_file, file)
+        couples_to_align.append(couple_to_align)
 
 
 def main():

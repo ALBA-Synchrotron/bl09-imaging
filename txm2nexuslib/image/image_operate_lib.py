@@ -523,13 +523,8 @@ def normalize_image(image_filename, ff_img_filenames=[],
                 data_set=dataset)
 
     image_obj.close_h5()
+    return normalized_image, ff_norm_image
 
-    if isinstance(ff_img_filenames, list) and len(ff_img_filenames) > 1:
-        # The FF returned is the FF average of the FF list of images
-        # (each one normalized by a scalar)
-        return normalized_image, ff_norm_image
-    else:
-        return normalized_image
 
 
 def main():
