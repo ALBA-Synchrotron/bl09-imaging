@@ -62,6 +62,13 @@ def create_structure_dict(type_struct="normalized"):
             "x_pixel_size": [],
             "y_pixel_size": []}
         }
+    elif type_struct == "normalized_spectroscopy":
+        hdf5_metadata_structure_dict = {"SpecNormalized": {
+            "energy": [],
+            "rotation_angle": [],
+            "x_pixel_size": [],
+            "y_pixel_size": []}
+        }
     elif type_struct == "normalized_magnetism_many_repetitions":
         hdf5_metadata_structure_dict = {"TomoNormalized": {
             "energy": [],
@@ -99,8 +106,12 @@ def metadata_2_stack_dict(hdf5_structure_dict,
         for dataset_name in hdf5_structure_dict:
             if dataset_name in metadata_original:
                 value = metadata_original[dataset_name].value
-                if dataset_name == "energy":
+                if (dataset_name == "energy" and
+                        type_struct != "normalized_spectroscopy"):
                     value = round(value, 1)
+                elif (dataset_name == "energy" and
+                      type_struct == "normalized_spectroscopy"):
+                    value = round(value, 2)
                 hdf5_structure_dict[dataset_name].append(value)
 
     if type_struct == "normalized_magnetism_many_repetitions":
@@ -118,6 +129,7 @@ def metadata_2_stack_dict(hdf5_structure_dict,
                 type_struct == "normalized_simple" or
                 type_struct == "normalized_multifocus" or
                 type_struct == "normalized_magnetism_many_repetitions" or
+                type_struct == "normalized_spectroscopy" or
                 type_struct == "aligned" or
                 type_struct == "aligned_multifocus"):
             if c == 0:
@@ -125,9 +137,14 @@ def metadata_2_stack_dict(hdf5_structure_dict,
                     round(metadata_original["pixel_size"].value, 6))
                 hdf5_structure_dict["y_pixel_size"].append(
                     round(metadata_original["pixel_size"].value, 6))
-            if "energy" not in hdf5_structure_dict:
+            if ("energy" not in hdf5_structure_dict and
+                    type_struct != "normalized_spectroscopy"):
                 hdf5_structure_dict["energy"].append(
                     round(metadata_original["energy"].value, 1))
+            elif ("energy" not in hdf5_structure_dict and
+                  type_struct == "normalized_spectroscopy"):
+                hdf5_structure_dict["energy"].append(
+                    round(metadata_original["energy"].value, 2))
             hdf5_structure_dict["rotation_angle"].append(
                 round(metadata_original["angle"].value, 1))
         if type_struct == "normalized":
@@ -172,6 +189,9 @@ def data_2_hdf5(h5_stack_file_handler,
         main_dataset = "TomoNormalized"
         if ff_filenames and type_struct == "normalized":
             ff_dataset = "FFNormalizedWithCurrent"
+    elif type_struct == "normalized_spectroscopy":
+        main_grp = "SpecNormalized"
+        main_dataset = "spectroscopy_normalized"
     elif type_struct == "aligned" or type_struct == "aligned_multifocus":
         main_grp = "FastAligned"
         main_dataset = "tomo_aligned"
@@ -228,7 +248,8 @@ def make_stack(files_for_stack, root_path, type_struct="normalized",
         data_files_ff = None
     date = files_for_stack["date"]
     sample = files_for_stack["sample"]
-    energy = files_for_stack["energy"]
+    if type_struct != "normalized_spectroscopy":
+        energy = files_for_stack["energy"]
     if "zpz" in files_for_stack:
         zpz = files_for_stack["zpz"]
     elif type_struct == "normalized_magnetism_many_repetitions":
@@ -249,6 +270,9 @@ def make_stack(files_for_stack, root_path, type_struct="normalized",
           type_struct == "normalized_simple"):
         h5_out_fn = (str(date) + "_" + str(sample) + "_" +
                      str(energy) + suffix + ".hdf5")
+    elif type_struct == "normalized_spectroscopy":
+        h5_out_fn = (str(date) + "_" + str(sample) +
+                     suffix + ".hdf5")
     elif type_struct == "normalized_magnetism_many_repetitions":
         h5_out_fn = (str(date) + "_" + str(sample) + "_" +
                      str(energy) + "_" + str(jj_offset) + suffix + ".hdf5")
@@ -298,7 +322,8 @@ def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
     if (date is not None or sample is not None or energy is not None or
             zpz is not None or ff is not None):
         file_index_db = filter_file_index(file_index_db, files_query,
-                                          date=date, sample=sample, energy=energy,
+                                          date=date, sample=sample,
+                                          energy=energy,
                                           zpz=zpz, ff=ff)
 
     root_path = os.path.dirname(os.path.abspath(file_index_fn))
@@ -407,6 +432,29 @@ def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
                                         use_subfolders=subfolders)
             files_dict = {"data": data_files, "date": date, "sample": sample,
                           "energy": energy, "jj_offset": jj_offset}
+            files_list.append(files_dict)
+    elif type_struct == "normalized_spectroscopy":
+        dates_samples = []
+        for record in all_file_records:
+            dates_samples.append((record["date"],
+                                  record["sample"]))
+        dates_samples = list(set(dates_samples))
+        for date_sample in dates_samples:
+            date = date_sample[0]
+            sample = date_sample[1]
+
+            # Query building parts
+            da = (files_query.date == date)
+            sa = (files_query.sample == sample)
+
+            # Query command
+            query_cmd = (da & sa)
+            h5_records = file_index_db.search(query_cmd)
+            h5_records = sorted(h5_records, key=itemgetter('energy'))
+
+            data_files = get_file_paths(h5_records, root_path,
+                                        use_subfolders=subfolders)
+            files_dict = {"data": data_files, "date": date, "sample": sample}
             files_list.append(files_dict)
 
     # Parallelization of making the stacks
