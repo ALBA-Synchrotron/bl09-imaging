@@ -64,7 +64,8 @@ setup(
             'xtendof = txm2nexuslib.workflows.xtendof:main',
             'magnetism = txm2nexuslib.workflows.magnetism:main',
             'ctbio = txm2nexuslib.workflows.ctbio:main',
-            'ctbiopartial = txm2nexuslib.workflows.ctbiopartial:main'
+            'ctbiopartial = txm2nexuslib.workflows.ctbiopartial:main',
+            'energyscan = txm2nexuslib.workflows.energyscan:main'
         ]
     },
     author='Marc Rosanes, Carlos Falcon, Zbigniew Reszela, Carlos Pascual',
