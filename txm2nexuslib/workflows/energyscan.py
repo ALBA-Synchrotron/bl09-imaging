@@ -144,21 +144,14 @@ def main():
             average_image_group_by_energy(db_filename, variable=variable,
                                           energy=args.e[0])
 
-    """
-    if args.stack:
-        # Build up hdf5 stacks from individual images
-        # Stack of variable angle. Each of the images has been done by
-        # averaging many repetitions of the image at the same energy, jj,
-        # angle... The number of repetitions by each of the images in this
-        # stack files could be variable.
-        many_images_to_h5_stack(
-            db_filename, table_name=args.table_for_stack,
-            type_struct="normalized_magnetism_many_repetitions",
-            suffix="_FS")
+    # Build up hdf5 stacks from individual images.
+    # Stacks of variable energy: spectrocopy stacks (energyscan)
+    many_images_to_h5_stack(db_filename, table_name=args.table_for_stack,
+                            type_struct="normalized_spectroscopy",
+                            suffix="_specnorm")
 
-        print("magnetism preprocessing took %d seconds\n" %
-              (time.time() - start_time))
-    """
+    print("spectrocopy preprocessing took %d seconds\n" %
+          (time.time() - start_time))
 
 
 if __name__ == "__main__":
