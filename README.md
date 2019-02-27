@@ -1,8 +1,14 @@
 
-**txrm2nexus** is a file format converter from 'xrm' and 'txrm' formats into 
-'hdf5' format.
+**txrm2nexus** 
 
-Applications present on the package:
+**This project allows to process in many ways images in
+hdf5 format. Moreover it allows to convert from xrm/txrm formats into
+hdf5 format. It has been developed at ALBA Synchrotron Light Source, and
+it is mainly used for image processing purposes at BL09-Mistral
+Tomography and Spectroscopy Beamline.**
+
+Some of the applications present on the package,
+allow the conversion from xrm to hdf5 files:
 - hdf2h5
 - xrm2nexus
 - txrm2nexus
@@ -26,23 +32,6 @@ Three scripts called autotxrm2nexus, automosaic2nexus and autonormalize, allow
 to automate the procedures of conversion for many files. 
 
 This software is used at BL09 of the ALBA-CELLS Synchrotron.
-
------
-
-
-TODO:
-
-About building blocks image_operate:
-Things that could be done:
-
-- metadata h5 group for each image data set
-  (data_1, data_2... -> metadata_1, metadata_2...).
-- Names could be shorter (image_operate, multiply_by_constant, ...)
-- metadata h5 group for each image data set (data_1, data_2... ->
-                                             metadata_1, metadata_2...).
-- Copy or link all metadata excepting the one that it has not anymore sense,
-  or the one that has been modified between one data step and the next one.
-
 
 
 -----
