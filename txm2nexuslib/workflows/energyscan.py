@@ -39,7 +39,7 @@ from txm2nexuslib.images.imagestostack import many_images_to_h5_stack
 from txm2nexuslib.parser import create_db, get_db_path
 
 
-def partial_preprocesing_escan(db_filename, variable, crop, query=None):
+def partial_preprocesing_escan(db_filename, variable, crop=False, query=None):
     # Multiple xrm 2 hdf5 files: working with many single images files
 
     multiple_xrm_2_hdf5(db_filename, query=query)
@@ -95,21 +95,21 @@ def main():
                               "(default: hdf5_averages)"))
 
     parser.add_argument("--db", type=str2bool, nargs='?',
-                        const=True, default=False,
+                        const=True, default=True,
                         help='- If True: Create database\n'
                              '- If False: Do not create db\n'
-                             '(default: False)')
+                             '(default: True)')
 
     parser.add_argument('--e', type=float,
-                        nargs="*",
+                        nargs="*", default=[],
                         help='Energy to pre-process data')
 
     parser.add_argument('--stack', type='bool',
                         nargs='?',
-                        const=True, default=False,
+                        const=True, default=True,
                         help='- If True: Calculate stack\n'
                              '- If False: Do not calculate stack\n'
-                             '(default: False)')
+                             '(default: True)')
 
     args = parser.parse_args()
 
@@ -132,23 +132,25 @@ def main():
     if args.e is not None:
         if len(args.e) == 0:
             partial_preprocesing_escan(db_filename, variable,
-                                       args.crop)
+                                       crop=args.crop)
             # Average multiple hdf5 files:
             # working with many single images files
             average_image_groups(db_filename, variable=variable, jj=False)
         else:
-            partial_preprocesing_escan(db_filename, variable, args.crop,
-                                       query.energy==args.e[0])
+            query_impl = (query.energy==args.e[0])
+            partial_preprocesing_escan(db_filename, variable, crop=args.crop,
+                                       query=query_impl)
             # Average multiple hdf5 files:
             # working with many single images files
             average_image_group_by_energy(db_filename, variable=variable,
                                           energy=args.e[0])
 
-    # Build up hdf5 stacks from individual images.
-    # Stacks of variable energy: spectrocopy stacks (energyscan)
-    many_images_to_h5_stack(db_filename, table_name=args.table_for_stack,
-                            type_struct="normalized_spectroscopy",
-                            suffix="_specnorm")
+    if args.stack:
+        # Build up hdf5 stacks from individual images.
+        # Stacks of variable energy: spectrocopy stacks (energyscan)
+        many_images_to_h5_stack(db_filename, table_name=args.table_for_stack,
+                                type_struct="normalized_spectroscopy",
+                                suffix="_specnorm")
 
     print("spectrocopy preprocessing took %d seconds\n" %
           (time.time() - start_time))
