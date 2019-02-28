@@ -49,7 +49,7 @@ def partial_preprocesing_escan(db_filename, variable, crop=False, query=None):
     if crop:
         crop_images(db_filename, query=query)
     # Normalize multiple hdf5 files: working with many single images files
-    normalize_images(db_filename, query=query) #read_norm_ff=True)
+    normalize_images(db_filename, query=query)
 
     # Align multiple hdf5 files: working with many single images files
     align_images(db_filename, variable=variable, query=query, jj=False)
