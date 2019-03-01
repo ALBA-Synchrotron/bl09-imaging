@@ -22,7 +22,9 @@
 #############################################################################
 
 import os
+import h5py
 from unittest import TestCase
+from tinydb import TinyDB, Query
 
 
 class EnergyScanTestCase(TestCase):
@@ -31,12 +33,35 @@ class EnergyScanTestCase(TestCase):
         pass
 
     def test_energyscan(self):
+        """Test that energyscan preprocessing is executed with
+        a correct exit code"""
         dir_name = "/siciliarep/projects/ctgensoft/BLs/BL09/DATA/TESTS/ESCAN/"
         txm_txt_script = "f14_small.txt"
         fullname_to_txt_script = dir_name + txm_txt_script
         script_call = "energyscan " + fullname_to_txt_script
         exit_code = os.system(script_call)
-        self.assertEqual(exit_code, 0)
+
+        # Test that exit code is not error
+        expected_exit_code = 0
+        self.assertEqual(exit_code, expected_exit_code)
+
+        # Test that dataset shape is equal to the expected shape
+        file_index_fn = dir_name + "index.json"
+        file_index_db = TinyDB(file_index_fn)
+        self.stack_table = file_index_db.table("hdf5_stacks")
+        all_file_records = self.stack_table.all()
+        for record in all_file_records:
+            h5_stack_filename = dir_name + record["filename"]
+            f = h5py.File(h5_stack_filename, "r")
+            dataset_shape = f["SpecNormalized"][
+                "spectroscopy_normalized"].shape
+            expected_shape = (2, 974, 984)
+            dataset_shape_str = str(dataset_shape)
+            expected_shape_str = str(expected_shape)
+            err_msg = ("Dataset shape %s, is different than \n "
+                       "expected shape %s" % (dataset_shape_str,
+                                              expected_shape_str))
+            self.assertEqual(dataset_shape, expected_shape, err_msg)
 
     def tearDown(self):
         pass
