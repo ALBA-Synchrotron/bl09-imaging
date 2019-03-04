@@ -41,24 +41,23 @@ class WorkflowTestCase(TestCase):
             git_url = "https://git.cells.es/controls/bl09_test_images.git"
             Repo.clone_from(git_url, self.relative_dir_name)
 
-    @parameterized.expand([('f14_small.txt',
-                            'energyscan',
-                            None,
-                            "Escan_test_imgs",
-                            dict(h5_main_grp="SpecNormalized",
-                                 h5_dataset="spectroscopy_normalized",
-                                 expected_shape=(2, 974, 984)
-                                 )
-                            ),
-                           ('dichro_test.txt',
-                            'magnetism',
-                            "--db --ff --th --stack",
-                            "magnetism_test_imgs",
-                            dict(h5_main_grp="TomoNormalized",
-                                 h5_dataset="TomoNormalized",
-                                 expected_shape=(2, 974, 984)
-                                 )
-                            )])
+    @parameterized.expand([
+        ('f14_small.txt', 'energyscan', None, "Escan_test_imgs",
+         dict(h5_main_grp="SpecNormalized",
+              h5_dataset="spectroscopy_normalized",
+              expected_shape=(2, 974, 984))
+         ),
+        ('dichro_test.txt', 'magnetism', "--db --ff --th --stack",
+         "magnetism_test_imgs",
+         dict(h5_main_grp="TomoNormalized",
+              h5_dataset="TomoNormalized",
+              expected_shape=(2, 974, 984))
+         ),
+        ('ctbio_single_zp.txt', 'ctbio', "-m=False", "ctbio_test_imgs",
+         dict(h5_main_grp="TomoNormalized",
+              h5_dataset="TomoNormalized",
+              expected_shape=(3, 974, 984))
+         )])
     def test_check_workflow(self, txm_txt_script=None, workflow_script=None,
                             script_args=None, images_dir=None,
                             h5_tree=None):
@@ -95,7 +94,6 @@ class WorkflowTestCase(TestCase):
         for record in all_file_records:
             h5_stack_filename = os.path.join(data_dir_name,
                                              record["filename"])
-            print(h5_stack_filename)
             f = h5py.File(h5_stack_filename, "r")
             h5_main_grp = h5_tree["h5_main_grp"]
             h5_dataset = h5_tree["h5_dataset"]
