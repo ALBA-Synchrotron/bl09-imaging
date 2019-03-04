@@ -28,28 +28,9 @@ import time
 from git import Repo
 from unittest import TestCase
 from tinydb import TinyDB, Query
-from taurus.test import insertTest
+from parameterized import parameterized, parameterized_class
 
 
-@insertTest(helper_name='check_workflow',
-            txm_txt_script='f14_small.txt',
-            workflow_script='energyscan',
-            script_args=None,
-            images_dir="Escan_test_imgs",
-            h5_tree=dict(h5_main_grp="SpecNormalized",
-                         h5_dataset="spectroscopy_normalized",
-                         expected_shape=(2, 974, 984))
-            )
-@insertTest(helper_name='check_workflow',
-            txm_txt_script='dichro_test.txt',
-            workflow_script='magnetism',
-            script_args="--db --ff --th --stack",
-            images_dir="magnetism_test_imgs",
-            h5_tree=dict(h5_main_grp="TomoNormalized",
-                         h5_dataset="TomoNormalized",
-                         expected_shape=(2, 974, 984)
-                         )
-            )
 class WorkflowTestCase(TestCase):
 
     @classmethod
@@ -60,9 +41,27 @@ class WorkflowTestCase(TestCase):
             git_url = "https://git.cells.es/controls/bl09_test_images.git"
             Repo.clone_from(git_url, self.relative_dir_name)
 
-    def check_workflow(self, txm_txt_script=None, workflow_script=None,
-                       script_args=None, images_dir=None,
-                       h5_tree=None):
+    @parameterized.expand([('f14_small.txt',
+                            'energyscan',
+                            None,
+                            "Escan_test_imgs",
+                            dict(h5_main_grp="SpecNormalized",
+                                 h5_dataset="spectroscopy_normalized",
+                                 expected_shape=(2, 974, 984)
+                                 )
+                            ),
+                           ('dichro_test.txt',
+                            'magnetism',
+                            "--db --ff --th --stack",
+                            "magnetism_test_imgs",
+                            dict(h5_main_grp="TomoNormalized",
+                                 h5_dataset="TomoNormalized",
+                                 expected_shape=(2, 974, 984)
+                                 )
+                            )])
+    def test_check_workflow(self, txm_txt_script=None, workflow_script=None,
+                            script_args=None, images_dir=None,
+                            h5_tree=None):
         """Test for BL09 offline workflows"""
 
         data_dir_name = os.path.join(self.relative_dir_name,
