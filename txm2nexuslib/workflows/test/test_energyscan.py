@@ -22,36 +22,49 @@
 #############################################################################
 
 import os
+import subprocess
 import h5py
+import time
+from git import Repo
 from unittest import TestCase
 from tinydb import TinyDB, Query
 
 
 class EnergyScanTestCase(TestCase):
 
-    def setUp(self):
-        pass
+    @classmethod
+    def setUpClass(self):
+        self.relative_dir_name = "/tmp/TEST_DATA"
+        os.system("mkdir -p " + self.relative_dir_name)
+        self.escan_data_dir_name = (self.relative_dir_name +
+                                    "/Escan_test_imgs/")
+
+        if not os.listdir(self.relative_dir_name):
+            git_url = "https://git.cells.es/controls/bl09_test_images.git"
+            Repo.clone_from(git_url, self.relative_dir_name)
 
     def test_energyscan(self):
-        """Test that energyscan preprocessing is executed with
-        a correct exit code"""
-        dir_name = "/siciliarep/projects/ctgensoft/BLs/BL09/DATA/TESTS/ESCAN/"
+        """Test for energyscan offline workflow"""
+
         txm_txt_script = "f14_small.txt"
-        fullname_to_txt_script = dir_name + txm_txt_script
+        fullname_to_txt_script = self.escan_data_dir_name + txm_txt_script
+        print(fullname_to_txt_script)
+
         script_call = "energyscan " + fullname_to_txt_script
         exit_code = os.system(script_call)
 
-        # Test that exit code is not error
+        # Test that energyscan preprocessing is executed with
+        # a correct exit code
         expected_exit_code = 0
         self.assertEqual(exit_code, expected_exit_code)
 
         # Test that dataset shape is equal to the expected shape
-        file_index_fn = dir_name + "index.json"
+        file_index_fn = self.escan_data_dir_name + "index.json"
         file_index_db = TinyDB(file_index_fn)
         self.stack_table = file_index_db.table("hdf5_stacks")
         all_file_records = self.stack_table.all()
         for record in all_file_records:
-            h5_stack_filename = dir_name + record["filename"]
+            h5_stack_filename = self.escan_data_dir_name + record["filename"]
             f = h5py.File(h5_stack_filename, "r")
             dataset_shape = f["SpecNormalized"][
                 "spectroscopy_normalized"].shape
@@ -63,6 +76,11 @@ class EnergyScanTestCase(TestCase):
                                               expected_shape_str))
             self.assertEqual(dataset_shape, expected_shape, err_msg)
 
-    def tearDown(self):
-        pass
+
+    @classmethod
+    def tearDownClass(self):
+        abs_path_data_folder = os.path.abspath(self.relative_dir_name)
+        subprocess.call(["rm", "-rf", "{}".format(abs_path_data_folder)])
+
+
 
