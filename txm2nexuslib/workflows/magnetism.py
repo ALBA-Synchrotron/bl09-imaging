@@ -45,7 +45,12 @@ def partial_preprocesing(db_filename, variable, crop, query=None, is_ff=False):
     
     multiple_xrm_2_hdf5(db_filename, query=query)
     # Copy of multiple hdf5 raw data files to files for processing
-    copy2proc_multiple(db_filename, query=query)
+
+    if is_ff:
+        purge = True
+    else:
+        purge = False
+    copy2proc_multiple(db_filename, query=query, purge=purge)
     # Multiple files hdf5 images crop: working with single images files
     if crop:
         crop_images(db_filename, query=query)
