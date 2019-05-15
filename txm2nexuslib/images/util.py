@@ -137,7 +137,8 @@ def update_db_func(files_db, table_name, files_records, suffix=None, purge=True)
 def copy2proc_multiple(file_index_db, table_in_name="hdf5_raw",
                        table_out_name="hdf5_proc", suffix="_proc",
                        use_subfolders=False, cores=-1, update_db=True,
-                       query=None, purge=False):
+                       query=None, purge=False,
+                       magnetism_partial=False):
     """Copy many files to processed files"""
     # printer = pprint.PrettyPrinter(indent=4)
 
@@ -155,16 +156,23 @@ def copy2proc_multiple(file_index_db, table_in_name="hdf5_raw",
         table_in = db.table(table_in_name)
         hdf5_records = table_in.all()
 
+    if magnetism_partial:
+        query_cmd = (files_query.extension == ".hdf5")
+        if query is not None:
+            query_cmd &= query
+        table_proc = db.table(table_out_name)
+        table_proc.remove(query_cmd)
+
     # import pprint
     # prettyprinter = pprint.PrettyPrinter(indent=4)
     # prettyprinter.pprint(hdf5_records)
-
 
     root_path = os.path.dirname(os.path.abspath(file_index_db))
     files = get_file_paths(hdf5_records, root_path,
                            use_subfolders=use_subfolders)
 
     # The backend parameter can be either "threading" or "multiprocessing"
+
     Parallel(n_jobs=cores, backend="multiprocessing")(
         delayed(copy_2_proc)(h5_file, suffix) for h5_file in files)
 

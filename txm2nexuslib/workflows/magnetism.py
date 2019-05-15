@@ -50,7 +50,8 @@ def partial_preprocesing(db_filename, variable, crop, query=None, is_ff=False):
         purge = True
     else:
         purge = False
-    copy2proc_multiple(db_filename, query=query, purge=purge)
+    copy2proc_multiple(db_filename, query=query, purge=purge,
+                       magnetism_partial=True)
     # Multiple files hdf5 images crop: working with single images files
     if crop:
         crop_images(db_filename, query=query)
@@ -177,6 +178,21 @@ def main():
 
         print("magnetism preprocessing took %d seconds\n" %
               (time.time() - start_time))
+
+        """
+        from tinydb import TinyDB
+        from tinydb.storages import JSONStorage
+        from tinydb.middlewares import CachingMiddleware
+        from tinydb.storages import MemoryStorage
+        db = TinyDB(db_filename,
+                    storage=CachingMiddleware(JSONStorage))
+
+        import pprint
+        prettyprinter = pprint.PrettyPrinter(indent=4)
+        print("-------..............")
+        prettyprinter.pprint(db.all())
+        print("-------..............")
+        """
 
 
 if __name__ == "__main__":
