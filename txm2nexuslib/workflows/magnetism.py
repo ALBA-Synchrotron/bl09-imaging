@@ -179,20 +179,33 @@ def main():
         print("magnetism preprocessing took %d seconds\n" %
               (time.time() - start_time))
 
-        """
-        from tinydb import TinyDB
-        from tinydb.storages import JSONStorage
-        from tinydb.middlewares import CachingMiddleware
-        from tinydb.storages import MemoryStorage
-        db = TinyDB(db_filename,
-                    storage=CachingMiddleware(JSONStorage))
+    """
+    from tinydb import TinyDB
+    from tinydb.storages import JSONStorage
+    from tinydb.middlewares import CachingMiddleware
+    from tinydb.storages import MemoryStorage
 
-        import pprint
-        prettyprinter = pprint.PrettyPrinter(indent=4)
-        print("-------..............")
-        prettyprinter.pprint(db.all())
-        print("-------..............")
-        """
+    db = TinyDB(db_filename,
+                storage=CachingMiddleware(JSONStorage))
+
+    import pprint
+    prettyprinter = pprint.PrettyPrinter(indent=4)
+    print("-------..............")
+    prettyprinter.pprint(db.all())
+    print("-------..............")
+    table = db.table('hdf5_raw')
+    prettyprinter.pprint(table.all())
+    print(" ")
+    table = db.table('hdf5_proc')
+    prettyprinter.pprint(table.all())
+    print(" ")
+    table = db.table('hdf5_averages')
+    prettyprinter.pprint(table.all())
+    print(" ")
+    table = db.table('hdf5_stacks')
+    prettyprinter.pprint(table.all())
+    print(" ")
+    """
 
 
 if __name__ == "__main__":
