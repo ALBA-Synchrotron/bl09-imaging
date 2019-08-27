@@ -1,4 +1,21 @@
-                    GNU GENERAL PUBLIC LICENSE
+
+bl09-imaging is Free Software 
+by the CELLS / ALBA Synchrotron, Bellaterra, Spain
+
+
+GENERAL LICENSE FOR BL09-IMAGING SOURCE CODE
+============================================
+
+The files in bl09-imaging (formerly txrm2nexus), are distributed under 
+the GNU Lesser General Public License as published by
+the Free Software Foundation, either version 3 of the License, or 
+(at your option) any later version.
+See <http://www.gnu.org/licenses/>
+
+--------------------------------------------
+
+
+                     GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
 
  Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
