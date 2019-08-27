@@ -2,17 +2,19 @@
 
 from setuptools import setup, find_packages
 
-# txrm2nexus setup.py for usage of setuptools
+# bl09-imaging setup.py for usage of setuptools
 
 # The version is updated automatically with bumpversion
 # Do not update manually
 __version = '10.18.0'
 
-long_description = """This project allows to process in many ways images in
-hdf5 format. Moreover it allows to convert from xrm/txrm formats into
-hdf5 format. It has been developd at ALBA Synchrotron Light Source, and
-it is mainly used for image processing purposes at BL09-Mistral
-Tomography Beamline.
+long_description = """bl09-imaging: Image/Signal processing for BL09-Mistral 
+Synchrotron Beamline Laboratory (formats: hdf5, mrc, xrm/txrm). 
+It has been developed at ALBA Synchrotron Light Source. It is used for 
+image processing purposes at BL09-Mistral Tomography and 2D-Spectroscopy 
+Soft X-Ray Imaging Beamline. Part of the project involving the 
+hdf5 image processing is generic, making it possible to be deployed and 
+used in other Laboratories & Beamlines.
 """
 
 classifiers = [
@@ -20,7 +22,7 @@ classifiers = [
     #   3 - Alpha
     #   4 - Beta
     #   5 - Production/Stable
-    'Development Status :: 3 - Alpha',
+    'Development Status :: 4 - Beta',
 
     # Indicate who your project is intended for
     'Intended Audience :: Science/Research',
@@ -28,7 +30,7 @@ classifiers = [
     'Topic :: Software Development :: Libraries',
 
     # Pick your license as you wish (should match "license" above)
-    'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+    'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
 
     # Specify the Python versions you support here. In particular, ensure
     # that you indicate whether you support Python 2, Python 3 or both.
@@ -37,7 +39,7 @@ classifiers = [
 
 
 setup(
-    name='txrm2nexus',
+    name='bl09-imaging',
     version=__version,
     packages=find_packages(),
     entry_points={
@@ -73,10 +75,10 @@ setup(
                  'cpascual@cells.es',
     maintainer='ctgensoft',
     maintainer_email='ctgensoft@cells.es',
-    url='https://github.com/ALBA-Synchrotron/txrm2nexus.git',
+    url='https://github.com/ALBA-Synchrotron/bl09-imaging.git',
     keywords='APP',
     license='GPLv3',
-    description='HDF5 images pre-processing (formats: hdf5, xrm, txrm)',
+    description='Image processing for scientific research (hdf5/mrc/txrm)',
     long_description=long_description,
     requires=['setuptools (>=1.1)'],
     install_requires=['numpy'],
