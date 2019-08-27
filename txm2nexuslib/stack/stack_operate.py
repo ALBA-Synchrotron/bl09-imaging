@@ -140,5 +140,16 @@ def minus_ln_stacks_mrc(db_filename, table_name="mrc_stacks"):
         record_ln_mrc = record_mrc.copy()
         record_ln_mrc["filename"] = mrc_ln_stack_fn
         record_ln_mrc["extension"] = ".mrc"
+        record_ln_mrc["absorbance"] = True
         mrc_stack_table.insert(record_ln_mrc)
     print("")
+
+    """
+    import pprint
+    pretty_printer = pprint.PrettyPrinter(indent=4)
+    print("Created stacks:")
+    for record in mrc_stack_table.all():
+        pretty_printer.pprint(record["filename"])
+        pretty_printer.pprint(record["extension"])
+        pretty_printer.pprint(record)
+    """
