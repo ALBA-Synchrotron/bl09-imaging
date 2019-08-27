@@ -118,23 +118,41 @@ def main():
                             type_struct="normalized_multifocus",
                             suffix="_FS")
 
-    """Convert FS stacks from hdf5 to mrc"""
+    # Convert FS stacks from hdf5 to mrc
     if args.hdf_to_mrc:
+        print("Converting FS stacks from hdf5 to mrc")
+        try:
+            import h5py
+            import mrcfile
+        except Exception:
+            msg = "mrcfile library is required to convert h5 files to mrc"
+            raise msg
+
         db = TinyDB(db_filename)
         stack_table = db.table("hdf5_stacks")
-        print("Converting FS stacks from hdf5 to mrc")
+        tree = "TomoNormalized"
+        dataset = "TomoNormalized"
         for record in stack_table.all():
-            fn_hdf5 = record["filename"]
-            raw_fname, _ = os.path.splitext(fn_hdf5)
-            mrc_file = raw_fname + '.mrc'
-            image_convert = "scipion xmipp_image_convert"
-            tree_hdf5 = 'TomoNormalized/TomoNormalized@' + fn_hdf5
-            command = image_convert + " -i " + tree_hdf5 + " -o " + mrc_file
-            print(command)
-            print("converting: " + mrc_file)
-            os.system(command)
-            time.sleep(2)
-    """ -------------------------------- """
+
+            h5_stack_fn = record["filename"]
+            h5_handler = h5py.File(h5_stack_fn, "r")
+            h5_group = h5_handler[tree]
+
+            # Shape information of data image stack
+            infoshape = h5_group[dataset].shape
+            n_frames = infoshape[0]
+            n_rows = infoshape[1]
+            n_cols = infoshape[2]
+
+            outfile_fn = h5_stack_fn.rsplit('.', 1)[0] + '.mrc'
+            mrc_outfile = mrcfile.new_mmap(outfile_fn,
+                                           shape=(n_frames, n_rows, n_cols),
+                                           mrc_mode=2,
+                                           overwrite=True)
+            for n_img in range(n_frames):
+                mrc_outfile.data[n_img, :, :] = h5_group[dataset][n_img]
+            mrc_outfile.flush()
+            mrc_outfile.close()
 
     print("Execution took %d seconds\n" % (time.time() - start_time))
 
