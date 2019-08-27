@@ -36,7 +36,8 @@ from txm2nexuslib.images.multiplenormalization import normalize_images
 from txm2nexuslib.images.multiplealign import align_images
 from txm2nexuslib.images.multipleaverage import average_image_groups
 from txm2nexuslib.images.imagestostack import many_images_to_h5_stack
-from txm2nexuslib.stack.stack_operate import hdf5_2_mrc_stacks
+from txm2nexuslib.stack.stack_operate import (hdf5_2_mrc_stacks,
+                                              minus_ln_stacks_mrc)
 from txm2nexuslib.parser import create_db, get_db_path
 
 
@@ -123,6 +124,7 @@ def main():
     # Convert FS stacks from hdf5 to mrc
     if args.hdf_to_mrc:
         hdf5_2_mrc_stacks(db_filename)
+        minus_ln_stacks_mrc(db_filename)
 
     print("Execution took %d seconds\n" % (time.time() - start_time))
 
