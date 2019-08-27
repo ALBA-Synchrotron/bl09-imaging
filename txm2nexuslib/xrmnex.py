@@ -668,7 +668,7 @@ class xrmNXtomo(object):
         self.num_dark_sequence = []
 
         self.program_name = program_name
-        version = pkg_resources.get_distribution("txrm2nexus").version 
+        version = pkg_resources.get_distribution("bl09-imaging").version
         self.program_version = version
         self.title = title
         self.sourcename = sourcename
