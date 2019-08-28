@@ -83,6 +83,10 @@ def main():
                         default='True',
                         help="Convert FS hdf5 to mrc")
 
+    parser.add_argument('-a', '--absorbance', type='bool',
+                        default='True',
+                        help="Compute absorbance stack [-ln(mrc)]")
+
     args = parser.parse_args()
 
     print("\nWorkflow with Extended Depth of Field:\n" +
@@ -124,7 +128,8 @@ def main():
     # Convert FS stacks from hdf5 to mrc
     if args.hdf_to_mrc:
         hdf5_2_mrc_stacks(db_filename)
-        minus_ln_stacks_mrc(db_filename)
+        if args.absorbance:
+            minus_ln_stacks_mrc(db_filename)
 
     print("Execution took %d seconds\n" % (time.time() - start_time))
 
