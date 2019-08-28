@@ -22,8 +22,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 import h5py
+import subprocess
 import numpy as np
-from tinydb import TinyDB
+from tinydb import TinyDB, Query
 
 try:
     import mrcfile
@@ -55,10 +56,18 @@ def hdf5_2_mrc_stack(h5_stack_fn,
     # Convert the h5 images and store them in the freshly created mrc file
     for n_img in range(n_frames):
         mrc_outfile.data[n_img, :, :] = h5_group[dataset][n_img]
+
+    angles_fn = None
+    if (tree + "/rotation_angle") in h5_handler:
+        angles_fn = "angles_" + h5_stack_fn.rsplit('.', 1)[0] + ".tlt"
+        with open(angles_fn, "w") as angles_file:
+            for angle in h5_group["rotation_angle"].value:
+                angles_file.write("%.2f\n" % angle)
+
     mrc_outfile.flush()
     mrc_outfile.close()
-    print("Stack {} has been converted to mrc".format(mrc_stack_fn))
-    return mrc_stack_fn
+    print("Stack {} has been converted to mrc".format(h5_stack_fn))
+    return mrc_stack_fn, angles_fn
 
 
 def hdf5_2_mrc_stacks(db_filename, table_name="hdf5_stacks"):
@@ -71,26 +80,14 @@ def hdf5_2_mrc_stacks(db_filename, table_name="hdf5_stacks"):
     mrc_stack_table.purge()
     for record in stack_table.all():
         h5_stack_fn = record["filename"]
-        print(h5_stack_fn)
-        mrc_stack_fn = hdf5_2_mrc_stack(h5_stack_fn)
+        mrc_stack_fn, angles_fn = hdf5_2_mrc_stack(h5_stack_fn)
         record_mrc = record.copy()
         record_mrc["filename"] = mrc_stack_fn
         record_mrc["extension"] = ".mrc"
+        if angles_fn:
+            record_mrc["angles"] = angles_fn
         mrc_stack_table.insert(record_mrc)
     print("")
-
-    """
-    import pprint
-    pretty_printer = pprint.PrettyPrinter(indent=4)
-    print("Created stacks:")
-    for record in stack_table.all():
-        pretty_printer.pprint(record["filename"])
-        pretty_printer.pprint(record["extension"])
-    for record in mrc_stack_table.all():
-        pretty_printer.pprint(record["filename"])
-        pretty_printer.pprint(record["extension"])
-    """
-
     db.close()
 
 
@@ -135,7 +132,10 @@ def minus_ln_stacks_mrc(db_filename, table_name="mrc_stacks"):
     print("Compute absorbance stacks by applying the minus natural logarithm:")
     db = TinyDB(db_filename)
     mrc_stack_table = db.table(table_name)
-    for record_mrc in mrc_stack_table.all():
+
+    query = Query()
+    mrc_stacks = mrc_stack_table.search(query.extension == ".mrc")
+    for record_mrc in mrc_stacks:
         mrc_ln_stack_fn = minus_ln_stack_mrc(record_mrc["filename"])
         record_ln_mrc = record_mrc.copy()
         record_ln_mrc["filename"] = mrc_ln_stack_fn
@@ -144,12 +144,101 @@ def minus_ln_stacks_mrc(db_filename, table_name="mrc_stacks"):
         mrc_stack_table.insert(record_ln_mrc)
     print("")
 
+
+def align_ctalignxcorr(mrc_norm_stack_fn, hdf5_norm_stack=None):
+    """"Automatic alignment using fiducials"""
+
+    # TODO: IMPLEMENT ALIGN USING ALIGNXCORR
+    return mrc_norm_stack_fn
+
+
+def align_ctalign(mrc_norm_stack_fn):
+    """"Automatic alignment using fiducials"""
+
+    # Usage of ctalign (requiring hdf5 file as input)
+    mrc2hdf_command = "mrc2hdf " + mrc_norm_stack_fn
+    subprocess.call(mrc2hdf_command, shell=True)
+
+    hdf5_norm_stack_fn = mrc_norm_stack_fn.rsplit('.', 1)[0] + '.hdf5'
+    align_command = "ctalign " + hdf5_norm_stack_fn
+    subprocess.call(align_command, shell=True)
+
+    # Conversion back to a mrc file
+    hdf5_ali_stack_fn = mrc_norm_stack_fn.split('.mrc')[0] + '_ali.hdf5'
+    mrc_aligned_stack_fn, angles_fn = hdf5_2_mrc_stack(
+        hdf5_ali_stack_fn, tree="FastAligned", dataset="tomo_aligned")
+    return mrc_aligned_stack_fn
+
+
+def norm2recons_stack(mrc_norm_stack_fn, record=None, mrc_stack_table=None,
+                      absorbance=True, align=True, fiducials=False,
+                      iterations=30):
+    """Compute the reconstructed tomography of a given stack"""
+
+    if align:
+        if fiducials:
+            # Alignment using fiducials (execute ctalignxcorr which uses IMOD)
+            mrc_ali_stack_fn = align_ctalignxcorr(mrc_norm_stack_fn,
+                                                  hdf5_norm_stack)
+        else:
+            # Alignment without requiring fiducials
+            mrc_ali_stack_fn = align_ctalign(mrc_norm_stack_fn)
+
+        if record and mrc_stack_table:
+            record_ali_mrc = record.copy()
+            record_ali_mrc["filename"] = mrc_ali_stack_fn
+            record_ali_mrc["absorbance"] = absorbance
+            record_ali_mrc["aligned"] = True
+            mrc_stack_table.insert(record_ali_mrc)
+            mrc_norm_stack_fn = mrc_ali_stack_fn
+            align_xzy = mrc_norm_stack_fn.split("_ali.mrc")[0] + "_recons.xzy"
+    else:
+        align_xzy = mrc_norm_stack_fn.split(".mrc")[0] + "_recons.xzy"
+
+    # Reconstruction using tomo3d SW
+    tilt_angles_fn = record["angles"]
+    tomo3d_cmd = (
+            "tomo3d -v 1 -l " + str(iterations) + " -z 500 -S -a " +
+            tilt_angles_fn + " -i " + mrc_norm_stack_fn + " -o " + align_xzy)
+    subprocess.call(tomo3d_cmd, shell=True)
+
+    # trim volume by rotating it
+    align_xyz = align_xzy.split(".xzy")[0] + ".mrc"
+    trimvol_cmd = ("trimvol -yz " + align_xzy + " " + align_xyz)
+    subprocess.call(trimvol_cmd, shell=True)
+
+    return mrc_norm_stack_fn
+
+
+def norm2recons_stacks(
+        db_filename, table_name="mrc_stacks", absorbance=True,
+        align=True, fiducials=False, iterations=30):
+    """Compute the reconstructed tomographies
+    of multiple projection stacks"""
+
+    print("Compute the reconstructed tomographies:")
+    db = TinyDB(db_filename)
+    mrc_stack_table = db.table(table_name)
+
+    query = Query()
+    mrc_stacks_to_recons = mrc_stack_table.search(query.absorbance == True)
+    if not mrc_stacks_to_recons:
+        mrc_stacks_to_recons = mrc_stack_table.all()
+
+    for mrc_stack_to_recons_record in mrc_stacks_to_recons:
+        mrc_stack_to_recons_fn = mrc_stack_to_recons_record["filename"]
+        mrc_stack_to_recons_fn = norm2recons_stack(
+            mrc_stack_to_recons_fn, mrc_stack_to_recons_record,
+            mrc_stack_table, absorbance, align, fiducials, iterations)
+    print("")
+
     """
     import pprint
     pretty_printer = pprint.PrettyPrinter(indent=4)
     print("Created stacks:")
-    for record in mrc_stack_table.all():
+    for record in mrc_stack_table.search(stacks_to_recons_query.aligned == True):
         pretty_printer.pprint(record["filename"])
         pretty_printer.pprint(record["extension"])
+        pretty_printer.pprint(record["aligned"])
         pretty_printer.pprint(record)
     """

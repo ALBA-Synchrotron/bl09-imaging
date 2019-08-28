@@ -37,7 +37,8 @@ from txm2nexuslib.images.multiplealign import align_images
 from txm2nexuslib.images.multipleaverage import average_image_groups
 from txm2nexuslib.images.imagestostack import many_images_to_h5_stack
 from txm2nexuslib.stack.stack_operate import (hdf5_2_mrc_stacks,
-                                              minus_ln_stacks_mrc)
+                                              minus_ln_stacks_mrc,
+                                              norm2recons_stacks)
 from txm2nexuslib.parser import create_db, get_db_path
 
 
@@ -83,9 +84,27 @@ def main():
                         default='True',
                         help="Convert FS hdf5 to mrc")
 
-    parser.add_argument('-a', '--absorbance', type='bool',
+    parser.add_argument('-l', '--minus_ln', type='bool',
                         default='True',
                         help="Compute absorbance stack [-ln(mrc)]")
+
+    parser.add_argument('-a', '--align', type='bool',
+                        default='True',
+                        help="Align the different tomography projections"
+                             + "(default: True)")
+
+    parser.add_argument('-f', '--fiducials', type='bool',
+                        default='False',
+                        help="Align without using fiducials (ctalign)\n"
+                             + "Align using fiducials (ctalignxcorr)\n"
+                             + "(default: False)")
+
+    parser.add_argument('-r', '--reconstruction', type='bool',
+                        default='False',
+                        help="Compute reconstructed tomography")
+
+    parser.add_argument('-i', '--iterations', type=int, default=30,
+                        help='Iterations for tomo3d (default=30)')
 
     args = parser.parse_args()
 
@@ -125,11 +144,19 @@ def main():
                             type_struct="normalized_multifocus",
                             suffix="_FS")
 
-    # Convert FS stacks from hdf5 to mrc
     if args.hdf_to_mrc:
+        # Convert FS stacks from hdf5 to mrc
         hdf5_2_mrc_stacks(db_filename)
-        if args.absorbance:
+        if args.minus_ln:
+            # Compute absorbance stack
             minus_ln_stacks_mrc(db_filename)
+
+        if args.reconstruction:
+            # Compute reconstructed tomography
+            norm2recons_stacks(db_filename, table_name="mrc_stacks",
+                               absorbance=args.minus_ln,
+                               align=args.align, fiducials=args.fiducials,
+                               iterations=args.iterations)
 
     print("Execution took %d seconds\n" % (time.time() - start_time))
 
