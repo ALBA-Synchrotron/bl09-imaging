@@ -82,22 +82,13 @@ def main():
 
     parser.add_argument('-m', '--hdf_to_mrc', type='bool',
                         default='True',
-                        help="Convert FS hdf5 to mrc")
+                        help="Convert FS hdf5 to mrc\n"
+                             + "(default: True)")
 
     parser.add_argument('-l', '--minus_ln', type='bool',
                         default='True',
-                        help="Compute absorbance stack [-ln(mrc)]")
-
-    parser.add_argument('-a', '--align', type='bool',
-                        default='True',
-                        help="Align the different tomography projections"
+                        help="Compute absorbance stack [-ln(mrc)]\n"
                              + "(default: True)")
-
-    parser.add_argument('-f', '--fiducials', type='bool',
-                        default='False',
-                        help="Align without using fiducials (ctalign)\n"
-                             + "Align using fiducials (ctalignxcorr)\n"
-                             + "(default: False)")
 
     parser.add_argument('-r', '--reconstruction', type='bool',
                         default='False',
@@ -105,6 +96,17 @@ def main():
 
     parser.add_argument('-i', '--iterations', type=int, default=30,
                         help='Iterations for tomo3d (default=30)')
+
+    parser.add_argument('-a', '--align', type='bool',
+                        default='True',
+                        help="Align the different tomography projections"
+                             + "(default: True)")
+
+    parser.add_argument('-f', '--fiducials', type='bool',
+                        default='True',
+                        help="Align without using fiducials (ctalign)\n"
+                             + "Align using fiducials (ctalignxcorr)\n"
+                             + "(default: True)")
 
     args = parser.parse_args()
 
@@ -158,7 +160,7 @@ def main():
                                align=args.align, fiducials=args.fiducials,
                                iterations=args.iterations)
 
-    print("Execution took %d seconds\n" % (time.time() - start_time))
+    print("\nExecution took %d seconds\n" % (time.time() - start_time))
 
 
 if __name__ == "__main__":

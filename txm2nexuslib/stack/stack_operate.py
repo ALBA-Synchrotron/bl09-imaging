@@ -84,6 +84,8 @@ def hdf5_2_mrc_stacks(db_filename, table_name="hdf5_stacks"):
         record_mrc = record.copy()
         record_mrc["filename"] = mrc_stack_fn
         record_mrc["extension"] = ".mrc"
+        # former_hdf5_fn is the filename of the first normalized stack hdf5
+        record_mrc["former_hdf5_fn"] = h5_stack_fn
         if angles_fn:
             record_mrc["angles"] = angles_fn
         mrc_stack_table.insert(record_mrc)
@@ -141,6 +143,7 @@ def minus_ln_stacks_mrc(db_filename, table_name="mrc_stacks"):
         record_ln_mrc["filename"] = mrc_ln_stack_fn
         record_ln_mrc["extension"] = ".mrc"
         record_ln_mrc["absorbance"] = True
+        record_ln_mrc["former_hdf5_fn"] = record_mrc["former_hdf5_fn"]
         mrc_stack_table.insert(record_ln_mrc)
     print("")
 
@@ -149,7 +152,13 @@ def align_ctalignxcorr(mrc_norm_stack_fn, hdf5_norm_stack=None):
     """"Automatic alignment using fiducials"""
 
     # TODO: IMPLEMENT ALIGN USING ALIGNXCORR
-    return mrc_norm_stack_fn
+
+    # Usage of ctalignxcorr for aligning using fiducials
+    align_command = "ctalignxcorr " + mrc_norm_stack_fn + " " + hdf5_norm_stack
+    subprocess.call(align_command, shell=True)
+
+    mrc_aligned_stack_fn = mrc_norm_stack_fn.rsplit('.', 1)[0] + '.ali'
+    return mrc_aligned_stack_fn
 
 
 def align_ctalign(mrc_norm_stack_fn):
@@ -170,7 +179,7 @@ def align_ctalign(mrc_norm_stack_fn):
     return mrc_aligned_stack_fn
 
 
-def norm2recons_stack(mrc_norm_stack_fn, record=None, mrc_stack_table=None,
+def norm2recons_stack(mrc_norm_stack_fn, record, mrc_stack_table=None,
                       absorbance=True, align=True, fiducials=False,
                       iterations=30):
     """Compute the reconstructed tomography of a given stack"""
@@ -178,11 +187,18 @@ def norm2recons_stack(mrc_norm_stack_fn, record=None, mrc_stack_table=None,
     if align:
         if fiducials:
             # Alignment using fiducials (execute ctalignxcorr which uses IMOD)
+            print("FIDUCIALS: ctalignxcorr")
+            hdf5_norm_stack = record["former_hdf5_fn"]
             mrc_ali_stack_fn = align_ctalignxcorr(mrc_norm_stack_fn,
                                                   hdf5_norm_stack)
+            mrc_norm_stack_fn = mrc_ali_stack_fn
+            align_xzy = mrc_norm_stack_fn.split(".ali")[0] + "_recons.xzy"
         else:
             # Alignment without requiring fiducials
+            print("ctalign")
             mrc_ali_stack_fn = align_ctalign(mrc_norm_stack_fn)
+            mrc_norm_stack_fn = mrc_ali_stack_fn
+            align_xzy = mrc_norm_stack_fn.split("_ali.mrc")[0] + "_recons.xzy"
 
         if record and mrc_stack_table:
             record_ali_mrc = record.copy()
@@ -190,8 +206,6 @@ def norm2recons_stack(mrc_norm_stack_fn, record=None, mrc_stack_table=None,
             record_ali_mrc["absorbance"] = absorbance
             record_ali_mrc["aligned"] = True
             mrc_stack_table.insert(record_ali_mrc)
-            mrc_norm_stack_fn = mrc_ali_stack_fn
-            align_xzy = mrc_norm_stack_fn.split("_ali.mrc")[0] + "_recons.xzy"
     else:
         align_xzy = mrc_norm_stack_fn.split(".mrc")[0] + "_recons.xzy"
 
@@ -207,7 +221,7 @@ def norm2recons_stack(mrc_norm_stack_fn, record=None, mrc_stack_table=None,
     trimvol_cmd = ("trimvol -yz " + align_xzy + " " + align_xyz)
     subprocess.call(trimvol_cmd, shell=True)
 
-    return mrc_norm_stack_fn
+    return align_xyz
 
 
 def norm2recons_stacks(
@@ -225,12 +239,13 @@ def norm2recons_stacks(
     if not mrc_stacks_to_recons:
         mrc_stacks_to_recons = mrc_stack_table.all()
 
+    print("")
     for mrc_stack_to_recons_record in mrc_stacks_to_recons:
         mrc_stack_to_recons_fn = mrc_stack_to_recons_record["filename"]
-        mrc_stack_to_recons_fn = norm2recons_stack(
+        align_xyz = norm2recons_stack(
             mrc_stack_to_recons_fn, mrc_stack_to_recons_record,
             mrc_stack_table, absorbance, align, fiducials, iterations)
-    print("")
+        print("Reconstructed stack: %s" % align_xyz)
 
     """
     import pprint
