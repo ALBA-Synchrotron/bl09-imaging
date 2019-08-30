@@ -179,58 +179,38 @@ def align_ctalign(mrc_norm_stack_fn):
     return mrc_aligned_stack_fn
 
 
-def norm2recons_stack(mrc_norm_stack_fn, record, mrc_stack_table=None,
-                      absorbance=True, align=True, fiducials=False,
-                      iterations=30):
-    """Compute the reconstructed tomography of a given stack"""
+def norm2ali_stack(record_to_align, mrc_stack_table=None,
+                   absorbance=True, fiducials=False):
+    """Align different projections of the same tomography stack"""
 
-    if align:
-        if fiducials:
-            # Alignment using fiducials (execute ctalignxcorr which uses IMOD)
-            print("FIDUCIALS: ctalignxcorr")
-            hdf5_norm_stack = record["former_hdf5_fn"]
-            mrc_ali_stack_fn = align_ctalignxcorr(mrc_norm_stack_fn,
-                                                  hdf5_norm_stack)
-            mrc_norm_stack_fn = mrc_ali_stack_fn
-            align_xzy = mrc_norm_stack_fn.split(".ali")[0] + "_recons.xzy"
-        else:
-            # Alignment without requiring fiducials
-            print("ctalign")
-            mrc_ali_stack_fn = align_ctalign(mrc_norm_stack_fn)
-            mrc_norm_stack_fn = mrc_ali_stack_fn
-            align_xzy = mrc_norm_stack_fn.split("_ali.mrc")[0] + "_recons.xzy"
-
-        if record and mrc_stack_table:
-            record_ali_mrc = record.copy()
-            record_ali_mrc["filename"] = mrc_ali_stack_fn
-            record_ali_mrc["absorbance"] = absorbance
-            record_ali_mrc["aligned"] = True
-            mrc_stack_table.insert(record_ali_mrc)
+    mrc_stack_to_align_fn = record_to_align["filename"]
+    if fiducials:
+        # Alignment using fiducials (execute ctalignxcorr which uses IMOD)
+        print("ctalignxcorr (normally used for alignment with fiducials)")
+        hdf5_norm_stack = record_to_align["former_hdf5_fn"]
+        mrc_ali_stack_fn = align_ctalignxcorr(mrc_stack_to_align_fn,
+                                              hdf5_norm_stack)
+        mrc_aligned_stack = mrc_ali_stack_fn.split(".ali")[0] + "_ali.mrc"
     else:
-        align_xzy = mrc_norm_stack_fn.split(".mrc")[0] + "_recons.xzy"
+        # Alignment without requiring fiducials
+        print("ctalign")
+        mrc_aligned_stack = align_ctalign(mrc_stack_to_align_fn)
 
-    # Reconstruction using tomo3d SW
-    tilt_angles_fn = record["angles"]
-    tomo3d_cmd = (
-            "tomo3d -v 1 -l " + str(iterations) + " -z 500 -S -a " +
-            tilt_angles_fn + " -i " + mrc_norm_stack_fn + " -o " + align_xzy)
-    subprocess.call(tomo3d_cmd, shell=True)
+    if mrc_stack_table:
+        record_aligned_mrc = record_to_align.copy()
+        record_aligned_mrc["filename"] = mrc_aligned_stack
+        record_aligned_mrc["absorbance"] = absorbance
+        record_aligned_mrc["aligned"] = True
+        mrc_stack_table.insert(record_aligned_mrc)
 
-    # trim volume by rotating it
-    align_xyz = align_xzy.split(".xzy")[0] + ".mrc"
-    trimvol_cmd = ("trimvol -yz " + align_xzy + " " + align_xyz)
-    subprocess.call(trimvol_cmd, shell=True)
-
-    return align_xyz
+    return mrc_aligned_stack
 
 
-def norm2recons_stacks(
-        db_filename, table_name="mrc_stacks", absorbance=True,
-        align=True, fiducials=False, iterations=30):
-    """Compute the reconstructed tomographies
-    of multiple projection stacks"""
+def norm2ali_stacks(db_filename, table_name="mrc_stacks",
+                    absorbance=True, fiducials=False):
+    """Align all the projections of a stack, for multiple stacks"""
 
-    print("Compute the reconstructed tomographies:")
+    print("Aligning all the projections of a stack, for multiple stacks:")
     db = TinyDB(db_filename)
     mrc_stack_table = db.table(table_name)
 
@@ -240,12 +220,64 @@ def norm2recons_stacks(
         mrc_stacks_to_recons = mrc_stack_table.all()
 
     print("")
-    for mrc_stack_to_recons_record in mrc_stacks_to_recons:
-        mrc_stack_to_recons_fn = mrc_stack_to_recons_record["filename"]
-        align_xyz = norm2recons_stack(
-            mrc_stack_to_recons_fn, mrc_stack_to_recons_record,
-            mrc_stack_table, absorbance, align, fiducials, iterations)
-        print("Reconstructed stack: %s" % align_xyz)
+    for mrc_stack_to_ali_record in mrc_stacks_to_recons:
+        mrc_aligned_stack = norm2ali_stack(
+            mrc_stack_to_ali_record, mrc_stack_table,
+            absorbance, fiducials)
+
+    print("Aligned stack: %s" % mrc_aligned_stack)
+
+
+def get_stacks_to_recons(db_filename, table_name="mrc_stacks",
+                         align=False):
+    """Get records of stacks in TinyDB that shall be reconstructed"""
+
+    db = TinyDB(db_filename)
+    mrc_stack_table = db.table(table_name)
+    stack_query = Query()
+    if align:
+        stack_query_cmd = ((stack_query.absorbance == True)
+                           & (stack_query.aligned == True))
+        mrc_stacks_to_recons_records = mrc_stack_table.search(stack_query_cmd)
+    else:
+        stack_query_cmd = (stack_query.absorbance == True)
+        mrc_stacks_to_recons_records = mrc_stack_table.search(stack_query_cmd)
+        if not mrc_stacks_to_recons_records:
+            mrc_stacks_to_recons_records = mrc_stack_table.all()
+
+    return mrc_stacks_to_recons_records
+
+
+def recons_mrc_stack(mrc_stack_to_recons_record, iterations=30):
+    """Reconstruction and trim using tomo3d and IMOD trimvol"""
+
+    mrc_stack_fn = mrc_stack_to_recons_record["filename"]
+    mrc_stack_fn_xzy = mrc_stack_fn.split(".mrc")[0] + "_recons.xzy"
+    tilt_angles_fn = mrc_stack_to_recons_record["angles"]
+    tomo3d_cmd = (
+            "tomo3d -v 1 -l " + str(iterations) + " -z 500 -S -a " +
+            tilt_angles_fn + " -i " + mrc_stack_fn +
+            " -o " + mrc_stack_fn_xzy)
+    subprocess.call(tomo3d_cmd, shell=True)
+
+    # trim volume by rotating it
+    mrc_recons_stack_fn = mrc_stack_fn_xzy.split(".xzy")[0] + ".mrc"
+    trim_cmd = ("trimvol -yz " + mrc_stack_fn_xzy + " " + mrc_recons_stack_fn)
+    subprocess.call(trim_cmd, shell=True)
+
+    return mrc_recons_stack_fn
+
+
+def recons_mrc_stacks(mrc_stacks_to_recons_records, iterations=30):
+    """Compute the reconstructed tomographies for
+    multiple projection stacks"""
+
+    print("Compute the reconstructed tomographies for "
+          "multiple projection stacks:\n")
+    for mrc_stack_to_recons_record in mrc_stacks_to_recons_records:
+        recons_stack = recons_mrc_stack(mrc_stack_to_recons_record,
+                                        iterations)
+        print("Reconstructed stack: %s" % recons_stack)
 
     """
     import pprint

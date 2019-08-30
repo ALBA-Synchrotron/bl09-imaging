@@ -29,6 +29,7 @@ from argparse import RawTextHelpFormatter
 from tinydb import TinyDB, Query
 from tinydb.middlewares import CachingMiddleware
 
+from txm2nexuslib.parser import create_db, get_db_path
 from txm2nexuslib.images.multiplexrm2h5 import multiple_xrm_2_hdf5
 from txm2nexuslib.images.util import copy2proc_multiple
 from txm2nexuslib.images.multiplecrop import crop_images
@@ -36,20 +37,29 @@ from txm2nexuslib.images.multiplenormalization import normalize_images
 from txm2nexuslib.images.multiplealign import align_images
 from txm2nexuslib.images.multipleaverage import average_image_groups
 from txm2nexuslib.images.imagestostack import many_images_to_h5_stack
-from txm2nexuslib.stack.stack_operate import (hdf5_2_mrc_stacks,
-                                              minus_ln_stacks_mrc,
-                                              norm2recons_stacks)
-from txm2nexuslib.parser import create_db, get_db_path
+from txm2nexuslib.stack.stack_operate import (
+    hdf5_2_mrc_stacks, minus_ln_stacks_mrc, norm2ali_stacks,
+    get_stacks_to_recons, recons_mrc_stacks)
 
 
 def main():
     """
     - Convert from xrm to hdf5 individual image hdf5 files
     - Copy raw hdf5 to new files for processing
-    - Crop borders
-    - Normalize
-    - Create stacks by date, sample, energy and zpz,
+    - Crop borders of single hdf5 image files
+    - Normalize single hdf5 image files
+    - Option: Create intermediate stacks by date, sample, energy and zpz,
       with multiple angles in each stack
+    - Align multiple focus hdf5 single image files (same angle, different ZPz)
+    - Average multiple hdf5 single image files (same angle, different ZPz)
+    - Create stacks by date, sample and energy
+      with multiple angles in each stack
+    - Convert to mrc (optional)
+    - TODO: Deconvolve (optional)
+    - Compute the absorbance stacks (apply the minus natural logarithm)
+    - Align projections of the same tomo at different angles
+    - Reconstruct tomographies using 3D tomo
+    - Trim volume (volume reorientation) using IMOD trimvol
     """
     def str2bool(v):
         return v.lower() in ("yes", "true", "t", "1")
@@ -90,23 +100,24 @@ def main():
                         help="Compute absorbance stack [-ln(mrc)]\n"
                              + "(default: True)")
 
+    parser.add_argument('-a', '--align', type='bool',
+                        default='False',
+                        help="Align the different tomography projections"
+                             + "(default: False)")
+
+    parser.add_argument('-f', '--fiducials', type='bool',
+                        default='False',
+                        help="Align without using fiducials (ctalign)\n"
+                             + "Align using fiducials (ctalignxcorr)\n"
+                             + "(default: False)")
+
     parser.add_argument('-r', '--reconstruction', type='bool',
                         default='False',
-                        help="Compute reconstructed tomography")
+                        help="Compute reconstructed tomography\n"
+                             + "(default: False)")
 
     parser.add_argument('-i', '--iterations', type=int, default=30,
                         help='Iterations for tomo3d (default=30)')
-
-    parser.add_argument('-a', '--align', type='bool',
-                        default='True',
-                        help="Align the different tomography projections"
-                             + "(default: True)")
-
-    parser.add_argument('-f', '--fiducials', type='bool',
-                        default='True',
-                        help="Align without using fiducials (ctalign)\n"
-                             + "Align using fiducials (ctalignxcorr)\n"
-                             + "(default: True)")
 
     args = parser.parse_args()
 
@@ -149,16 +160,23 @@ def main():
     if args.hdf_to_mrc:
         # Convert FS stacks from hdf5 to mrc
         hdf5_2_mrc_stacks(db_filename)
+
+        # Compute absorbance stacks
         if args.minus_ln:
-            # Compute absorbance stack
             minus_ln_stacks_mrc(db_filename)
 
+        # Align projections
+        if args.align:
+            norm2ali_stacks(db_filename, table_name="mrc_stacks",
+                            absorbance=args.minus_ln,
+                            fiducials=args.fiducials)
+
+        # Compute the reconstructed stacks
         if args.reconstruction:
-            # Compute reconstructed tomography
-            norm2recons_stacks(db_filename, table_name="mrc_stacks",
-                               absorbance=args.minus_ln,
-                               align=args.align, fiducials=args.fiducials,
-                               iterations=args.iterations)
+            mrc_stacks_to_recons_records = get_stacks_to_recons(
+                db_filename, table_name="mrc_stacks", align=args.align)
+            recons_mrc_stacks(mrc_stacks_to_recons_records,
+                              iterations=args.iterations)
 
     print("\nExecution took %d seconds\n" % (time.time() - start_time))
 
