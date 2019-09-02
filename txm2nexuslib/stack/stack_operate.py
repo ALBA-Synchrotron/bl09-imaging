@@ -30,7 +30,7 @@ try:
     import mrcfile
 except Exception:
     msg = "mrcfile library is required to convert h5 files to mrc"
-    raise msg
+    raise Exception(msg)
 
 
 def hdf5_2_mrc_stack(h5_stack_fn,
