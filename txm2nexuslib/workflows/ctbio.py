@@ -128,10 +128,15 @@ def main():
 
     args = parser.parse_args()
 
-    print("\nWorkflow with Extended Depth of Field:\n" +
-          "xrm -> hdf5 -> crop -> normalize -> align for same angle and" +
-          " variable zpz -> average all images with same angle ->" +
-          " make normalized stacks")
+    print("\nPre-Processing for BL09 Tomographies:\n" +
+          "-> xrm raw -> hdf5 raw -> hdf5 for processing -> crop ->\n" +
+          "-> normalize -> align for same angle and variable zpz ->\n" +
+          "-> average all images with same angle ->" +
+          " make stacks -> hdf5 to mrc ->\n-> deconvolve -> apply minus" +
+          " logarithm to compute the abosrbance stacks ->\n-> align the" +
+          " projections at different angles -> reconstruct ->\n->" +
+          " reorientate the volumes with trim")
+
     start_time = time.time()
 
     db_filename = get_db_path(args.txm_txt_script)
