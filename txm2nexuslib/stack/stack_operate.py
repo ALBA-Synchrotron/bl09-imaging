@@ -47,7 +47,7 @@ def hdf5_2_mrc_stack(h5_stack_fn,
     n_cols = infoshape[2]
 
     # Create empty mrc file
-    mrc_stack_fn = h5_stack_fn.rsplit('.', 1)[0] + '.mrc'
+    mrc_stack_fn = os.path.splitext(h5_stack_fn)[0] + '.mrc'
     mrc_outfile = mrcfile.new_mmap(mrc_stack_fn,
                                    shape=(n_frames, n_rows, n_cols),
                                    mrc_mode=2,
@@ -59,7 +59,7 @@ def hdf5_2_mrc_stack(h5_stack_fn,
 
     angles_fn = None
     if (tree + "/rotation_angle") in h5_handler:
-        angles_fn = "angles_" + h5_stack_fn.rsplit('.', 1)[0] + ".tlt"
+        angles_fn = "angles_" + os.path.splitext(h5_stack_fn)[0] + '.tlt'
         with open(angles_fn, "w") as angles_file:
             for angle in h5_group["rotation_angle"].value:
                 angles_file.write("%.2f\n" % angle)
@@ -109,7 +109,7 @@ def minus_ln_stack_mrc(mrc_stack_fn):
     n_cols = infoshape[2]
 
     # Create empty mrc file
-    mrc_ln_stack_fn = mrc_stack_fn.rsplit('.', 1)[0] + '_ln.mrc'
+    mrc_ln_stack_fn = os.path.splitext(mrc_stack_fn)[0] + '_ln.mrc'
     mrc_outfile = mrcfile.new_mmap(mrc_ln_stack_fn,
                                    shape=(n_frames, n_rows, n_cols),
                                    mrc_mode=2,
@@ -252,7 +252,7 @@ def recons_mrc_stack(mrc_stack_to_recons_record, iterations=30):
     """Reconstruction and trim using tomo3d and IMOD trimvol"""
 
     mrc_stack_fn = mrc_stack_to_recons_record["filename"]
-    mrc_stack_fn_xzy = mrc_stack_fn.split(".mrc")[0] + "_recons.xzy"
+    mrc_stack_fn_xzy = os.path.splitext(mrc_stack_fn)[0] + '_recons.xzy'
     tilt_angles_fn = mrc_stack_to_recons_record["angles"]
     tomo3d_cmd = (
             "tomo3d -v 1 -l " + str(iterations) + " -z 500 -S -a " +
@@ -261,7 +261,7 @@ def recons_mrc_stack(mrc_stack_to_recons_record, iterations=30):
     subprocess.call(tomo3d_cmd, shell=True)
 
     # trim volume by rotating it
-    mrc_recons_stack_fn = mrc_stack_fn_xzy.split(".xzy")[0] + ".mrc"
+    mrc_recons_stack_fn = os.path.splitext(mrc_stack_fn_xzy)[0] + '.mrc'
     trim_cmd = ("trimvol -yz " + mrc_stack_fn_xzy + " " + mrc_recons_stack_fn)
     subprocess.call(trim_cmd, shell=True)
 
