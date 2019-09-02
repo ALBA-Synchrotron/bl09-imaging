@@ -21,6 +21,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 
+# XTENDOF IS DEPRECATED: USE CTBIO INSTEAD
+
 import os
 import time
 import subprocess
@@ -35,6 +37,10 @@ from txm2nexuslib.images.multiplealign import align_images
 from txm2nexuslib.images.multipleaverage import average_image_groups
 from txm2nexuslib.images.imagestostack import many_images_to_h5_stack
 from txm2nexuslib.parser import create_db, get_db_path
+
+
+# XTENDOF IS DEPRECATED: USE CTBIO INSTEAD
+
 
 def main():
     """
