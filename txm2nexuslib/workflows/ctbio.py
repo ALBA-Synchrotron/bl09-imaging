@@ -111,8 +111,10 @@ def main():
 
     parser.add_argument('-f', '--fiducials', type='bool',
                         default='False',
-                        help="Align without using fiducials (ctalign)\n"
-                             + "Align using fiducials (ctalignxcorr)\n"
+                        help="Align using ctalign: -f=False"
+                             " (usually for non-fiducial alignment)\n"
+                             + "Align using ctalignxcorr: -f=True"
+                               " (usually for fiducial alignment)\n"
                              + "(default: False)")
 
     parser.add_argument('-r', '--reconstruction', type='bool',
