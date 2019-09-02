@@ -64,14 +64,18 @@ def main():
     def str2bool(v):
         return v.lower() in ("yes", "true", "t", "1")
 
-    description = "pre-processing for biological samples"
+    description = ("Pre-Processing for BL09 Tomographies:\n" +
+                   "From single xrm image files to reconstructed "
+                   " tomographies.\nUsed for single tomographies and"
+                   " for multifocal tomographies")
+
     parser = argparse.ArgumentParser(description=description,
                                      formatter_class=RawTextHelpFormatter)
     parser.register('type', 'bool', str2bool)
 
     parser.add_argument('txm_txt_script', type=str,
                         help=('TXM txt script containing the commands used ' +
-                              'to perform the image acquisition by the ' +
+                              'to perform\nthe image acquisition by the ' +
                               'BL09 TXM microscope'))
 
     parser.add_argument('--crop', type='bool',
@@ -83,7 +87,7 @@ def main():
     parser.add_argument('--table_for_stack', type=str,
                         default='hdf5_averages',
                         help=("DB table of image files to create the stacks" +
-                              "(default: hdf5_averages)"))
+                              "\n(default: hdf5_averages)"))
 
     parser.add_argument('-z', '--stacks_zp', type='bool',
                         default='True',
@@ -102,7 +106,7 @@ def main():
 
     parser.add_argument('-a', '--align', type='bool',
                         default='False',
-                        help="Align the different tomography projections"
+                        help="Align the different tomography projections\n"
                              + "(default: False)")
 
     parser.add_argument('-f', '--fiducials', type='bool',
@@ -117,7 +121,8 @@ def main():
                              + "(default: False)")
 
     parser.add_argument('-i', '--iterations', type=int, default=30,
-                        help='Iterations for tomo3d (default=30)')
+                        help='Iterations for tomo3d \n'
+                             '(default=30)')
 
     args = parser.parse_args()
 
