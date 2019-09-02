@@ -20,7 +20,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-
+import os
 import h5py
 import subprocess
 import numpy as np
@@ -149,31 +149,31 @@ def minus_ln_stacks_mrc(db_filename, table_name="mrc_stacks"):
 
 
 def align_ctalignxcorr(mrc_norm_stack_fn, hdf5_norm_stack=None):
-    """"Automatic alignment using fiducials"""
+    """"Automatic alignment using fiducials
+    Usage of ctalignxcorr for aligning using fiducials"""
 
-    # TODO: IMPLEMENT ALIGN USING ALIGNXCORR
-
-    # Usage of ctalignxcorr for aligning using fiducials
     align_command = "ctalignxcorr " + mrc_norm_stack_fn + " " + hdf5_norm_stack
     subprocess.call(align_command, shell=True)
-
-    mrc_aligned_stack_fn = mrc_norm_stack_fn.rsplit('.', 1)[0] + '.ali'
+    mrc_aligned_stack_old_fn = os.path.splitext(mrc_norm_stack_fn)[0] + '.ali'
+    mrc_aligned_stack_fn = os.path.splitext(mrc_norm_stack_fn)[0] + '_ali.mrc'
+    os.rename(mrc_aligned_stack_old_fn, mrc_aligned_stack_fn)
     return mrc_aligned_stack_fn
 
 
 def align_ctalign(mrc_norm_stack_fn):
-    """"Automatic alignment using fiducials"""
+    """"Automatic alignment using ctalign:
+    typically used for aligning without fiducials.
+    ctalign requires an hdf5 file as input"""
 
-    # Usage of ctalign (requiring hdf5 file as input)
     mrc2hdf_command = "mrc2hdf " + mrc_norm_stack_fn
     subprocess.call(mrc2hdf_command, shell=True)
 
-    hdf5_norm_stack_fn = mrc_norm_stack_fn.rsplit('.', 1)[0] + '.hdf5'
+    hdf5_norm_stack_fn = os.path.splitext(mrc_norm_stack_fn)[0] + '.hdf5'
     align_command = "ctalign " + hdf5_norm_stack_fn
     subprocess.call(align_command, shell=True)
 
     # Conversion back to a mrc file
-    hdf5_ali_stack_fn = mrc_norm_stack_fn.split('.mrc')[0] + '_ali.hdf5'
+    hdf5_ali_stack_fn = os.path.splitext(mrc_norm_stack_fn)[0] + '_ali.hdf5'
     mrc_aligned_stack_fn, angles_fn = hdf5_2_mrc_stack(
         hdf5_ali_stack_fn, tree="FastAligned", dataset="tomo_aligned")
     return mrc_aligned_stack_fn
@@ -184,16 +184,17 @@ def norm2ali_stack(record_to_align, mrc_stack_table=None,
     """Align different projections of the same tomography stack"""
 
     mrc_stack_to_align_fn = record_to_align["filename"]
+    print("Aligning stack: {0}".format(mrc_stack_to_align_fn))
+
     if fiducials:
         # Alignment using fiducials (execute ctalignxcorr which uses IMOD)
-        print("ctalignxcorr (normally used for alignment with fiducials)")
+        print("ctalignxcorr: typically used for alignment with fiducials")
         hdf5_norm_stack = record_to_align["former_hdf5_fn"]
-        mrc_ali_stack_fn = align_ctalignxcorr(mrc_stack_to_align_fn,
-                                              hdf5_norm_stack)
-        mrc_aligned_stack = mrc_ali_stack_fn.split(".ali")[0] + "_ali.mrc"
+        mrc_aligned_stack = align_ctalignxcorr(mrc_stack_to_align_fn,
+                                               hdf5_norm_stack)
     else:
         # Alignment without requiring fiducials
-        print("ctalign")
+        print("ctalign: typically used for alignment without fiducials")
         mrc_aligned_stack = align_ctalign(mrc_stack_to_align_fn)
 
     if mrc_stack_table:
@@ -224,8 +225,7 @@ def norm2ali_stacks(db_filename, table_name="mrc_stacks",
         mrc_aligned_stack = norm2ali_stack(
             mrc_stack_to_ali_record, mrc_stack_table,
             absorbance, fiducials)
-
-    print("Aligned stack: %s" % mrc_aligned_stack)
+        print("Aligned stack: %s" % mrc_aligned_stack)
 
 
 def get_stacks_to_recons(db_filename, table_name="mrc_stacks",
