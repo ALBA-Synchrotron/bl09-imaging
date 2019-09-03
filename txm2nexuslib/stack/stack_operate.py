@@ -93,8 +93,13 @@ def hdf5_2_mrc_stacks(db_filename, table_name="hdf5_stacks"):
     db.close()
 
 
-def deconvolve_stack(stack_fn):
+def deconvolve_mrc_stack(mrc_stack_fn, table_name="mrc_stacks"):
     """Deconvolve an mrc stack"""
+    pass
+
+
+def deconvolve_mrc_stacks(db_filename):
+    """Deconvolve multiple mrc stacks"""
     pass
 
 

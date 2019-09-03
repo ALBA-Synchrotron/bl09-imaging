@@ -99,6 +99,11 @@ def main():
                         help="Convert FS hdf5 to mrc\n"
                              + "(default: True)")
 
+    parser.add_argument('-d', '--deconvolution', type='bool',
+                        default='True',
+                        help="Deconvolve mrc normalized stacks\n"
+                             + "(default: True)")
+
     parser.add_argument('-l', '--minus_ln', type='bool',
                         default='True',
                         help="Compute absorbance stack [-ln(mrc)]\n"
@@ -172,6 +177,10 @@ def main():
     if args.hdf_to_mrc:
         # Convert FS stacks from hdf5 to mrc
         hdf5_2_mrc_stacks(db_filename)
+
+        # Deconvolve the normalized stacks
+        if args.deconvolution:
+            deconvolve_mrc_stacks(db_filename)
 
         # Compute absorbance stacks
         if args.minus_ln:
