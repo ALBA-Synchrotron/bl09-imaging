@@ -20,9 +20,9 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import os
+import os, re, glob, subprocess
+
 import h5py
-import subprocess
 import numpy as np
 from tinydb import TinyDB, Query
 
@@ -89,18 +89,59 @@ def hdf5_2_mrc_stacks(db_filename, table_name="hdf5_stacks"):
         if angles_fn:
             record_mrc["angles"] = angles_fn
         mrc_stack_table.insert(record_mrc)
-    print("")
     db.close()
+    print("")
 
 
-def deconvolve_mrc_stack(mrc_stack_fn, table_name="mrc_stacks"):
+def deconvolve_stack(record_to_deconv,
+                     date=20190903, zp_size=25, thickness=520):
     """Deconvolve an mrc stack"""
-    pass
+
+    print(record_to_deconv)
+
+    """
+    norm_stack_fn = record_to_deconv["filename"]
+    deconvolve_command = ("tomo_deconv " + str(zp_size) + " " + str(thickness)
+                          + " " + str(date) + " " + norm_stack_fn)
+    subprocess.call(deconvolve_command, shell=True)
+
+    prefix = os.path.splitext(mrc_norm_stack_fn)[0]
+    old_mrc_deconv_stack_fn = [fn for fn in os.listdir('.')
+                               if fn.startswith(prefix)]
+    mrc_deconv_stack_fn = (os.path.splitext(mrc_norm_stack_fn)[0]
+                           + '_deconv.mrc')
+    os.rename(old_mrc_deconv_stack_fn, mrc_deconv_stack_fn)
+
+    print("Deconvolution applied on stack {}".format(norm_stack_fn))
+    """
+    return "fn", "angles" #mrc_deconv_stack_fn
 
 
-def deconvolve_mrc_stacks(db_filename):
+def deconvolve_mrc_stacks(db_filename, in_table_name="hdf5_stacks",
+                          zp_size=25, thickness=520):
     """Deconvolve multiple mrc stacks"""
-    pass
+
+    db = TinyDB(db_filename)
+    in_stack_table = db.table(in_table_name)
+    mrc_stack_table = db.table("mrc_stacks")
+    mrc_stack_table.purge()
+    for record_to_deconv in in_stack_table.all():
+        h5_stack_fn = record_to_deconv["filename"]
+
+        mrc_deconv_stack_fn, angles_fn = deconvolve_stack(
+            record_to_deconv, zp_size=25, thickness=520)
+
+        record_deconvolved_mrc = record_to_deconv.copy()
+        record_deconvolved_mrc["filename"] = mrc_deconv_stack_fn
+        record_deconvolved_mrc["extension"] = ".mrc"
+        # former_hdf5_fn is the filename of the first normalized stack hdf5
+        record_deconvolved_mrc["former_hdf5_fn"] = h5_stack_fn
+        record_deconvolved_mrc["deconvolved"] = True
+        if angles_fn:
+            record_deconvolved_mrc["angles"] = angles_fn
+        mrc_stack_table.insert(record_deconvolved_mrc)
+    db.close()
+    print("")
 
 
 def minus_ln_stack_mrc(mrc_stack_fn):
@@ -131,7 +172,8 @@ def minus_ln_stack_mrc(mrc_stack_fn):
     return mrc_ln_stack_fn
 
 
-def minus_ln_stacks_mrc(db_filename, table_name="mrc_stacks"):
+def minus_ln_stacks_mrc(db_filename, table_name="mrc_stacks",
+                        deconvolved=False):
     """Compute absorbance stacks (by applying the minus natural logarithm)
     to multiple mrc stacks.
     """
@@ -140,8 +182,13 @@ def minus_ln_stacks_mrc(db_filename, table_name="mrc_stacks"):
     db = TinyDB(db_filename)
     mrc_stack_table = db.table(table_name)
 
-    query = Query()
-    mrc_stacks = mrc_stack_table.search(query.extension == ".mrc")
+    stack_query = Query()
+    if deconvolved:
+        stacks_query_deconv = ((stack_query.extension == ".mrc")
+                               & stack_query.deconvolved)
+        mrc_stacks = mrc_stack_table.search(stacks_query_deconv)
+    else:
+        mrc_stacks = mrc_stack_table.search(query.extension == ".mrc")
     for record_mrc in mrc_stacks:
         mrc_ln_stack_fn = minus_ln_stack_mrc(record_mrc["filename"])
         record_ln_mrc = record_mrc.copy()

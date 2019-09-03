@@ -38,8 +38,8 @@ from txm2nexuslib.images.multiplealign import align_images
 from txm2nexuslib.images.multipleaverage import average_image_groups
 from txm2nexuslib.images.imagestostack import many_images_to_h5_stack
 from txm2nexuslib.stack.stack_operate import (
-    hdf5_2_mrc_stacks, minus_ln_stacks_mrc, norm2ali_stacks,
-    get_stacks_to_recons, recons_mrc_stacks)
+    hdf5_2_mrc_stacks, deconvolve_mrc_stacks, minus_ln_stacks_mrc,
+    norm2ali_stacks, get_stacks_to_recons, recons_mrc_stacks)
 
 
 def main():
@@ -91,7 +91,8 @@ def main():
 
     parser.add_argument('-z', '--stacks_zp', type='bool',
                         default='True',
-                        help="Create individual ZP stacks\n"
+                        help="Store individual ZPz stacks (before"
+                             " storage of multifocal FS stacks)\n"
                              "(default: True)")
 
     parser.add_argument('-m', '--hdf_to_mrc', type='bool',
@@ -103,6 +104,16 @@ def main():
                         default='True',
                         help="Deconvolve mrc normalized stacks\n"
                              + "(default: True)")
+
+    parser.add_argument('-zp', '--zp-size', type=int,
+                        default=25,
+                        help="ZP zones size (in nm)\n"
+                             + "(default: 25)")
+
+    parser.add_argument('-t', '--thickness', type=int,
+                        default=520,
+                        help="Sample thickness (in um)\n"
+                             + "(default: 520)")
 
     parser.add_argument('-l', '--minus_ln', type='bool',
                         default='True',
@@ -174,17 +185,19 @@ def main():
                             type_struct="normalized_multifocus",
                             suffix="_FS")
 
-    if args.hdf_to_mrc:
-        # Convert FS stacks from hdf5 to mrc
-        hdf5_2_mrc_stacks(db_filename)
+    if args.hdf_to_mrc or args.deconvolution:
 
-        # Deconvolve the normalized stacks
-        if args.deconvolution:
-            deconvolve_mrc_stacks(db_filename)
+        if args.hdf_to_mrc and not args.deconvolution:
+            # Convert FS stacks from hdf5 to mrc
+            hdf5_2_mrc_stacks(db_filename)
+        elif args.deconvolution:
+            # Deconvolve the normalized stacks
+            deconvolve_mrc_stacks(db_filename, zp_size=args.zp_size,
+                                  thickness=args.thickness)
 
         # Compute absorbance stacks
         if args.minus_ln:
-            minus_ln_stacks_mrc(db_filename)
+            minus_ln_stacks_mrc(db_filename, deconvolved=args.deconvolution)
 
         # Align projections
         if args.align:
