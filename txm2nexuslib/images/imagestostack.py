@@ -263,25 +263,31 @@ def make_stack(files_for_stack, root_path, type_struct="normalized",
                                       type_struct=type_struct)
 
     # Creation of hdf5 stack
+    record = {}
     if type_struct == "normalized":
         h5_out_fn = (str(date) + "_" + str(sample) + "_" +
                      str(energy) + "_" + str(zpz) + suffix + ".hdf5")
+        record.update({"energy": energy, "zpz": zpz})
     elif (type_struct == "normalized_multifocus" or
           type_struct == "normalized_simple"):
         h5_out_fn = (str(date) + "_" + str(sample) + "_" +
                      str(energy) + suffix + ".hdf5")
+        record.update({"energy": energy})
     elif type_struct == "normalized_spectroscopy":
         h5_out_fn = (str(date) + "_" + str(sample) +
                      suffix + ".hdf5")
     elif type_struct == "normalized_magnetism_many_repetitions":
         h5_out_fn = (str(date) + "_" + str(sample) + "_" +
                      str(energy) + "_" + str(jj_offset) + suffix + ".hdf5")
+        record.update({"energy": energy})
     if type_struct == "aligned":
         h5_out_fn = (str(date) + "_" + str(sample) + "_" +
                      str(energy) + "_" + str(zpz) + suffix + "_ali.hdf5")
+        record.update({"energy": energy, "zpz": zpz})
     if type_struct == "aligned_multifocus":
         h5_out_fn = (str(date) + "_" + str(sample) + "_" +
                      str(energy) + suffix + "_ali.hdf5")
+        record.update({"energy": energy})
     h5_out_fn = root_path + "/" + h5_out_fn
     h5_stack_file_handler = h5py.File(h5_out_fn, "w")
     dict2hdf5(h5_stack_file_handler, data_dict)
@@ -291,13 +297,11 @@ def make_stack(files_for_stack, root_path, type_struct="normalized",
 
     h5_stack_file_handler.flush()
     h5_stack_file_handler.close()
-    # Record does not contain energy and zpz because in some cases
-    # the same stack could contain many different energies or
-    # many different zpz
-    record = {"filename": os.path.basename(h5_out_fn),
-              "extension": ".hdf5",
-              "date": date, "sample": sample, "stack": True}
-    record.update({"type": type_struct})
+
+    record.update({"filename": os.path.basename(h5_out_fn),
+                   "extension": ".hdf5",
+                   "type": type_struct, "stack": True,
+                   "date": date, "sample": sample})
     return record
 
 
