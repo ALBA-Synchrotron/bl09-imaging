@@ -38,7 +38,7 @@ from txm2nexuslib.images.multiplealign import align_images
 from txm2nexuslib.images.multipleaverage import average_image_groups
 from txm2nexuslib.images.imagestostack import many_images_to_h5_stack
 from txm2nexuslib.stack.stack_operate import (
-    hdf5_2_mrc_stacks, deconvolve_mrc_stacks, minus_ln_stacks_mrc,
+    hdf5_2_mrc_stacks, deconvolve_stacks, minus_ln_stacks_mrc,
     norm2ali_stacks, get_stacks_to_recons, recons_mrc_stacks)
 
 
@@ -54,30 +54,20 @@ def main():
     - Average multiple hdf5 single image files (same angle, different ZPz)
     - Create stacks by date, sample and energy
       with multiple angles in each stack
-    - Convert to mrc (optional)
-    - TODO: Deconvolve (optional)
+    - Convert the stacks to mrc (optional)
+    - Deconvolution of the stacks (optional)
     - Compute the absorbance stacks (apply the minus natural logarithm)
-    - Align projections of the same tomo at different angles
+    - Align tomo projections of the same stack at different angles
     - Reconstruct tomographies using 3D tomo
     - Trim volume (volume reorientation) using IMOD trimvol
     """
     def str2bool(v):
         return v.lower() in ("yes", "true", "t", "1")
 
-    description = (
-            "Pre-Processing for BL09 Tomographies:\n" +
-            "From single xrm image files to reconstructed "
-            " tomographies.\nUsed for single tomographies and"
-            " for multifocal tomographies\n\n"
-            "\nPre-Processing for BL09 Tomographies:\n" +
-            "-> xrm raw -> hdf5 raw -> hdf5 for processing -> crop ->\n" +
-            "-> normalize -> align for same angle and variable zpz ->\n" +
-            "-> average all images with same angle -> make stacks ->\n"
-            "-> hdf5 to mrc (optional)-> deconvolve (optional)->\n" +
-            "-> apply minus logarithm to compute" +
-            " the abosrbance stacks (optional)->\n" +
-            "-> align the projections at different angles (optional)->\n"
-            "-> reconstruct and reorient the volumes (optional)\n")
+    description = ("Pre-Processing for BL09 Tomographies:\n" +
+                   "From single xrm image files to reconstructed "
+                   " tomographies.\nUsed for single tomographies and"
+                   " for multifocal tomographies")
 
     parser = argparse.ArgumentParser(description=description,
                                      formatter_class=RawTextHelpFormatter)
@@ -111,9 +101,9 @@ def main():
                              + "(default: True)")
 
     parser.add_argument('-d', '--deconvolution', type='bool',
-                        default='True',
+                        default='False',
                         help="Deconvolve mrc normalized stacks\n"
-                             + "(default: True)")
+                             + "(default: False)")
 
     parser.add_argument('-zp', '--zp-size', type=int,
                         default=25,
@@ -121,14 +111,14 @@ def main():
                              + "(default: 25)")
 
     parser.add_argument('-t', '--thickness', type=int,
-                        default=520,
+                        default=20,
                         help="Sample thickness (in um)\n"
-                             + "(default: 520)")
+                             + "(default: 20)")
 
     parser.add_argument('-l', '--minus_ln', type='bool',
-                        default='True',
+                        default='False',
                         help="Compute absorbance stack [-ln(mrc)]\n"
-                             + "(default: True)")
+                             + "(default: False)")
 
     parser.add_argument('-a', '--align', type='bool',
                         default='False',
@@ -138,9 +128,9 @@ def main():
     parser.add_argument('-f', '--fiducials', type='bool',
                         default='False',
                         help="Align using ctalign: -f=False"
-                             " (usually for non-fiducial alignment)\n"
+                             " (typically used for non-fiducial alignment)\n"
                              + "Align using ctalignxcorr: -f=True"
-                               " (usually for fiducial alignment)\n"
+                               " (typically used for fiducial alignment)\n"
                              + "(default: False)")
 
     parser.add_argument('-r', '--reconstruction', type='bool',
@@ -158,10 +148,10 @@ def main():
           "-> xrm raw -> hdf5 raw -> hdf5 for processing -> crop ->\n" +
           "-> normalize -> align for same angle and variable zpz ->\n" +
           "-> average all images with same angle ->" +
-          " make stacks -> hdf5 to mrc (option)->\n-> deconvolve (option)-> " +
-          " apply minus logarithm to compute the abosrbance stacks ->\n" +
-          "-> align the projections at different angles -> reconstruct ->\n"
-          "-> reorient the volumes with trim")
+          " make stacks -> hdf5 to mrc ->\n-> deconvolve -> apply minus" +
+          " logarithm to compute the abosrbance stacks ->\n-> align the" +
+          " projections at different angles -> reconstruct ->\n->" +
+          " reorientate the volumes with trim")
 
     start_time = time.time()
 
@@ -202,23 +192,26 @@ def main():
             hdf5_2_mrc_stacks(db_filename)
         elif args.deconvolution:
             # Deconvolve the normalized stacks
-            deconvolve_mrc_stacks(db_filename, zp_size=args.zp_size,
-                                  thickness=args.thickness)
+            deconvolve_stacks(db_filename, zp_size=args.zp_size,
+                              thickness=args.thickness)
 
         # Compute absorbance stacks
         if args.minus_ln:
-            minus_ln_stacks_mrc(db_filename, deconvolved=args.deconvolution)
+            minus_ln_stacks_mrc(db_filename, deconvolution=args.deconvolution)
 
         # Align projections
         if args.align:
             norm2ali_stacks(db_filename, table_name="mrc_stacks",
+                            deconvolution=args.deconvolution,
                             absorbance=args.minus_ln,
                             fiducials=args.fiducials)
 
         # Compute the reconstructed stacks
         if args.reconstruction:
             mrc_stacks_to_recons_records = get_stacks_to_recons(
-                db_filename, table_name="mrc_stacks", align=args.align)
+                db_filename, table_name="mrc_stacks",
+                deconvolution=args.deconvolution, absorbance=args.minus_ln,
+                align=args.align)
             recons_mrc_stacks(mrc_stacks_to_recons_records,
                               iterations=args.iterations)
 

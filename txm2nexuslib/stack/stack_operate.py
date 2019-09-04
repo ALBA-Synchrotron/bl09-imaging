@@ -20,7 +20,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import os, re, glob, subprocess
+import os, re, time, glob, subprocess
 
 import h5py
 import numpy as np
@@ -36,7 +36,6 @@ except Exception:
 def hdf5_2_mrc_stack(h5_stack_fn,
                      tree="TomoNormalized", dataset="TomoNormalized"):
     """Convert a single hdf5 stack to mrc"""
-
     h5_handler = h5py.File(h5_stack_fn, "r")
     h5_group = h5_handler[tree]
 
@@ -72,12 +71,13 @@ def hdf5_2_mrc_stack(h5_stack_fn,
 
 def hdf5_2_mrc_stacks(db_filename, table_name="hdf5_stacks"):
     """Convert multiple hdf5 stack to mrc"""
-
-    print("Converting multiple hdf5 stacks to mrc")
+    print("--- Converting multiple hdf5 stacks to mrc ---")
+    start_time = time.time()
     db = TinyDB(db_filename)
     stack_table = db.table(table_name)
     mrc_stack_table = db.table("mrc_stacks")
     mrc_stack_table.purge()
+    num_files = len(stack_table.all())
     for record in stack_table.all():
         h5_stack_fn = record["filename"]
         mrc_stack_fn, angles_fn = hdf5_2_mrc_stack(h5_stack_fn)
@@ -90,65 +90,74 @@ def hdf5_2_mrc_stacks(db_filename, table_name="hdf5_stacks"):
             record_mrc["angles"] = angles_fn
         mrc_stack_table.insert(record_mrc)
     db.close()
-    print("")
+    message = ("--- Converting {} hdf5 stacks"
+               + " to mrc stacks took {} seconds ---\n")
+    print(message.format(num_files, (time.time() - start_time)))
 
 
-def deconvolve_stack(record_to_deconv,
-                     date=20190903, zp_size=25, thickness=520):
+def deconvolve_stack(record_to_deconv, zp_size=25, thickness=20,
+                     tree="TomoNormalized", tilt_dataset="rotation_angle"):
     """Deconvolve an mrc stack"""
-
-    print(record_to_deconv)
-
-    """
-    norm_stack_fn = record_to_deconv["filename"]
-    deconvolve_command = ("tomo_deconv " + str(zp_size) + " " + str(thickness)
-                          + " " + str(date) + " " + norm_stack_fn)
+    h5_stack_to_deconv_fn = record_to_deconv["filename"]
+    date = record_to_deconv["date"]
+    energy = record_to_deconv["energy"]
+    deconvolve_command = ("tomo_deconv " + str(zp_size) + " " + str(energy)
+                          + " " + str(date) + " " + h5_stack_to_deconv_fn)
     subprocess.call(deconvolve_command, shell=True)
-
-    prefix = os.path.splitext(mrc_norm_stack_fn)[0]
-    old_mrc_deconv_stack_fn = [fn for fn in os.listdir('.')
-                               if fn.startswith(prefix)]
-    mrc_deconv_stack_fn = (os.path.splitext(mrc_norm_stack_fn)[0]
+    prefix = os.path.splitext(h5_stack_to_deconv_fn)[0] + "_deconv"
+    print(prefix)
+    mrc_deconv_stack_fn_to_rename = [fn for fn in os.listdir('.')
+                                     if fn.startswith(prefix)][0]
+    mrc_deconv_stack_fn = (os.path.splitext(h5_stack_to_deconv_fn)[0]
                            + '_deconv.mrc')
-    os.rename(old_mrc_deconv_stack_fn, mrc_deconv_stack_fn)
+    os.rename(mrc_deconv_stack_fn_to_rename, mrc_deconv_stack_fn)
+    angles_fn = None
+    h5_handler = h5py.File(h5_stack_to_deconv_fn, "r")
+    if (tree + "/" + tilt_dataset) in h5_handler:
+        angles_fn = "angles_" + os.path.splitext(
+            h5_stack_to_deconv_fn)[0] + '.tlt'
+        with open(angles_fn, "w") as angles_file:
+            for angle in h5_handler[tree][tilt_dataset].value:
+                angles_file.write("%.2f\n" % angle)
+    h5_handler.close()
+    print("Deconvolution applied on stack {}".format(h5_stack_to_deconv_fn))
+    return mrc_deconv_stack_fn, angles_fn
 
-    print("Deconvolution applied on stack {}".format(norm_stack_fn))
-    """
-    return "fn", "angles" #mrc_deconv_stack_fn
 
-
-def deconvolve_mrc_stacks(db_filename, in_table_name="hdf5_stacks",
-                          zp_size=25, thickness=520):
+def deconvolve_stacks(db_filename, in_table_name="hdf5_stacks",
+                      zp_size=25, thickness=20):
     """Deconvolve multiple mrc stacks"""
-
+    print("--- Deconvolve multiple hdf5 stacks (outputs are mrc stacks) ---")
+    start_time = time.time()
     db = TinyDB(db_filename)
     in_stack_table = db.table(in_table_name)
     mrc_stack_table = db.table("mrc_stacks")
     mrc_stack_table.purge()
+    num_files = len(in_stack_table.all())
     for record_to_deconv in in_stack_table.all():
         h5_stack_fn = record_to_deconv["filename"]
 
         mrc_deconv_stack_fn, angles_fn = deconvolve_stack(
-            record_to_deconv, zp_size=25, thickness=520)
+            record_to_deconv, zp_size=zp_size, thickness=thickness)
 
         record_deconvolved_mrc = record_to_deconv.copy()
         record_deconvolved_mrc["filename"] = mrc_deconv_stack_fn
         record_deconvolved_mrc["extension"] = ".mrc"
         # former_hdf5_fn is the filename of the first normalized stack hdf5
         record_deconvolved_mrc["former_hdf5_fn"] = h5_stack_fn
-        record_deconvolved_mrc["deconvolved"] = True
+        record_deconvolved_mrc["deconvolution"] = True
+        record_deconvolved_mrc["energy"] = record_to_deconv["energy"]
         if angles_fn:
             record_deconvolved_mrc["angles"] = angles_fn
         mrc_stack_table.insert(record_deconvolved_mrc)
     db.close()
-    print("")
+    message = "--- Deconvolution of {} hdf5 stacks took {} seconds ---\n"
+    print(message.format(num_files, (time.time() - start_time)))
 
 
 def minus_ln_stack_mrc(mrc_stack_fn):
     """Compute absorbance stack: Apply minus logarithm to a mrc stack"""
-
     mrc_handler = mrcfile.open(mrc_stack_fn, mode='r')
-
     infoshape = mrc_handler.data.shape
     n_frames = infoshape[0]
     n_rows = infoshape[1]
@@ -173,38 +182,45 @@ def minus_ln_stack_mrc(mrc_stack_fn):
 
 
 def minus_ln_stacks_mrc(db_filename, table_name="mrc_stacks",
-                        deconvolved=False):
+                        deconvolution=False):
     """Compute absorbance stacks (by applying the minus natural logarithm)
     to multiple mrc stacks.
     """
-
-    print("Compute absorbance stacks by applying the minus natural logarithm:")
+    print("--- Compute absorbance stacks by applying" +
+          " the minus natural logarithm ---")
+    start_time = time.time()
     db = TinyDB(db_filename)
     mrc_stack_table = db.table(table_name)
 
     stack_query = Query()
-    if deconvolved:
+    if deconvolution:
         stacks_query_deconv = ((stack_query.extension == ".mrc")
-                               & stack_query.deconvolved)
+                               & (stack_query.deconvolution == True))
         mrc_stacks = mrc_stack_table.search(stacks_query_deconv)
     else:
-        mrc_stacks = mrc_stack_table.search(query.extension == ".mrc")
+        mrc_stacks = mrc_stack_table.search(stack_query.extension == ".mrc")
+    num_files = len(mrc_stacks)
+
     for record_mrc in mrc_stacks:
         mrc_ln_stack_fn = minus_ln_stack_mrc(record_mrc["filename"])
         record_ln_mrc = record_mrc.copy()
         record_ln_mrc["filename"] = mrc_ln_stack_fn
         record_ln_mrc["extension"] = ".mrc"
+        record_ln_mrc["deconvolution"] = deconvolution
+        # Absorbance stack: minus natural logarithm of transmittance stack
         record_ln_mrc["absorbance"] = True
         record_ln_mrc["former_hdf5_fn"] = record_mrc["former_hdf5_fn"]
         mrc_stack_table.insert(record_ln_mrc)
-    print("")
+
+    message = "--- Computation of {} absorbance stacks took {} seconds ---\n"
+    print(message.format(num_files, (time.time() - start_time)))
 
 
 def align_ctalignxcorr(mrc_norm_stack_fn, hdf5_norm_stack=None):
     """"Automatic alignment using fiducials
     Usage of ctalignxcorr for aligning using fiducials"""
-
-    align_command = "ctalignxcorr " + mrc_norm_stack_fn + " " + hdf5_norm_stack
+    align_command = ("ctalignxcorr " + mrc_norm_stack_fn + " "
+                     + hdf5_norm_stack)
     subprocess.call(align_command, shell=True)
     mrc_aligned_stack_old_fn = os.path.splitext(mrc_norm_stack_fn)[0] + '.ali'
     mrc_aligned_stack_fn = os.path.splitext(mrc_norm_stack_fn)[0] + '_ali.mrc'
@@ -216,7 +232,6 @@ def align_ctalign(mrc_norm_stack_fn):
     """"Automatic alignment using ctalign:
     typically used for aligning without fiducials.
     ctalign requires an hdf5 file as input"""
-
     mrc2hdf_command = "mrc2hdf " + mrc_norm_stack_fn
     subprocess.call(mrc2hdf_command, shell=True)
 
@@ -232,12 +247,10 @@ def align_ctalign(mrc_norm_stack_fn):
 
 
 def norm2ali_stack(record_to_align, mrc_stack_table=None,
-                   absorbance=True, fiducials=False):
+                   deconvolution=False, absorbance=False, fiducials=False):
     """Align different projections of the same tomography stack"""
-
     mrc_stack_to_align_fn = record_to_align["filename"]
     print("Aligning stack: {0}".format(mrc_stack_to_align_fn))
-
     if fiducials:
         # Alignment using fiducials (execute ctalignxcorr which uses IMOD)
         print("ctalignxcorr: typically used for alignment with fiducials")
@@ -252,57 +265,59 @@ def norm2ali_stack(record_to_align, mrc_stack_table=None,
     if mrc_stack_table:
         record_aligned_mrc = record_to_align.copy()
         record_aligned_mrc["filename"] = mrc_aligned_stack
+        record_aligned_mrc["deconvolution"] = deconvolution
         record_aligned_mrc["absorbance"] = absorbance
         record_aligned_mrc["aligned"] = True
         mrc_stack_table.insert(record_aligned_mrc)
-
+    print("Aligned stack: {0}".format(mrc_aligned_stack))
     return mrc_aligned_stack
 
 
 def norm2ali_stacks(db_filename, table_name="mrc_stacks",
-                    absorbance=True, fiducials=False):
+                    deconvolution=False, absorbance=False, fiducials=False):
     """Align all the projections of a stack, for multiple stacks"""
-
-    print("Aligning all the projections of a stack, for multiple stacks:")
+    print("--- Aligning all the projections inside a stack,"
+          + " for multiple stacks---")
+    start_time = time.time()
     db = TinyDB(db_filename)
     mrc_stack_table = db.table(table_name)
 
     query = Query()
-    mrc_stacks_to_recons = mrc_stack_table.search(query.absorbance == True)
-    if not mrc_stacks_to_recons:
-        mrc_stacks_to_recons = mrc_stack_table.all()
-
+    mrc_stacks_to_align = mrc_stack_table.search(query.absorbance == True)
+    if not mrc_stacks_to_align:
+        mrc_stacks_to_align = mrc_stack_table.all()
+    num_files = len(mrc_stacks_to_align)
     print("")
-    for mrc_stack_to_ali_record in mrc_stacks_to_recons:
-        mrc_aligned_stack = norm2ali_stack(
-            mrc_stack_to_ali_record, mrc_stack_table,
-            absorbance, fiducials)
-        print("Aligned stack: %s" % mrc_aligned_stack)
+    for mrc_stack_to_ali_record in mrc_stacks_to_align:
+        norm2ali_stack(mrc_stack_to_ali_record, mrc_stack_table,
+                       deconvolution, absorbance, fiducials)
+    print("")
+    message = ("--- Aligning stacks projections of {} stacks"
+               + " took {} seconds ---\n")
+    print(message.format(num_files, (time.time() - start_time)))
 
 
 def get_stacks_to_recons(db_filename, table_name="mrc_stacks",
-                         align=False):
+                         deconvolution=False, absorbance=False, align=False):
     """Get records of stacks in TinyDB that shall be reconstructed"""
-
     db = TinyDB(db_filename)
     mrc_stack_table = db.table(table_name)
-    stack_query = Query()
+    stack_query = Query()       
     if align:
-        stack_query_cmd = ((stack_query.absorbance == True)
-                           & (stack_query.aligned == True))
-        mrc_stacks_to_recons_records = mrc_stack_table.search(stack_query_cmd)
-    else:
+        stack_query_cmd = (stack_query.aligned == True)
+    elif absorbance:
+        stack_query_cmd = (stack_query.deconvolution == True)
+    elif deconvolution:
         stack_query_cmd = (stack_query.absorbance == True)
-        mrc_stacks_to_recons_records = mrc_stack_table.search(stack_query_cmd)
-        if not mrc_stacks_to_recons_records:
-            mrc_stacks_to_recons_records = mrc_stack_table.all()
+    mrc_stacks_to_recons_records = mrc_stack_table.search(stack_query_cmd)
 
+    if not mrc_stacks_to_recons_records:
+        mrc_stacks_to_recons_records = mrc_stack_table.all()
     return mrc_stacks_to_recons_records
 
 
 def recons_mrc_stack(mrc_stack_to_recons_record, iterations=30):
     """Reconstruction and trim using tomo3d and IMOD trimvol"""
-
     mrc_stack_fn = mrc_stack_to_recons_record["filename"]
     mrc_stack_fn_xzy = os.path.splitext(mrc_stack_fn)[0] + '_recons.xzy'
     tilt_angles_fn = mrc_stack_to_recons_record["angles"]
@@ -316,26 +331,28 @@ def recons_mrc_stack(mrc_stack_to_recons_record, iterations=30):
     mrc_recons_stack_fn = os.path.splitext(mrc_stack_fn_xzy)[0] + '.mrc'
     trim_cmd = ("trimvol -yz " + mrc_stack_fn_xzy + " " + mrc_recons_stack_fn)
     subprocess.call(trim_cmd, shell=True)
-
     return mrc_recons_stack_fn
 
 
 def recons_mrc_stacks(mrc_stacks_to_recons_records, iterations=30):
     """Compute the reconstructed tomographies for
     multiple projection stacks"""
-
-    print("Compute the reconstructed tomographies for "
-          "multiple projection stacks:\n")
+    print("--- Reconstruct tomographies for multiple projection stacks ---")
+    start_time = time.time()
     for mrc_stack_to_recons_record in mrc_stacks_to_recons_records:
-        recons_stack = recons_mrc_stack(mrc_stack_to_recons_record,
-                                        iterations)
-        print("Reconstructed stack: %s" % recons_stack)
-
+        mrc_recons_stack_fn = recons_mrc_stack(mrc_stack_to_recons_record,
+                                               iterations)
+        print("Reconstructed stack: %s" % mrc_recons_stack_fn)
+    num_files = len(mrc_stack_to_recons_record)
+    message = "--- Reconstruct {} stacks took {} seconds ---\n"
+    print(message.format(num_files, (time.time() - start_time)))
+    
     """
     import pprint
     pretty_printer = pprint.PrettyPrinter(indent=4)
     print("Created stacks:")
-    for record in mrc_stack_table.search(stacks_to_recons_query.aligned == True):
+    stack_query = (stacks_to_recons_query.aligned == True)
+    for record in mrc_stack_table.search(stack_query):
         pretty_printer.pprint(record["filename"])
         pretty_printer.pprint(record["extension"])
         pretty_printer.pprint(record["aligned"])
