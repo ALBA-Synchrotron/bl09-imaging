@@ -64,10 +64,20 @@ def main():
     def str2bool(v):
         return v.lower() in ("yes", "true", "t", "1")
 
-    description = ("Pre-Processing for BL09 Tomographies:\n" +
-                   "From single xrm image files to reconstructed "
-                   " tomographies.\nUsed for single tomographies and"
-                   " for multifocal tomographies")
+    description = (
+            "Pre-Processing for BL09 Tomographies:\n" +
+            "From single xrm image files to reconstructed "
+            " tomographies.\nUsed for single tomographies and"
+            " for multifocal tomographies\n\n"
+            "\nPre-Processing for BL09 Tomographies:\n" +
+            "-> xrm raw -> hdf5 raw -> hdf5 for processing -> crop ->\n" +
+            "-> normalize -> align for same angle and variable zpz ->\n" +
+            "-> average all images with same angle -> make stacks ->\n"
+            "-> hdf5 to mrc (optional)-> deconvolve (optional)->\n" +
+            "-> apply minus logarithm to compute" +
+            " the abosrbance stacks (optional)->\n" +
+            "-> align the projections at different angles (optional)->\n"
+            "-> reconstruct and reorient the volumes (optional)\n")
 
     parser = argparse.ArgumentParser(description=description,
                                      formatter_class=RawTextHelpFormatter)
@@ -148,10 +158,10 @@ def main():
           "-> xrm raw -> hdf5 raw -> hdf5 for processing -> crop ->\n" +
           "-> normalize -> align for same angle and variable zpz ->\n" +
           "-> average all images with same angle ->" +
-          " make stacks -> hdf5 to mrc ->\n-> deconvolve -> apply minus" +
-          " logarithm to compute the abosrbance stacks ->\n-> align the" +
-          " projections at different angles -> reconstruct ->\n->" +
-          " reorientate the volumes with trim")
+          " make stacks -> hdf5 to mrc (option)->\n-> deconvolve (option)-> " +
+          " apply minus logarithm to compute the abosrbance stacks ->\n" +
+          "-> align the projections at different angles -> reconstruct ->\n"
+          "-> reorient the volumes with trim")
 
     start_time = time.time()
 
