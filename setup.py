@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 
 # The version is updated automatically with bumpversion
 # Do not update manually
-__version = '12.0.0-alpha'
+__version = '12.0.0'
 
 long_description = """bl09-imaging: Image/Signal processing for BL09-Mistral 
 Synchrotron Beamline Laboratory (formats: hdf5, mrc, xrm/txrm). 
