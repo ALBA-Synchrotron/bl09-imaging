@@ -127,7 +127,7 @@ def deconvolve_stack(record_to_deconv, zp_size=25, thickness=20,
 def deconvolve_stacks(db_filename, in_table_name="hdf5_stacks",
                       zp_size=25, thickness=20):
     """Deconvolve multiple mrc stacks"""
-    print("--- Deconvolve multiple hdf5 stacks (outputs are mrc stacks) ---")
+    print("--- Deconvolve hdf5 stack(s) (outputs are mrc stacks) ---")
     start_time = time.time()
     db = TinyDB(db_filename)
     in_stack_table = db.table(in_table_name)
@@ -151,7 +151,7 @@ def deconvolve_stacks(db_filename, in_table_name="hdf5_stacks",
             record_deconvolved_mrc["angles"] = angles_fn
         mrc_stack_table.insert(record_deconvolved_mrc)
     db.close()
-    message = "--- Deconvolution of {} hdf5 stacks took {} seconds ---\n"
+    message = "--- Deconvolution of {} hdf5 stack(s) took {} seconds ---\n"
     print(message.format(num_files, (time.time() - start_time)))
 
 
@@ -292,7 +292,7 @@ def norm2ali_stacks(db_filename, table_name="mrc_stacks",
         norm2ali_stack(mrc_stack_to_ali_record, mrc_stack_table,
                        deconvolution, absorbance, fiducials)
     print("")
-    message = ("--- Aligning stacks projections of {} stacks"
+    message = ("--- Alignment of stack(s) projections of {} stack(s)"
                + " took {} seconds ---\n")
     print(message.format(num_files, (time.time() - start_time)))
 
@@ -344,7 +344,7 @@ def recons_mrc_stacks(mrc_stacks_to_recons_records, iterations=30):
                                                iterations)
         print("Reconstructed stack: %s" % mrc_recons_stack_fn)
     num_files = len(mrc_stack_to_recons_record)
-    message = "--- Reconstruct {} stacks took {} seconds ---\n"
+    message = "--- Reconstruct {} stack(s) took {} seconds ---\n"
     print(message.format(num_files, (time.time() - start_time)))
     
     """
