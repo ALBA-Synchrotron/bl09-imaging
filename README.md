@@ -1,6 +1,4 @@
-.. image:: https://travis-ci.com/mrosanes/bl09-imaging.svg?branch=develop
-    :target: https://travis-ci.com/mrosanes/bl09-imaging
-    :alt: Travis
+[![Build Status](https://travis-ci.com/mrosanes/bl09-imaging.svg?branch=develop)](https://travis-ci.com/mrosanes/bl09-imaging)
 
  
 
