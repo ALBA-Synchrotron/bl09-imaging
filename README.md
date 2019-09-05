@@ -1,4 +1,4 @@
-.. image:: https://travis-ci.org/mrosanes/bl09-imaging.svg?branch=develop
+.. image:: https://travis-ci.com/mrosanes/bl09-imaging.svg?branch=develop
     :target: https://travis-ci.com/mrosanes/bl09-imaging
     :alt: Travis
 
