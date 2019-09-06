@@ -187,6 +187,37 @@ def copy2proc_multiple(file_index_db, table_in_name="hdf5_raw",
     db.close()
 
 
+def query_command_for_same_sample(db_filename, table_name="hdf5_proc"):
+    """Get the query command for a given sample: date_sample_energy
+    This query will allow to retrieve the tiny DB records of a given sample.
+    Thanks to it, we could check in other functions/methods if many
+    a single zpz (single focus) or multiple zpz (multi focus) are used."""
+
+    db = TinyDB(db_filename, storage=CachingMiddleware(JSONStorage))
+    stack_table = db.table(table_name)
+    file_records = stack_table.all()
+    dates_samples_energies = []
+    for record in file_records:
+        data = (record["date"], record["sample"], record["energy"])
+        dates_samples_energies.append(data)
+    dates_samples_energies = list(set(dates_samples_energies))
+
+    files_query = Query()
+    for date_sample_energy in dates_samples_energies:
+        date = date_sample_energy[0]
+        sample = date_sample_energy[1]
+        energy = date_sample_energy[2]
+
+        # Get all hdf5 files corresponding to the projections that are being
+        # processed for a single tomo (single focus tomo or multifocus tomo)
+        tomo_projections_query = ((files_query.date == date) &
+                                  (files_query.sample == sample) &
+                                  (files_query.energy == energy) &
+                                  (files_query.FF == False))
+    db.close()
+    return tomo_projections_query
+
+
 def check_if_multiple_zps(db_filename, query=None):
     single_zp_bool = True
     db = TinyDB(db_filename,
@@ -201,6 +232,7 @@ def check_if_multiple_zps(db_filename, query=None):
             single_zp_bool = False
             break
         zp_previous_record = current_zpz
+    db.close()
     return single_zp_bool
 
 
