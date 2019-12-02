@@ -1088,6 +1088,7 @@ class txrmNXtomo:
                         self.num_dark_sequence.append(self.count_num_sequence)
                         self.nxdark['data'][counter_dark_frames] = \
                             tomoimagedark
+                        counter_dark_frames = counter_dark_frames + 1
 
                     # machine_current name of DF images #
                     if ole.exists('PositionInfo/AxisNames'):   
