@@ -40,11 +40,11 @@ def get_samples(dir_name):
                                            splitted_name[1],
                                            splitted_name[2],
                                            )
-        if not samples.has_key(sample_name):
+        if sample_name not in samples:
             samples[sample_name] = {'tomos': {}, 'ff': []}
         if not has_ff:
             tomo_name = splitted_name[-1]
-            if not samples[sample_name]['tomos'].has_key(tomo_name):
+            if tomo_name not in samples[sample_name]['tomos']:
                 samples[sample_name]['tomos'][tomo_name] = []
             samples[sample_name]['tomos'][tomo_name].append(fname)
         else:
@@ -56,7 +56,7 @@ def get_samples(dir_name):
 def main():
 
     print("\n")
-    print(datetime.datetime.today())
+    print((datetime.datetime.today()))
     print("\n")
 
     description = 'Create a tomo hdf5 file per each group of existing xrm ' \
@@ -88,18 +88,18 @@ def main():
     output_dir = args.output_dir_name
     samples = get_samples(dir_name)
     # Generate the hdf5 files
-    for sample in samples.keys():
+    for sample in list(samples.keys()):
         tomos = samples[sample]['tomos']
         # Create FF reader
         ff_files = samples[sample]['ff']
         ff_files.sort(key=lambda x: os.path.getmtime(x))
         ffreader = xrmReader(ff_files)
-        for tomo in tomos.keys():
+        for tomo in list(tomos.keys()):
             tomo_files = samples[sample]['tomos'][tomo]
             if len(ff_files) == 0:
-                print "WARNING: %s of Sample: %s have not BrightField " \
+                print("WARNING: %s of Sample: %s have not BrightField " \
                       "files. HDF5 file can not be created for this tomo" %\
-                      (tomo, sample)
+                      (tomo, sample))
                 continue
             # sort files
             tomo_files.sort(key=lambda x: os.path.getmtime(x))
@@ -122,7 +122,7 @@ def main():
             xrm.convert_tomography()
 
     print("\n")
-    print(datetime.datetime.today())
+    print((datetime.datetime.today()))
     print("\n")
 
 

@@ -28,7 +28,7 @@ from tinydb.storages import JSONStorage
 from tinydb.middlewares import CachingMiddleware
 from tinydb.storages import MemoryStorage
 
-from util import create_subset_db
+from .util import create_subset_db
 from txm2nexuslib.parser import get_file_paths
 from txm2nexuslib.image.image_operate_lib import (normalize_image,
                                                   get_normalized_ff,
@@ -238,8 +238,8 @@ def normalize_images(file_index_fn, table_name="hdf5_proc",
             # TODO
             pass
 
-    print("--- Normalize %d files took %s seconds ---\n" %
-          (num_files_total, (time.time() - start_time)))
+    print(("--- Normalize %d files took %s seconds ---\n" %
+          (num_files_total, (time.time() - start_time))))
 
     db.close()
 

@@ -17,7 +17,7 @@ class Test(TestCase):
 
     def test_sample_id(self):
         sample_id = self.file.get_sample_id()
-        print sample_id
+        print(sample_id)
 
     def test_pixel_size(self):
         pixel_size = self.file.get_pixel_size()
@@ -50,7 +50,7 @@ class Test(TestCase):
     
     def test_exp_times(self):
         exp_times = self.file.get_exp_times()
-        print exp_times
+        print(exp_times)
         self.assertGreater(len(exp_times), 0, "No exposure times")
     
     def test_det_zero(self):

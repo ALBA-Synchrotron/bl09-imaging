@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 
-from OleFileIO_PL import *
+from .OleFileIO_PL import *
 import numpy as np
 import h5py
 import sys
@@ -277,7 +277,7 @@ class XradiaFile(object):
                 self.image_height * self.image_width)
             imgdata = struct.unpack(struct_fmt, data)
         else:
-            print "Wrong data type"
+            print("Wrong data type")
             return
 
         image = np.flipud(np.reshape(imgdata, (self.image_height,
@@ -300,7 +300,7 @@ class XradiaFile(object):
                 self.image_height * self.image_width)
             imgdata = struct.unpack(struct_fmt, data)
         else:
-            print "Wrong data type"
+            print("Wrong data type")
             return
 
         image = np.flipud(np.reshape(imgdata, (self.image_height,
@@ -437,8 +437,8 @@ class XradiaFile(object):
             try:  # we found some txrm images (flatfields) with different encoding of data
                 energies = struct.unpack(struct_fmt, data)
             except struct.error:
-                print >> sys.stderr, 'Unexpected data length (%i bytes). Trying to unpack energies with: "f"+"36xf"*(nSampleFrames-1)' % len(
-                    data)
+                print('Unexpected data length (%i bytes). Trying to unpack energies with: "f"+"36xf"*(nSampleFrames-1)' % len(
+                    data), file=sys.stderr)
                 struct_fmt = '<' + "f" + "36xf" * (self.no_of_images - 1)
                 energies = struct.unpack(struct_fmt, data)
         else:
@@ -454,8 +454,8 @@ class XradiaFile(object):
         try:  # we found some txrm images (flatfields) with different encoding of data
             exp_times = struct.unpack(struct_fmt, data)
         except struct.error:
-            print >> sys.stderr, 'Unexpected data length (%i bytes). Trying to unpack exposure times with: "f"+"36xf"*(nSampleFrames-1)' % len(
-                data)
+            print('Unexpected data length (%i bytes). Trying to unpack exposure times with: "f"+"36xf"*(nSampleFrames-1)' % len(
+                data), file=sys.stderr)
             struct_fmt = '<' + "f" + "36xf" * (self.no_of_images - 1)
             exp_times = struct.unpack(struct_fmt, data)
         return exp_times
@@ -477,8 +477,8 @@ class XradiaFile(object):
         try:
             positions = struct.unpack(struct_fmt, data)
         except struct.error:
-            print >> sys.stderr, 'Unexpected data length (%i bytes). Trying to unpack XPositions with: "f"+"36xf"*(nSampleFrames-1)' % len(
-                data)
+            print('Unexpected data length (%i bytes). Trying to unpack XPositions with: "f"+"36xf"*(nSampleFrames-1)' % len(
+                data), file=sys.stderr)
             struct_fmt = '<' + "f" + "36xf" * (self.no_of_images - 1)
             positions = struct.unpack(struct_fmt, data)
         return positions
@@ -492,8 +492,8 @@ class XradiaFile(object):
         try:
             positions = struct.unpack(struct_fmt, data)
         except struct.error:
-            print >> sys.stderr, 'Unexpected data length (%i bytes). Trying to unpack YPositions with: "f"+"36xf"*(nSampleFrames-1)' % len(
-                data)
+            print('Unexpected data length (%i bytes). Trying to unpack YPositions with: "f"+"36xf"*(nSampleFrames-1)' % len(
+                data), file=sys.stderr)
             struct_fmt = '<' + "f" + "36xf" * (self.no_of_images - 1)
             positions = struct.unpack(struct_fmt, data)
         return positions
@@ -507,8 +507,8 @@ class XradiaFile(object):
         try:
             positions = struct.unpack(struct_fmt, data)
         except struct.error:
-            print >> sys.stderr, 'Unexpected data length (%i bytes). Trying to unpack ZPositions with: "f"+"36xf"*(nSampleFrames-1)' % len(
-                data)
+            print('Unexpected data length (%i bytes). Trying to unpack ZPositions with: "f"+"36xf"*(nSampleFrames-1)' % len(
+                data), file=sys.stderr)
             struct_fmt = '<' + "f" + "36xf" * (self.no_of_images - 1)
             positions = struct.unpack(struct_fmt, data)
         return positions
@@ -835,9 +835,9 @@ class xrmNXtomo(object):
                 self.count_num_sequence)
             self.nxdetectorsample['data'][numimage] = tomoimagesingle
             if numimage % 20 == 0:
-                print('Image %i converted' % numimage)
+                print(('Image %i converted' % numimage))
             if numimage + 1 == self.nSampleFrames:
-                print ('%i images converted\n' % self.nSampleFrames)
+                print(('%i images converted\n' % self.nSampleFrames))
 
         # h5py NeXus link
         source_addr = '/NXtomo/instrument/sample/data'
@@ -873,8 +873,8 @@ class xrmNXtomo(object):
 
         for numimage in range(self.nFramesBright):
             if numimage + 1 == self.nFramesBright:
-                print ('%i Bright-Field images '
-                       'converted\n' % self.nFramesBright)
+                print(('%i Bright-Field images '
+                       'converted\n' % self.nFramesBright))
             self.count_num_sequence = self.count_num_sequence + 1
             tomoimagesingle = self.ff_reader.get_image(numimage)
             self.num_bright_sequence.append(self.count_num_sequence)
@@ -904,7 +904,7 @@ class xrmNXtomo(object):
             else:
                 self.datatype_zerodeg = 'float'
             if verbose:
-                print "ImageInfo/DataType: %s " % self.datatype_zerodeg
+                print("ImageInfo/DataType: %s " % self.datatype_zerodeg)
         else:
             print("There is no information about DataType")
 
@@ -918,13 +918,13 @@ class xrmNXtomo(object):
             yimage = struct.unpack('<I', data)
             self.numrows_zerodeg = np.int(yimage[0])
             if verbose:
-                print "ImageInfo/ImageHeight = %i" % yimage[0]
+                print("ImageInfo/ImageHeight = %i" % yimage[0])
             stream = ole_zerodeg.openstream('ImageInfo/ImageWidth')
             data = stream.read()
             ximage = struct.unpack('<I', data)
             self.numcols_zerodeg = np.int(ximage[0])
             if verbose:
-                print "ImageInfo/ImageWidth = %i" % ximage[0]
+                print("ImageInfo/ImageWidth = %i" % ximage[0])
         else:
             print('There is no information about the 0 degrees image size '
                   '(ImageHeight, or about ImageWidth)')
@@ -942,7 +942,7 @@ class xrmNXtomo(object):
                                                self.numcols_zerodeg)
                 imgdata = struct.unpack(struct_fmt, data)
             else:
-                print "Wrong data type"
+                print("Wrong data type")
 
             imgdata_zerodeg = np.flipud(np.reshape(imgdata,
                                                    (self.numrows,

@@ -68,7 +68,7 @@ img commands:
         parser.add_argument('command', help='Subcommand to run')
         args = parser.parse_args(sys.argv[1:2])
         if not hasattr(self, args.command):
-            print '\nUnrecognized command\n'
+            print('\nUnrecognized command\n')
             parser.print_help()
             exit(1)
         # use dispatch pattern to invoke method with same name

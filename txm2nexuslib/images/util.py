@@ -180,8 +180,8 @@ def copy2proc_multiple(file_index_db, table_in_name="hdf5_raw",
         update_db_func(db, table_out_name, hdf5_records, suffix, purge=purge)
 
     n_files = len(files)
-    print("--- Copy for processing %d files took %s seconds ---\n" %
-          (n_files, (time.time() - start_time)))
+    print(("--- Copy for processing %d files took %s seconds ---\n" %
+          (n_files, (time.time() - start_time))))
 
     #print(db.table(table_out_name).all())
     db.close()
@@ -217,24 +217,24 @@ def dict2hdf5(h5_file_handler, indict):
         try:
             group.create_dataset(key_name, data=value)
         except Exception:
-            print("data in key '" + key_name + "' could not be extracted")
+            print(("data in key '" + key_name + "' could not be extracted"))
 
-    for key0, val0 in indict.items():
+    for key0, val0 in list(indict.items()):
         if type(val0) is not dict:
             create_dataset(h5_file_handler, key0, val0)
         else:
             grp1 = h5_file_handler.create_group(key0)
-            for k1, v1 in val0.items():
+            for k1, v1 in list(val0.items()):
                 if type(v1) is not dict:
                     create_dataset(grp1, k1, v1)
                 else:
                     grp2 = grp1.create_group(k1)
-                    for k2, v2 in v1.items():
+                    for k2, v2 in list(v1.items()):
                         if type(v2) is not dict:
                             create_dataset(grp2, k2, v2)
                         else:
                             grp3 = grp2.create_group(k2)
-                            for k3, v3 in v2.items():
+                            for k3, v3 in list(v2.items()):
                                 if type(v3) is not dict:
                                     create_dataset(grp3, k3, v3)
 

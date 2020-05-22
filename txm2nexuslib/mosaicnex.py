@@ -19,7 +19,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from OleFileIO_PL import *   
+from .OleFileIO_PL import *   
 import numpy as np
 import h5py
 import sys
@@ -44,14 +44,14 @@ class MosaicNex:
 
         self.exitprogram = 0
         if self.num_input_files != self.num_input_files_verify:
-            print('Number of input files must be equal ' + 
-                  'to number of characters of files_order.\n')
+            print(('Number of input files must be equal ' + 
+                  'to number of characters of files_order.\n'))
             self.exitprogram = 1
             return
                    
         if 's' not in files_order:
-            print('Mosaic data file (xrm) has to be specified, ' + 
-                  'inicate it as \'s\' in the argument option -o.\n')
+            print(('Mosaic data file (xrm) has to be specified, ' + 
+                  'inicate it as \'s\' in the argument option -o.\n'))
             self.exitprogram = 1
             return
 
@@ -158,7 +158,7 @@ class MosaicNex:
             if self.samplename != 'Unknown':
                 self.samplename = samplename[0]    
             if verbose: 
-                print "SampleInfo/SampleID: %s " % self.samplename 
+                print("SampleInfo/SampleID: %s " % self.samplename) 
             self.nxsample['name'] = self.samplename
         else:
             print("There is no information about SampleID")
@@ -171,7 +171,7 @@ class MosaicNex:
             pixelsize = struct.unpack(struct_fmt, data)
             pixelsize = pixelsize[0]
             if verbose: 
-                print "ImageInfo/PixelSize: %f " % pixelsize
+                print("ImageInfo/PixelSize: %f " % pixelsize)
             self.inst_sample_grp.create_dataset("x_pixel_size", data=pixelsize)
             self.inst_sample_grp.create_dataset("y_pixel_size", data=pixelsize)
             self.inst_sample_grp["x_pixel_size"].attrs["units"] = "um"
@@ -187,7 +187,7 @@ class MosaicNex:
             current = struct.unpack(struct_fmt, data)
             current = current[0]
             if verbose: 
-                print "ImageInfo/Current: %f " % current
+                print("ImageInfo/Current: %f " % current)
 
             self.inst_sample_grp.create_dataset("current", data=current)
             self.inst_sample_grp["current"].attrs["units"] = "mA"
@@ -203,26 +203,26 @@ class MosaicNex:
             data = stream.read()
             nimages = struct.unpack('<I', data)
             if verbose: 
-                print "ImageInfo/NoOfImages = %i" % nimages[0] 
+                print("ImageInfo/NoOfImages = %i" % nimages[0]) 
             self.nSampleFrames = np.int(nimages[0])
         
             stream = ole.openstream('ImageInfo/ImageHeight')
             data = stream.read()
             ximage = struct.unpack('<I', data)    
             if verbose: 
-                print "ImageInfo/ImageHeight = %i" % ximage[0]  
+                print("ImageInfo/ImageHeight = %i" % ximage[0])  
             self.numrows = np.int(ximage[0])
             
             stream = ole.openstream('ImageInfo/ImageWidth')
             data = stream.read()
             yimage = struct.unpack('<I', data)
             if verbose: 
-                print "ImageInfo/ImageWidth = %i" % yimage[0]  
+                print("ImageInfo/ImageWidth = %i" % yimage[0])  
             self.numcols = np.int(yimage[0])
 
         else:
-            print('There is no information about the mosaic size ' +
-                  '(ImageHeight, ImageWidth or Number of images)')
+            print(('There is no information about the mosaic size ' +
+                  '(ImageHeight, ImageWidth or Number of images)'))
 
         # FF data size
         if self.brightexists == 1:
@@ -235,26 +235,26 @@ class MosaicNex:
                 data = stream.read()
                 nimages = struct.unpack('<I', data)
                 if verbose: 
-                    print "ImageInfo/NoOfImages = %i" % nimages[0] 
+                    print("ImageInfo/NoOfImages = %i" % nimages[0]) 
                 self.nSampleFramesFF = np.int(nimages[0])
             
                 stream = oleFF.openstream('ImageInfo/ImageHeight')
                 data = stream.read()
                 ximage = struct.unpack('<I', data)    
                 if verbose: 
-                    print "ImageInfo/ImageHeight = %i" % ximage[0]  
+                    print("ImageInfo/ImageHeight = %i" % ximage[0])  
                 self.numrowsFF = np.int(ximage[0])
                 
                 stream = oleFF.openstream('ImageInfo/ImageWidth')
                 data = stream.read()
                 yimage = struct.unpack('<I', data)
                 if verbose: 
-                    print "ImageInfo/ImageWidth = %i" % yimage[0]  
+                    print("ImageInfo/ImageWidth = %i" % yimage[0])  
                 self.numcolsFF = np.int(yimage[0])   
                         
             else:
-                print('There is no information about the mosaic size ' +
-                      '(ImageHeight, ImageWidth or Number of images)')
+                print(('There is no information about the mosaic size ' +
+                      '(ImageHeight, ImageWidth or Number of images)'))
             oleFF.close()    
             
         # Energy            	
@@ -267,12 +267,12 @@ class MosaicNex:
             try:
                 energies = struct.unpack(struct_fmt, data)
             except struct.error:
-                print >> sys.stderr, ('Unexpected data length (%i bytes). ' +  
+                print(('Unexpected data length (%i bytes). ' +  
                                       'Trying to unpack Energies with: ' + 
-                                      '"f"+"36xf"*(nSampleFrames-1)'%len(data))
+                                      '"f"+"36xf"*(nSampleFrames-1)'%len(data)), file=sys.stderr)
                 struct_fmt = '<'+"f"+"36xf"*(self.nSampleFrames-1)
                 energies = struct.unpack(struct_fmt, data)
-            if verbose: print "ImageInfo/Energy: \n ",  energies  
+            if verbose: print("ImageInfo/Energy: \n ",  energies)  
             self.inst_source_grp['energy'] = energies
             self.inst_source_grp['energy'].attrs['units'] = 'eV'
         else:
@@ -291,7 +291,7 @@ class MosaicNex:
             else:
                 self.datatype = 'float'
             if verbose: 
-                print "ImageInfo/DataType: %s " % self.datatype
+                print("ImageInfo/DataType: %s " % self.datatype)
         else:
             print("There is no information about DataType")
 
@@ -319,7 +319,7 @@ class MosaicNex:
             starttimeiso = starttime.isoformat()
 
             if verbose: 
-                print "ImageInfo/Date = %s" % starttimeiso 
+                print("ImageInfo/Date = %s" % starttimeiso) 
             self.mosaic_grp['start_time'] = str(starttimeiso)
 
             enddate = dates[self.nSampleFrames-1]    
@@ -340,7 +340,7 @@ class MosaicNex:
             endtimeiso = endtime.isoformat()
 
             if verbose: 
-                print "ImageInfo/Date = %s" % endtimeiso 
+                print("ImageInfo/Date = %s" % endtimeiso) 
             self.mosaic_grp['end_time'] = str(endtimeiso)
 
         else:
@@ -353,7 +353,7 @@ class MosaicNex:
             struct_fmt = '<{0:10}f'.format(self.nSampleFrames)
             angles = struct.unpack(struct_fmt, data)
             if verbose: 
-                print "ImageInfo/Angles: \n ",  angles
+                print("ImageInfo/Angles: \n ",  angles)
 
             self.nxsample['rotation_angle'] = angles
             self.nxsample['rotation_angle'].attrs['target'] = \
@@ -381,13 +381,13 @@ class MosaicNex:
             try: 
                 xpositions = struct.unpack(struct_fmt, data) 
             except struct.error:
-                print >> sys.stderr, ('Unexpected data length (%i bytes). ' +  
+                print(('Unexpected data length (%i bytes). ' +  
                                       'Trying to unpack XPositions with: ' + 
-                                      '"f"+"36xf"*(nSampleFrames-1)'%len(data))
+                                      '"f"+"36xf"*(nSampleFrames-1)'%len(data)), file=sys.stderr)
                 struct_fmt = '<'+"f"+"36xf"*(self.nSampleFrames-1)
                 xpositions = struct.unpack(struct_fmt, data)
             if verbose: 
-                print "ImageInfo/XPosition: \n ",  xpositions
+                print("ImageInfo/XPosition: \n ",  xpositions)
             self.nxsample['x_translation'] = xpositions
             self.nxsample['x_translation'].attrs['units'] = 'mm'
         else:
@@ -403,13 +403,13 @@ class MosaicNex:
             try:
                 ypositions = struct.unpack(struct_fmt, data) 
             except struct.error:
-                print >> sys.stderr, ('Unexpected data length (%i bytes). ' +  
+                print(('Unexpected data length (%i bytes). ' +  
                                       'Trying to unpack YPositions with: ' + 
-                                      '"f"+"36xf"*(nSampleFrames-1)'%len(data))
+                                      '"f"+"36xf"*(nSampleFrames-1)'%len(data)), file=sys.stderr)
                 struct_fmt = '<'+"f"+"36xf"*(self.nSampleFrames-1)
                 ypositions = struct.unpack(struct_fmt, data)
             if verbose: 
-                print "ImageInfo/YPosition: \n ",  ypositions  
+                print("ImageInfo/YPosition: \n ",  ypositions)  
             self.nxsample['y_translation'] = ypositions
             self.nxsample['y_translation'].attrs['units'] = 'mm'
         else:
@@ -425,13 +425,13 @@ class MosaicNex:
             try: 
                 zpositions = struct.unpack(struct_fmt, data)
             except struct.error:
-                print >> sys.stderr, ('Unexpected data length (%i bytes). ' +  
+                print(('Unexpected data length (%i bytes). ' +  
                                       'Trying to unpack ZPositions with: ' + 
-                                      '"f"+"36xf"*(nSampleFrames-1)'%len(data))
+                                      '"f"+"36xf"*(nSampleFrames-1)'%len(data)), file=sys.stderr)
                 struct_fmt = '<'+"f"+"36xf"*(self.nSampleFrames-1)
                 zpositions = struct.unpack(struct_fmt, data)
             if verbose: 
-                print "ImageInfo/ZPosition: \n ",  zpositions
+                print("ImageInfo/ZPosition: \n ",  zpositions)
             self.nxsample['z_translation'] = zpositions
             self.nxsample['z_translation'].attrs['units'] = 'mm'
         else:
@@ -452,9 +452,9 @@ class MosaicNex:
 
         # Bright-Field
         if not self.brightexists:
-            print('\nWarning: Bright-Field is not present, normalization ' + 
+            print(('\nWarning: Bright-Field is not present, normalization ' + 
                   'will not be possible if you do not insert a ' + 
-                  'Bright-Field (FF). \n') 
+                  'Bright-Field (FF). \n')) 
                   
         verbose = False
         print("Converting mosaic image data from xrm to NeXus HDF5.")
@@ -487,14 +487,14 @@ class MosaicNex:
                 dt = np.float          
                 data = stream.read(self.numcols*4)                      
             else:
-                print "Wrong data type"
+                print("Wrong data type")
                 return
 
             imgdata = np.frombuffer(data, dtype=dt, count=self.numcols)
             imgdata = np.reshape(imgdata, (1, self.numcols), order='A')
             self.inst_sample_grp['data'][i] = imgdata
             if i % 100 == 0:
-                print('Mosaic row %i converted' % (i + 1))
+                print(('Mosaic row %i converted' % (i + 1)))
 
         olemosaic.close()
 
@@ -524,7 +524,7 @@ class MosaicNex:
                 struct_fmt = "<{0:10}f".format(self.numrowsFF*self.numcolsFF)
 
             else:
-                print "Wrong FF data type"
+                print("Wrong FF data type")
                 return
 
             imgdata = struct.unpack(struct_fmt, data)

@@ -100,7 +100,7 @@ def metadata_2_stack_dict(hdf5_structure_dict,
 
     num_keys = len(hdf5_structure_dict)
     if num_keys == 1:
-        k, hdf5_structure_dict = hdf5_structure_dict.items()[0]
+        k, hdf5_structure_dict = list(hdf5_structure_dict.items())[0]
 
     def extract_metadata_original(metadata_original, hdf5_structure_dict):
         for dataset_name in hdf5_structure_dict:
@@ -470,8 +470,8 @@ def many_images_to_h5_stack(file_index_fn, table_name="hdf5_proc",
         pretty_printer.pprint(record["filename"])
     db.close()
 
-    print("--- Individual images to stacks took %s seconds ---\n" %
-          (time.time() - start_time))
+    print(("--- Individual images to stacks took %s seconds ---\n" %
+          (time.time() - start_time)))
 
 
 def main():
@@ -482,7 +482,7 @@ def main():
 
     db = TinyDB(file_index)
     a = db.table("hdf5_proc")
-    print(a.all())
+    print((a.all()))
 
     #many_images_to_h5_stack(file_index, type_struct="normalized")
 

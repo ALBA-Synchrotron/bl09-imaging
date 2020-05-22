@@ -29,7 +29,7 @@ from tinydb.storages import JSONStorage
 from tinydb.middlewares import CachingMiddleware
 from tinydb.storages import MemoryStorage
 
-from util import create_subset_db
+from .util import create_subset_db
 from txm2nexuslib.parser import get_file_paths
 from txm2nexuslib.image.image_operate_lib import Image
 from txm2nexuslib.images.util import filter_file_index
@@ -199,8 +199,8 @@ def align_images(file_index_fn, table_name="hdf5_proc",
                 align_method=align_method,
                 roi_size=roi_size) for couple_to_align in couples_to_align)
 
-    print("--- Align %d files took %s seconds ---\n" %
-          (n_files, (time.time() - start_time)))
+    print(("--- Align %d files took %s seconds ---\n" %
+          (n_files, (time.time() - start_time))))
     db.close()
 
 

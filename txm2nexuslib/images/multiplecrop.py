@@ -29,7 +29,7 @@ from tinydb.storages import JSONStorage
 from tinydb.middlewares import CachingMiddleware
 from tinydb.storages import MemoryStorage
 
-from util import create_subset_db
+from .util import create_subset_db
 from txm2nexuslib.parser import get_file_paths
 from txm2nexuslib.image.image_operate_lib import Image
 
@@ -95,8 +95,8 @@ def crop_images(file_index_fn, table_name="hdf5_proc", dataset="data",
             delayed(crop_and_store)(h5_file, dataset=dataset,
                                     roi=roi) for h5_file in files)
     n_files = len(files)
-    print("--- Crop %d files took %s seconds ---\n" %
-          (n_files, (time.time() - start_time)))
+    print(("--- Crop %d files took %s seconds ---\n" %
+          (n_files, (time.time() - start_time))))
     db.close()
 
 

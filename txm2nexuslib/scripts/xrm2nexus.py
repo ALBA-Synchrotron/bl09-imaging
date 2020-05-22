@@ -30,7 +30,7 @@ from txm2nexuslib.xrmnex import FilesOrganization, xrmNXtomo, xrmReader
 def main():
 
     print("\n")
-    print(datetime.datetime.today())
+    print((datetime.datetime.today()))
     print("\n")
 
     def str2bool(v):
@@ -88,16 +88,16 @@ def main():
                                      organize_by_repetitions=by_repetitions)
 
     # Generate the hdf5 files
-    for sample in samples.keys():
+    for sample in list(samples.keys()):
         tomos = samples[sample]['tomos']
         # Create FF reader
         ff_files = samples[sample]['ff']
         ffreader = xrmReader(ff_files)
-        for tomo in tomos.keys():
+        for tomo in list(tomos.keys()):
             tomo_files = samples[sample]['tomos'][tomo]
             if len(ff_files) == 0:
-                print "WARNING: %s of Sample: %s have not BrightField " \
-                      "files." % (tomo, sample)
+                print("WARNING: %s of Sample: %s have not BrightField " \
+                      "files." % (tomo, sample))
                 continue
             reader = xrmReader(tomo_files)
             xrm = xrmNXtomo(reader, ffreader,
@@ -116,7 +116,7 @@ def main():
             xrm.convert_tomography()
 
     print("\n")
-    print(datetime.datetime.today())
+    print((datetime.datetime.today()))
     print("\n")
 
 

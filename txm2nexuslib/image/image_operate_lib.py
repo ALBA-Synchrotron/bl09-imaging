@@ -26,7 +26,7 @@ import shutil
 import cv2
 import h5py
 import numpy as np
-from util import align
+from .util import align
 
 
 class Image(object):
@@ -544,7 +544,7 @@ def main():
 
     #reference_image_obj.clone_image_dataset()
     print(mv_vector)
-    print(np.shape(aligned_image))
+    print((np.shape(aligned_image)))
 
 if __name__ == "__main__":
     main()

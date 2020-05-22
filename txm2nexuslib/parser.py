@@ -246,7 +246,7 @@ def get_file_paths(query_output, root_path, use_subfolders=True,
         files = _get_paths_from_subfolders(root_path, query_output)
         # Filter existing files
         if only_existing_files:
-            files = filter(os.path.isfile, files)
+            files = list(filter(os.path.isfile, files))
     else:
         files = _get_paths_from_root(root_path, query_output)
 
